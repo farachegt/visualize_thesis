@@ -28,5 +28,5 @@
 
 ## 6. `__pycache__` versionado no diretorio
 
-- Existem artefatos compilados em `pgmet/Tese/__pycache__/`.
+- Existem artefatos compilados em `visualize_thesis/__pycache__/`.
 - Nao afeta logica, mas gera ruido de contexto para leitura/manual handoff.

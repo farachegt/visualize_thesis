@@ -3,7 +3,7 @@
 Copie e cole o bloco abaixo no inicio de outro chat:
 
 ```md
-Projeto: `pgmet/Tese` (ignorar `pgmet/Tese/egeon`).
+Projeto: `visualize_thesis`.
 
 Objetivo:
 - Comparar campos atmosfericos de MONAN vs E3SM e gerar figuras (mapas, ciclo diurno, perfis verticais e transectos).
