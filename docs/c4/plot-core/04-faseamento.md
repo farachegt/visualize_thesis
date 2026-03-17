@@ -4,11 +4,15 @@
 
 Criar a estrutura inicial de `plot_core`, com foco nos contratos centrais:
 
-- `ProfilePlotData`
+- `VerticalProfilePlotData`
 - `HorizontalFieldPlotData`
+- `VerticalCrossSectionPlotData`
 - `TimeSeriesPlotData`
 - `SourceSpecification`
 - `RenderSpecification`
+- `PlotLayer`
+- `PlotPanel`
+- `FigureSpecification`
 
 sem alterar os plotadores ainda.
 
@@ -18,8 +22,14 @@ Introduzir os componentes-base de preparo dentro da arquitetura de
 `plot_core`, sem ainda migrar todos os plotadores:
 
 - `DataAdapter`
-- `FileFormatHandler`
+- `FileFormatReader`
 - `GeometryHandler`
+
+Nesta fase, a API publica deve privilegiar o uso do `DataAdapter` como ponto
+de entrada principal, resolvendo internamente:
+
+- o `FileFormatReader` concreto adequado ao formato informado;
+- o `GeometryHandler` concreto adequado a geometria informada.
 
 ## Fase 3
 
@@ -28,13 +38,18 @@ Refatorar `plot_vertical_profiles_panel_at_point(...)` para separar:
 - preparo de dados;
 - renderizacao.
 
+Nesta etapa, a figura em paineis deve passar a ser modelada explicitamente por:
+
+- `PlotPanel`
+- `FigureSpecification`
+
 Nesta etapa, a preparacao de dados deve passar a considerar familias de
 componentes como:
 
 - `DataAdapter`
-- `FileFormatHandler`
-- `NetCDFFileFormatHandler`
-- `CSVFileFormatHandler`
+- `FileFormatReader`
+- `NetCDFFileFormatReader`
+- `CSVFileFormatReader`
 - `GeometryHandler`
 - `GriddedGeometryHandler`
 - `FixedPointGeometryHandler`
@@ -53,6 +68,11 @@ Criar novos plotadores horizontais genericos para comparacoes com ERA5.
 
 ## Fase 6
 
+Adaptar e generalizar plots de secao transversal vertical usando
+`VerticalCrossSectionPlotData`.
+
+## Fase 7
+
 Criar plotadores de series temporais de observacoes pontuais usando
 `TimeSeriesPlotData`.
 
@@ -61,8 +81,8 @@ Criar plotadores de series temporais de observacoes pontuais usando
 Definir como organizar internamente `plot_core`:
 
 - um submodulo mais focado em contratos (`PlotData`, `RenderSpecification`,
-  `SourceSpecification`); e
-- submodulos separados para `DataAdapter`, `FileFormatHandler` e
+  `PlotLayer`, `SourceSpecification`); e
+- submodulos separados para `DataAdapter`, `FileFormatReader` e
   `GeometryHandler`; ou
 - uma estrutura inicial mais enxuta, com menos separacao interna.
 

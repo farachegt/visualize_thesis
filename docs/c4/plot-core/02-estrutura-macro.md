@@ -2,7 +2,7 @@
 
 Este documento descreve os blocos macro internos de `plot_core`, sem usar o
 nivel de containers do C4. Classes e contratos internos, como
-`DataAdapter`, `FileFormatHandler`, `GeometryHandler`,
+`DataAdapter`, `FileFormatReader`, `GeometryHandler`,
 `SourceSpecification` e `PlotData`, pertencem ao nivel de componentes e sao
 detalhados em [03-componentes.md](./03-componentes.md).
 
@@ -40,24 +40,34 @@ Responsavel por:
 Esse bloco concentra a logica de leitura do dado bruto, interpretacao,
 selecao e transformacao dos dados antes do plot.
 
+Como regra de homogeneizacao, o resultado da leitura deve convergir para
+`xarray.Dataset` antes das etapas seguintes do pipeline.
+
 As pecas internas que realizam isso ficam no nivel de componentes. Em especial,
 esse bloco abriga a colaboracao entre:
 
 - `DataAdapter`
-- `FileFormatHandler`
+- `FileFormatReader`
 - `GeometryHandler`
 - `SourceSpecification`
 
 O detalhamento dessas pecas fica em
 [03-componentes.md](./03-componentes.md).
 
-## Bloco 2: Contratos, `PlotData` e `RenderSpecification`
+## Bloco 2: Contratos, `PlotData`, `RenderSpecification`, `PlotLayer`,
+`PlotPanel` e `FigureSpecification`
 
 Responsavel por:
 
 - definir estruturas padrao de `PlotData` ja prontas;
 - definir estruturas pequenas de `RenderSpecification` associadas a cada
   camada de render;
+- definir a estrutura `PlotLayer`, que associa `PlotData` e
+  `RenderSpecification` em uma camada renderizavel;
+- definir a estrutura `PlotPanel`, que agrupa uma ou mais `PlotLayer`s em um
+  subplot;
+- definir uma `FigureSpecification` para organizar o layout completo da
+  figura;
 - definir contratos auxiliares como `SourceSpecification`;
 - concentrar os contratos compartilhados entre os diferentes tipos de plot.
 
@@ -70,14 +80,21 @@ que o plotador saiba como desenhar corretamente o dado, por exemplo:
 - `colormap` sugerido;
 - labels de legenda e titulos curtos, quando fizerem parte do contrato.
 
-Para plots compostos, esse bloco tambem deve permitir combinar multiplos
-`PlotData`, cada um com sua propria `RenderSpecification`.
+Para plots compostos, esse bloco tambem deve permitir combinar multiplas
+`PlotLayer`, agrupa-las em `PlotPanel`s e organiza-las em uma figura.
+
+Cada `PlotLayer` e formada por:
+
+- uma `PlotData`;
+- uma `RenderSpecification`.
 
 Exemplo:
 
-- uma `HorizontalFieldPlotData` para superficie colorida;
-- outra `HorizontalFieldPlotData` para isolinhas;
-- cada uma com sua propria configuracao de render.
+- uma `PlotLayer` com `HorizontalFieldPlotData` para superficie colorida;
+- outra `PlotLayer` com `HorizontalFieldPlotData` para isolinhas;
+- cada camada com sua propria configuracao de render;
+- ambas agrupadas no mesmo `PlotPanel`;
+- multiplos `PlotPanel`s organizados por uma `FigureSpecification`.
 
 Esse modulo nao deve:
 
@@ -96,41 +113,53 @@ Em outras palavras:
 Responsavel por renderizar figuras para cada geometria:
 
 - perfis verticais;
+- secoes transversais verticais;
 - series temporais;
 - campos horizontais;
 - ciclos diurnos.
 
-Esses modulos devem operar sobre `PlotData` prontas, sem depender de nomes
-especificos como `monan_data` ou `e3sm_data`.
+Esse bloco e o responsavel por manipular diretamente a biblioteca de
+renderizacao, atualmente `matplotlib`.
+
+Esses modulos devem operar sobre `PlotPanel`s e `FigureSpecification`,
+sem depender de nomes especificos como `monan_data` ou `e3sm_data`.
 
 Esses plotadores nao devem receber:
 
 - `DataAdapter`s;
-- `FileFormatHandler`s;
+- `FileFormatReader`s;
 - `GeometryHandler`s;
 - `SourceSpecification`s;
 - `xarray.Dataset` bruto;
 - observacoes em formato cru.
 
-Eles devem receber apenas instancias prontas de `PlotData`.
+Eles devem receber apenas:
+
+- `PlotPanel`s prontas; e
+- uma `FigureSpecification`.
 
 ## Leitura correta deste nivel
 
 Neste nivel arquitetural, dentro de `plot_core`:
 
 - `Preparacao de dados` e um bloco macro;
-- `Contratos, PlotData e RenderSpecification` e o bloco de contratos;
+- `Contratos, PlotData, RenderSpecification, PlotLayer, PlotPanel e
+  FigureSpecification` e o bloco de contratos;
 - `Plotadores especializados` e o bloco de renderizacao.
 
 Ja neste mesmo contexto:
 
 - `DataAdapter`
-- `FileFormatHandler`
+- `FileFormatReader`
 - `GeometryHandler`
 - `SourceSpecification`
 - `RenderSpecification`
-- `ProfilePlotData`
+- `PlotLayer`
+- `PlotPanel`
+- `FigureSpecification`
+- `VerticalProfilePlotData`
 - `HorizontalFieldPlotData`
+- `VerticalCrossSectionPlotData`
 - `TimeSeriesPlotData`
 
 nao sao blocos macro. Eles sao componentes internos desses blocos.

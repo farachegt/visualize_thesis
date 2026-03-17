@@ -41,11 +41,12 @@ sejam produzidas a partir de contratos claros em vez de datasets brutos.
 Em outras palavras:
 
 - `DataAdapter`s orquestram o preparo dos dados;
-- `FileFormatHandler`s leem e normalizam o formato bruto;
+- `FileFormatReader`s leem e normalizam o formato bruto;
 - `GeometryHandler`s interpretam a estrutura espacial da fonte;
 - `SourceSpecification`s descrevem como interpretar variaveis, coordenadas e
   unidades;
-- `plot_core` organiza contratos de `PlotData`, `RenderSpecification` e
+- `plot_core` organiza contratos de `PlotData`, `RenderSpecification`,
+  `PlotLayer` e
   plotadores especializados.
 
 ## Visao geral do fluxo
@@ -53,10 +54,12 @@ Em outras palavras:
 ```mermaid
 flowchart LR
     A[Fontes brutas<br/>Modelo netCDF<br/>Observacao pontual netCDF<br/>Observacao pontual CSV] --> D[DataAdapter]
-    B[FileFormatHandler] --> D
+    B[FileFormatReader] --> D
     C[GeometryHandler] --> D
     E[SourceSpecification] --> D
     D --> F[PlotData pronta para plot]
-    F --> G[Plotador especializado]
+    R[RenderSpecification] --> L[PlotLayer]
+    F --> L
+    L --> G[Plotador especializado]
     G --> H[Figura final]
 ```
