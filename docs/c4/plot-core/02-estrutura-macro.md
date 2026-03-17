@@ -83,6 +83,14 @@ que o plotador saiba como desenhar corretamente o dado, por exemplo:
 Para plots compostos, esse bloco tambem deve permitir combinar multiplas
 `PlotLayer`, agrupa-las em `PlotPanel`s e organiza-las em uma figura.
 
+Essa capacidade precisa ficar explicita:
+
+- o mesmo subplot pode conter multiplos tipos de plot sobrepostos;
+- a mesma figura pode conter multiplos subplots;
+- portanto, a arquitetura deve suportar ao mesmo tempo:
+  - composicao de diferentes renders dentro de um mesmo `PlotPanel`; e
+  - composicao de varios `PlotPanel`s dentro da mesma imagem.
+
 Cada `PlotLayer` e formada por:
 
 - uma `PlotData`;
@@ -137,6 +145,37 @@ Eles devem receber apenas:
 
 - `PlotPanel`s prontas; e
 - uma `FigureSpecification`.
+
+## Fora de `plot_core`: recipes de alto nivel
+
+Fora do pacote `plot_core`, o projeto deve manter modulos de mais alto nivel
+responsaveis por expressar casos de uso concretos.
+
+Esses modulos funcionam como "recipes" da aplicacao.
+
+Responsabilidades esperadas desses recipes:
+
+- instanciar `DataAdapter`s;
+- escolher requests concretos;
+- solicitar `PlotData` ao core;
+- montar `PlotLayer`s, `PlotPanel`s e `FigureSpecification`;
+- chamar o `SpecializedPlotter`;
+- lidar com detalhes de execucao do caso de uso, como:
+  - iterar sobre tempos quando o usuario quiser um plot por tempo;
+  - escolher quais fontes comparar;
+  - salvar ou exibir a figura final.
+
+Esses recipes nao devem reabsorver a logica que a arquitetura esta tentando
+tirar dos scripts antigos.
+
+Ou seja:
+
+- nao devem voltar a manipular diretamente `xarray.Dataset` bruto para montar o
+  plot;
+- nao devem voltar a concentrar chamadas diretas de `matplotlib` para
+  reconstruir renderizacao de baixo nivel;
+- devem operar como clientes do `plot_core`, e nao como uma segunda
+  implementacao paralela da mesma logica.
 
 ## Leitura correta deste nivel
 

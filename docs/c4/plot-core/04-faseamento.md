@@ -56,11 +56,24 @@ componentes como:
 - `MovingPointGeometryHandler`
 - `SourceSpecification`
 
+Resultado esperado desta fase:
+
+- o codigo antigo de perfil vertical deixa de manipular diretamente
+  `xarray` e `matplotlib`;
+- passa a ser um recipe de alto nivel que usa o `plot_core`.
+
 ## Fase 4
 
 Refatorar `plot_diurnal.py` para reduzir acoplamento com nomes fixos de
 fontes e aceitar fontes ou, no minimo, nomes genericos (`source_1`,
 `source_2`).
+
+Resultado esperado desta fase:
+
+- `plot_diurnal.py` deixa de concentrar leitura, preparo e renderizacao de
+  baixo nivel;
+- passa a montar o fluxo via `DataAdapter`, `PlotData`, `PlotLayer`,
+  `PlotPanel`, `FigureSpecification` e `SpecializedPlotter`.
 
 ## Fase 5
 
@@ -75,6 +88,23 @@ Adaptar e generalizar plots de secao transversal vertical usando
 
 Criar plotadores de series temporais de observacoes pontuais usando
 `TimeSeriesPlotData`.
+
+## Diretriz geral de migracao
+
+Ao longo das fases acima, a diretriz deve ser esta:
+
+- os scripts antigos da raiz do projeto nao devem ser apenas "mantidos em
+  paralelo" ao novo core;
+- eles devem ser gradualmente adaptados para virar modulos de recipes que usam
+  o `plot_core`;
+- a logica reutilizavel deve migrar para o core;
+- os scripts finais devem ficar mais enxutos e mais proximos de descricao de
+  caso de uso do que de implementacao detalhada.
+
+Leitura correta dessa estrategia:
+
+- `plot_core` = nucleo reutilizavel da arquitetura;
+- scripts/refatoracoes na raiz = recipes de alto nivel apoiados no core.
 
 ## Questao em aberto
 

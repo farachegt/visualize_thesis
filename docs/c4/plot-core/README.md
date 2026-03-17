@@ -14,4 +14,5 @@ Este diretorio concentra a documentacao C4 do modulo `plot_core`.
 - [03e-geometry-handlers.md](./03e-geometry-handlers.md): `GeometryHandler`, especializacoes e compatibilidades.
 - [03f-data-adapter.md](./03f-data-adapter.md): papel do `DataAdapter` e relacao entre os componentes.
 - [03g-exemplos.md](./03g-exemplos.md): exemplos concretos de uso da arquitetura.
+- [03h-exemplos-completos.md](./03h-exemplos-completos.md): exemplos mais completos, da abertura da fonte ate a chamada do plot.
 - [04-faseamento.md](./04-faseamento.md): ordem sugerida de implementacao.

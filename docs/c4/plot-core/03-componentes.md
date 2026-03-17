@@ -18,6 +18,8 @@ revisao e manutencao.
   relacao entre os componentes.
 - [03g-exemplos.md](./03g-exemplos.md): exemplos concretos de uso da
   arquitetura.
+- [03h-exemplos-completos.md](./03h-exemplos-completos.md): fluxos mais
+  completos, da abertura da fonte ate a chamada do plot.
 
 ## Roteiro de leitura
 
@@ -30,6 +32,7 @@ Uma leitura produtiva deste bloco costuma ser:
 5. [03f-data-adapter.md](./03f-data-adapter.md)
 6. [03b-renderizacao.md](./03b-renderizacao.md)
 7. [03g-exemplos.md](./03g-exemplos.md)
+8. [03h-exemplos-completos.md](./03h-exemplos-completos.md)
 
 ## Papel deste nivel
 

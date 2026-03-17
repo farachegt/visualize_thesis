@@ -2,10 +2,10 @@
 
 ## Visao geral
 
-`FileFormatReader` define como abrir e normalizar o formato bruto da fonte.
+`FileFormatReader` define como abrir o formato bruto da fonte.
 
 Ele deve ser tratado como uma classe abstrata, responsavel por definir a
-interface comum de leitura e normalizacao.
+interface comum de leitura.
 
 Metodo esperado na interface abstrata:
 
@@ -34,36 +34,46 @@ Campos sugeridos para as classes concretas:
 - armazenar a referencia da fonte em disco;
 - abrir com a biblioteca adequada, como `xarray` ou `pandas`;
 - preservar comportamento lazy quando o backend permitir;
-- normalizar a estrutura minima de entrada para a etapa seguinte;
 - lidar com parsing basico de tempo, colunas e tipos;
 - devolver um objeto interno consistente para o `DataAdapter`.
 
-## Normalizacao estrutural minima
+Importante:
 
-Por normalizacao estrutural minima, entende-se:
-
-- padronizar nomes de coordenadas, por exemplo evitando misturar `lon` com
-  `longitude` ou `lat` com `latitude`;
-- padronizar longitude para o intervalo `[-180, 180]`;
-- manter a estrutura em `xarray.Dataset` para homogeneizar as etapas
-  seguintes.
-
-Essa normalizacao nao deve incluir transformacoes cientificas, como medias,
-derivacoes meteorologicas ou selecoes espaciais/temporais de analise.
+- nesta arquitetura, o `FileFormatReader` nao deve aplicar
+  `SourceSpecification`;
+- tambem nao deve resolver nomes canonicos de variaveis;
+- a normalizacao semantica de coordenadas e variaveis deve ficar no
+  `DataAdapter`.
 
 ## `NetCDFFileFormatReader`
 
 Comportamento esperado:
 
 - implementa `open_data()`;
-- deve usar `xarray.open_mfdataset`;
+- quando receber `path`, deve usar `xarray.open_dataset`;
+- quando receber `glob_pattern`, deve usar `xarray.open_mfdataset`;
 - pode receber `engine`;
-- pode receber parametros de combinacao/concatenacao do `open_mfdataset`;
+- pode receber parametros adicionais do metodo de backend efetivamente usado;
+- quando usar `open_mfdataset`, pode receber parametros de
+  combinacao/concatenacao;
 - pode receber `chunks`;
 - pode receber um metodo `preprocess`, se necessario;
 - deve suportar leitura de multiplos arquivos apenas por meio de
   `glob_pattern`;
 - deve devolver um `xarray.Dataset`.
+
+Exemplos curtos:
+
+```python
+NetCDFFileFormatReader(path="/dados/monan/history_20140215.nc")
+```
+
+```python
+NetCDFFileFormatReader(
+    glob_pattern="/dados/monan/history_201402*.nc",
+    chunks={"time": 1},
+)
+```
 
 ## `CSVFileFormatReader`
 
@@ -74,6 +84,66 @@ Comportamento esperado:
 - pode receber opcoes como `encoding`, `sep`, `decimal` e `parse_dates`;
 - apos a leitura, deve converter o conteudo para `xarray.Dataset`;
 - deve devolver um `xarray.Dataset`.
+
+Escopo recomendado para a primeira implementacao:
+
+- suportar apenas `path`, e nao `glob_pattern`;
+- nao tentar concatenar multiplos CSVs nesta primeira fase;
+- esperar um CSV tabular simples, em formato "tidy", em que cada linha
+  represente uma observacao em um instante;
+- deixar o mapeamento de colunas para nomes canonicos a cargo do
+  `DataAdapter`, com base em `SourceSpecification`;
+- converter a tabela para `xarray.Dataset` sem introduzir pivots ou reshapes
+  complexos demais.
+
+Casos que eu priorizaria no CSV logo de inicio:
+
+- observacao em sitio fixo para `TimeSeriesPlotData`;
+- estacao de superficie em CSV como caso principal de uso;
+- produtos observacionais tabulares simples em ponto fixo.
+
+Casos que eu nao tentaria suportar logo de inicio:
+
+- grade horizontal vindo de CSV;
+- radiossonda em CSV;
+- multiplos arquivos CSV por wildcard;
+- formatos "wide" muito especificos, que exigem pivot manual antes de virar
+  `Dataset`.
+
+Campos de `reader_options` mais importantes para CSV neste comeco:
+
+- `sep`
+- `encoding`
+- `decimal`
+- `parse_dates`
+- `header`
+- `na_values`
+- `skiprows`
+
+Regra pratica importante:
+
+- `CSVFileFormatReader` nao deve tentar adivinhar estruturas tabulares muito
+  heterogeneas;
+- para o MVP, ele deve assumir uma tabela observacional relativamente limpa e
+  previsivel;
+- no caso real priorizado desta arquitetura, ele deve ser pensado para uma
+  estacao de superficie em geometria `fixed_point`;
+- quando latitude, longitude ou altitude do sitio nao estiverem no CSV, esses
+  metadados devem ser informados explicitamente pelo usuario em
+  `SourceSpecification`;
+- se um CSV exigir preprocessamento pesado antes de virar um `Dataset`,
+  isso deve ser tratado como excecao especifica e nao como responsabilidade
+  padrao do reader.
+
+Exemplo curto:
+
+```python
+CSVFileFormatReader(
+    path="/dados/obs/estacao_superficie.csv",
+    sep=",",
+    parse_dates=True,
+)
+```
 
 ## Resumo
 
