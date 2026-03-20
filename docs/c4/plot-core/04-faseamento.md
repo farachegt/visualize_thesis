@@ -1,52 +1,131 @@
 # Faseamento sugerido
 
+## Objetivo do faseamento
+
+O objetivo deste faseamento e transformar a arquitetura documentada em uma
+ordem de implementacao pragmatica para o MVP, reduzindo retrabalho e
+separando claramente:
+
+- o nucleo reutilizavel em `plot_core`;
+- fixtures de teste e exemplos concretos baseados nos arquivos em `datafiles`;
+- recipes que substituirao gradualmente os scripts antigos da raiz.
+
+## Estrutura-alvo inicial
+
+Para o MVP, a estrutura sugerida e esta:
+
+```text
+plot_core/
+├── __init__.py
+├── canonical_variables.py
+├── derivations.py
+├── specifications.py
+├── requests.py
+├── plot_data.py
+├── rendering.py
+├── adapter.py
+├── readers.py
+├── geometry.py
+└── recipes/
+    ├── __init__.py
+    ├── profiles.py
+    ├── diurnal.py
+    └── maps.py
+
+tests/
+└── fixtures/
+    └── source_specifications.py
+```
+
+Leitura correta dessa organizacao:
+
+- `plot_core` contem apenas contratos e implementacoes reutilizaveis;
+- `tests/fixtures/source_specifications.py` contem `SourceSpecification`s
+  concretos dos arquivos de teste presentes em `datafiles`;
+- `plot_core/recipes/` ou recipes equivalentes substituem gradualmente os
+  scripts antigos da raiz, passando a operar como clientes do core.
+
 ## Fase 1
 
-Criar a estrutura inicial de `plot_core`, com foco nos contratos centrais:
+Criar os contratos centrais do `plot_core`.
 
+Arquivos foco:
+
+- `specifications.py`
+- `requests.py`
+- `plot_data.py`
+- `rendering.py`
+- `canonical_variables.py`
+
+Componentes a implementar:
+
+- `SourceSpecification`
+- `VariableSpecification`
+- `VerticalProfileRequest`
+- `HorizontalFieldRequest`
+- `VerticalCrossSectionRequest`
+- `TimeSeriesRequest`
+- `TimeVerticalSectionRequest`
 - `VerticalProfilePlotData`
 - `HorizontalFieldPlotData`
 - `VerticalCrossSectionPlotData`
 - `TimeSeriesPlotData`
-- `SourceSpecification`
+- `TimeVerticalSectionPlotData`
 - `RenderSpecification`
+- `ColorbarSpecification`
 - `PlotLayer`
 - `PlotPanel`
 - `FigureSpecification`
+- lista de nomes canonicios em `canonical_variables.py`
 
-sem alterar os plotadores ainda.
+Resultado esperado:
+
+- contratos estaveis para requests, dados de plot e renderizacao;
+- nenhum acoplamento ainda com leitura real de arquivos;
+- base pronta para desenvolvimento incremental.
 
 ## Fase 2
 
-Introduzir os componentes-base de preparo dentro da arquitetura de
-`plot_core`, sem ainda migrar todos os plotadores:
+Implementar o nucleo de renderizacao.
 
-- `DataAdapter`
-- `FileFormatReader`
-- `GeometryHandler`
+Arquivo foco:
 
-Nesta fase, a API publica deve privilegiar o uso do `DataAdapter` como ponto
-de entrada principal, resolvendo internamente:
+- `rendering.py`
 
-- o `FileFormatReader` concreto adequado ao formato informado;
-- o `GeometryHandler` concreto adequado a geometria informada.
+Componente principal:
+
+- `SpecializedPlotter`
+
+Escopo do MVP:
+
+- suporte aos metodos:
+  - `plot`
+  - `contourf`
+  - `contour`
+  - `pcolormesh`
+- matriz suportada:
+  - `VerticalProfilePlotData` -> `plot`
+  - `TimeSeriesPlotData` -> `plot`
+  - `HorizontalFieldPlotData` -> `contourf`, `contour`, `pcolormesh`
+  - `VerticalCrossSectionPlotData` -> `contourf`, `contour`, `pcolormesh`
+  - `TimeVerticalSectionPlotData` -> `contourf`, `contour`, `pcolormesh`
+
+Resultado esperado:
+
+- ja ser possivel montar figuras a partir de `PlotData` manualmente criadas;
+- validacao inicial do contrato `PlotLayer` -> `PlotPanel` -> `FigureSpecification`.
 
 ## Fase 3
 
-Refatorar `plot_vertical_profiles_panel_at_point(...)` para separar:
+Implementar leitura e preparo geometrico base.
 
-- preparo de dados;
-- renderizacao.
+Arquivos foco:
 
-Nesta etapa, a figura em paineis deve passar a ser modelada explicitamente por:
+- `readers.py`
+- `geometry.py`
 
-- `PlotPanel`
-- `FigureSpecification`
+Componentes:
 
-Nesta etapa, a preparacao de dados deve passar a considerar familias de
-componentes como:
-
-- `DataAdapter`
 - `FileFormatReader`
 - `NetCDFFileFormatReader`
 - `CSVFileFormatReader`
@@ -54,49 +133,137 @@ componentes como:
 - `GriddedGeometryHandler`
 - `FixedPointGeometryHandler`
 - `MovingPointGeometryHandler`
-- `SourceSpecification`
 
-Resultado esperado desta fase:
+Decisoes importantes desta fase:
 
-- o codigo antigo de perfil vertical deixa de manipular diretamente
-  `xarray` e `matplotlib`;
-- passa a ser um recipe de alto nivel que usa o `plot_core`.
+- `FileFormatReader` apenas le do disco e converte para `xarray.Dataset`;
+- a normalizacao semantica nao acontece no reader;
+- `CSVFileFormatReader` no MVP suporta apenas:
+  - `path`
+  - um unico CSV
+  - caso `fixed_point`
+  - tabela observacional simples.
+
+Resultado esperado:
+
+- leitura funcional dos arquivos de teste em NetCDF e CSV;
+- recortes espaciais, temporais e verticais basicos disponiveis por geometria.
 
 ## Fase 4
 
-Refatorar `plot_diurnal.py` para reduzir acoplamento com nomes fixos de
-fontes e aceitar fontes ou, no minimo, nomes genericos (`source_1`,
-`source_2`).
+Implementar semantica de variaveis e derivacoes.
 
-Resultado esperado desta fase:
+Arquivo foco:
 
-- `plot_diurnal.py` deixa de concentrar leitura, preparo e renderizacao de
-  baixo nivel;
-- passa a montar o fluxo via `DataAdapter`, `PlotData`, `PlotLayer`,
-  `PlotPanel`, `FigureSpecification` e `SpecializedPlotter`.
+- `derivations.py`
+
+Componentes:
+
+- wrappers locais para `MetPy`
+- `DERIVATION_REGISTRY`
+
+Derivacoes iniciais do MVP:
+
+- `theta_from_pressure_temperature`
+- `wind_speed_from_uv`
+- `rh_from_qv_temperature_pressure`
+- `height_from_pressure_standard_atmosphere`
+- `pressure_from_height_standard_atmosphere`
+
+Resultado esperado:
+
+- o core passa a resolver variaveis diretas e derivadas sob um contrato unico.
 
 ## Fase 5
 
-Criar novos plotadores horizontais genericos para comparacoes com ERA5.
+Implementar o `DataAdapter`.
+
+Arquivo foco:
+
+- `adapter.py`
+
+Responsabilidades:
+
+- abrir a fonte via `FileFormatReader`;
+- aplicar `SourceSpecification`;
+- resolver `required_variable_names` como conjunto expandido de dependencias
+  da chamada atual;
+- acionar o `GeometryHandler` adequado;
+- montar e devolver uma unica `PlotData` por chamada.
+
+Metodos publicos do MVP:
+
+- `open_data()`
+- `to_vertical_profile_plot_data(...)`
+- `to_horizontal_field_plot_data(...)`
+- `to_vertical_cross_section_plot_data(...)`
+- `to_time_series_plot_data(...)`
+- `to_time_vertical_section_plot_data(...)`
+
+Resultado esperado:
+
+- ja ser possivel gerar `PlotData` reais a partir dos arquivos de teste.
 
 ## Fase 6
 
-Adaptar e generalizar plots de secao transversal vertical usando
-`VerticalCrossSectionPlotData`.
+Criar fixtures de teste reais para os arquivos em `datafiles`.
+
+Arquivo foco:
+
+- `tests/fixtures/source_specifications.py`
+
+Essas fixtures devem conter `SourceSpecification`s especificos para os dados de
+teste, por exemplo:
+
+- modelo em NetCDF;
+- radiossonda observada em NetCDF;
+- ceilometro observado em CSV.
+
+Diretriz importante:
+
+- essas specifications de teste nao pertencem ao `plot_core`;
+- elas existem apenas para desenvolvimento, validacao e testes do MVP.
+
+Resultado esperado:
+
+- validacao do core com dados reais desde o inicio;
+- menor risco de uma arquitetura correta no papel e ruim em uso real.
 
 ## Fase 7
 
-Criar plotadores de series temporais de observacoes pontuais usando
-`TimeSeriesPlotData`.
+Refatorar os scripts antigos para recipes apoiados no core.
+
+Prioridade sugerida:
+
+1. `plot_profiles.py`
+2. `plot_diurnal.py`
+3. `plot_maps.py`
+
+Resultado esperado desta fase:
+
+- os scripts antigos deixam de manipular diretamente:
+  - `xarray`
+  - `matplotlib`
+  - selecao espacial e temporal
+  - derivacao de variaveis
+  - conversao de unidades
+- passam a montar o fluxo via:
+  - `DataAdapter`
+  - `PlotData`
+  - `RenderSpecification`
+  - `PlotLayer`
+  - `PlotPanel`
+  - `FigureSpecification`
+  - `SpecializedPlotter`
 
 ## Diretriz geral de migracao
 
 Ao longo das fases acima, a diretriz deve ser esta:
 
-- os scripts antigos da raiz do projeto nao devem ser apenas "mantidos em
-  paralelo" ao novo core;
-- eles devem ser gradualmente adaptados para virar modulos de recipes que usam
-  o `plot_core`;
+- os scripts antigos da raiz do projeto nao devem ser apenas mantidos em
+  paralelo ao novo core;
+- eles devem ser gradualmente adaptados para virar recipes que usam o
+  `plot_core`;
 - a logica reutilizavel deve migrar para o core;
 - os scripts finais devem ficar mais enxutos e mais proximos de descricao de
   caso de uso do que de implementacao detalhada.
@@ -104,20 +271,5 @@ Ao longo das fases acima, a diretriz deve ser esta:
 Leitura correta dessa estrategia:
 
 - `plot_core` = nucleo reutilizavel da arquitetura;
-- scripts/refatoracoes na raiz = recipes de alto nivel apoiados no core.
-
-## Questao em aberto
-
-Definir como organizar internamente `plot_core`:
-
-- um submodulo mais focado em contratos (`PlotData`, `RenderSpecification`,
-  `PlotLayer`, `SourceSpecification`); e
-- submodulos separados para `DataAdapter`, `FileFormatReader` e
-  `GeometryHandler`; ou
-- uma estrutura inicial mais enxuta, com menos separacao interna.
-
-Sugestao inicial:
-
-- manter `plot_core` como o pacote central da arquitetura;
-- separar contratos, classes base e implementacoes concretas em submodulos
-  especificos dentro dele.
+- fixtures de teste = contratos concretos para validar o MVP com dados reais;
+- recipes = camada de orquestracao de casos de uso concretos.

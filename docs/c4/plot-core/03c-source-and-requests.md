@@ -229,7 +229,8 @@ Casos fechados para esta arquitetura:
 - `theta_from_pressure_temperature`
   - usar `metpy.calc.potential_temperature(pressure, temperature)`;
 - `rh_from_qv_temperature_pressure`
-  - usar `metpy.calc.relative_humidity_from_mixing_ratio(pressure, temperature, mixing_ratio)`;
+  - usar `metpy.calc.relative_humidity_from_mixing_ratio(...)`, com
+    `pressure`, `temperature` e `mixing_ratio`;
 - `height_from_pressure_standard_atmosphere`
   - usar `metpy.calc.pressure_to_height_std(pressure)`;
 - `pressure_from_height_standard_atmosphere`
@@ -260,7 +261,9 @@ Importante:
   existirem;
 - no caso de `rh_from_qv_temperature_pressure`, o registry deve considerar a
   assinatura atual documentada no MetPy:
-  `relative_humidity_from_mixing_ratio(pressure, temperature, mixing_ratio, *, phase='liquid')`;
+  `relative_humidity_from_mixing_ratio(
+  pressure, temperature, mixing_ratio, *, phase='liquid'
+  )`;
 - no caso especifico de `pressure <-> height`, a conversao deve ser tratada
   apenas como apoio a exibicao no plot;
 - essa conversao nao deve orientar recorte geometrico, selecao vertical ou a
@@ -515,8 +518,14 @@ Regras:
   unico, por exemplo `925 hPa`;
 - `time_frequency` e `time_reduce` devem controlar reamostragem e agregacao
   temporal quando necessario;
-- quando houver necessidade de construir `times` a partir de um intervalo, a
-  lista deve ser montada antes de instanciar o request.
+- para `TimeSeriesRequest`, `times` deve ser interpretado como o seletor
+  temporal da serie;
+- quando a selecao desejada for um intervalo temporal continuo, basta informar
+  os limites do intervalo, por exemplo `[start_time, end_time]`;
+- na implementacao do MVP, o `GeometryHandler` usa `min(times)` e `max(times)`
+  para selecionar todos os pontos dentro desse intervalo continuo;
+- se houver necessidade futura de suportar selecoes temporais discretas e nao
+  contiguas, esse contrato precisara ser expandido.
 
 ## `TimeVerticalSectionRequest`
 
@@ -554,8 +563,11 @@ Regras:
   atual da arquitetura;
 - `time_frequency` e `time_reduce` podem ser usados para controlar a
   reamostragem temporal ao longo do eixo do plot.
+- assim como em `TimeSeriesRequest`, `times` pode ser informado apenas pelos
+  limites de um intervalo temporal continuo.
 
 ## Resumo
 
 - `SourceSpecification` responde "como interpretar esta fonte?";
-- os requests respondem "quais valores concretos devo recortar para este plot?".
+- os requests respondem
+  "quais valores concretos devo recortar para este plot?".
