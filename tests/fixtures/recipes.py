@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
@@ -10,10 +11,25 @@ from plot_core.recipes.profiles import (
     VerticalProfileLayerInput,
     plot_vertical_profiles_panel,
 )
-from plot_core.rendering import FigureSpecification, RenderSpecification
-from plot_core.requests import VerticalProfileRequest
+from plot_core.recipes.time_vertical import (
+    HourlyMeanLayerInput,
+    HourlyMeanPanelInput,
+    plot_hourly_mean_panels,
+)
+from plot_core.rendering import (
+    ColorbarSpecification,
+    FigureSpecification,
+    RenderSpecification,
+)
+from plot_core.requests import (
+    TimeSeriesRequest,
+    TimeVerticalSectionRequest,
+    VerticalProfileRequest,
+)
 
 from .adapters import (
+    build_legacy_e3sm_adapter,
+    build_legacy_monan_e3sm_adapter,
     build_legacy_mynn_monan_adapter,
     build_legacy_shoc_monan_adapter,
     build_model_u_adapter,
@@ -45,7 +61,19 @@ LEGACY_PROFILE_X_UNITS = (
 )
 LEGACY_PROFILE_PRIMARY_LABEL = "MONAN - SHOC scheme"
 LEGACY_PROFILE_SECONDARY_LABEL = "MONAN - MYNN scheme"
+LEGACY_HOURLY_MEAN_REGION_NAME = "African Desert"
+LEGACY_HOURLY_MEAN_POINT_LAT = 20.0
+LEGACY_HOURLY_MEAN_POINT_LON = 0.0
+LEGACY_HOURLY_MEAN_START_DATE = np.datetime64("2014-09-03T00:00:00")
+LEGACY_HOURLY_MEAN_N_DAYS = 3
+LEGACY_HOURLY_MEAN_HALF_BOX_DEG = 0.5
+LEGACY_HOURLY_MEAN_TKE_VMIN = 0.0
+LEGACY_HOURLY_MEAN_TKE_VMAX = 2.0
 
+
+# ============================================================================
+# Public fixture builders
+# ============================================================================
 
 def build_vertical_profile_recipe_panel_input() -> PanelInput:
     """Build a complete panel input for the vertical-profile recipe.
@@ -286,4 +314,389 @@ def build_legacy_main_vertical_profile_recipe_panels() -> list[PanelInput]:
         primary_request=request,
         secondary_adapter=mynn_adapter,
         secondary_request=request,
+    )
+
+
+def build_legacy_monan_e3sm_hourly_mean_inputs(
+    *,
+    region_name: str = LEGACY_HOURLY_MEAN_REGION_NAME,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+    tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
+    tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+) -> tuple[list[HourlyMeanPanelInput], FigureSpecification, float]:
+    """Build the full input set for the generic MONAN/E3SM recipe.
+
+    Parameters
+    ----------
+    region_name:
+        Human-readable region name used in the figure title.
+    point_lat:
+        Region-centre latitude in degrees.
+    point_lon:
+        Region-centre longitude in degrees.
+    start_date:
+        Initial UTC instant of the requested time span.
+    n_days:
+        Number of days included in the request.
+    half_box_deg:
+        Half-size of the square bounding box in degrees.
+    tke_vmin:
+        Minimum color value used by the TKE shading.
+    tke_vmax:
+        Maximum color value used by the TKE shading.
+
+    Returns
+    -------
+    tuple[list[HourlyMeanPanelInput], FigureSpecification, float]
+        Tuple containing:
+        - the panel list consumed by `plot_hourly_mean_panels(...)`;
+        - the matching `FigureSpecification`;
+        - the reference longitude used for local-hour conversion.
+    """
+    panels = _build_legacy_monan_e3sm_hourly_mean_panels(
+        point_lat=point_lat,
+        point_lon=point_lon,
+        start_date=start_date,
+        n_days=n_days,
+        half_box_deg=half_box_deg,
+        tke_vmin=tke_vmin,
+        tke_vmax=tke_vmax,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_hourly_mean_figure_specification(
+            region_name=region_name,
+            point_lat=point_lat,
+            point_lon=point_lon,
+        )
+    )
+    return panels, figure_specification, point_lon
+
+
+def build_legacy_monan_e3sm_hourly_mean_figure(
+    *,
+    region_name: str = LEGACY_HOURLY_MEAN_REGION_NAME,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+    tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
+    tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+) -> Figure:
+    """Execute the generic MONAN/E3SM hourly-mean recipe example.
+
+    Parameters
+    ----------
+    region_name:
+        Human-readable region name used in panel titles.
+    point_lat:
+        Region-centre latitude in degrees.
+    point_lon:
+        Region-centre longitude in degrees.
+    start_date:
+        Initial UTC instant of the requested time span.
+    n_days:
+        Number of days included in the request.
+    half_box_deg:
+        Half-size of the square bounding box in degrees.
+    tke_vmin:
+        Minimum color value used by the TKE shading.
+    tke_vmax:
+        Maximum color value used by the TKE shading.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the generic `plot_hourly_mean_panels(...)`
+        recipe.
+    """
+    (
+        panels,
+        figure_specification,
+        reference_longitude,
+    ) = build_legacy_monan_e3sm_hourly_mean_inputs(
+        region_name=region_name,
+        point_lat=point_lat,
+        point_lon=point_lon,
+        start_date=start_date,
+        n_days=n_days,
+        half_box_deg=half_box_deg,
+        tke_vmin=tke_vmin,
+        tke_vmax=tke_vmax,
+    )
+    return plot_hourly_mean_panels(
+        panels=panels,
+        figure_specification=figure_specification,
+        reference_longitude=reference_longitude,
+    )
+
+
+# ============================================================================
+# Private fixture helpers
+# ============================================================================
+
+
+def _build_legacy_monan_e3sm_hourly_mean_bbox(
+    *,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+) -> tuple[float, float, float, float]:
+    """Build the legacy lat/lon box used by hourly-mean MONAN/E3SM plots."""
+    min_lat = max(-90.0, point_lat - half_box_deg)
+    max_lat = min(90.0, point_lat + half_box_deg)
+    min_lon = max(-180.0, point_lon - half_box_deg)
+    max_lon = min(180.0, point_lon + half_box_deg)
+    return (min_lon, max_lon, min_lat, max_lat)
+
+
+def _build_legacy_monan_e3sm_hourly_mean_times(
+    *,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+) -> np.ndarray:
+    """Build the legacy time window used by hourly-mean MONAN/E3SM plots."""
+    end_date = start_date + np.timedelta64(n_days, "D")
+    return np.asarray([start_date, end_date], dtype="datetime64[ns]")
+
+
+def _build_legacy_monan_e3sm_time_vertical_request(
+    *,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+) -> TimeVerticalSectionRequest:
+    """Build the legacy time-vertical request for MONAN/E3SM comparison."""
+    return TimeVerticalSectionRequest(
+        times=_build_legacy_monan_e3sm_hourly_mean_times(
+            start_date=start_date,
+            n_days=n_days,
+        ),
+        vertical_axis="pressure",
+        bbox=_build_legacy_monan_e3sm_hourly_mean_bbox(
+            point_lat=point_lat,
+            point_lon=point_lon,
+            half_box_deg=half_box_deg,
+        ),
+    )
+
+
+def _build_legacy_monan_e3sm_time_series_request(
+    *,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+) -> TimeSeriesRequest:
+    """Build the legacy regional-mean time-series request for MONAN/E3SM."""
+    return TimeSeriesRequest(
+        times=_build_legacy_monan_e3sm_hourly_mean_times(
+            start_date=start_date,
+            n_days=n_days,
+        ),
+        bbox=_build_legacy_monan_e3sm_hourly_mean_bbox(
+            point_lat=point_lat,
+            point_lon=point_lon,
+            half_box_deg=half_box_deg,
+        ),
+    )
+
+
+def _build_legacy_monan_e3sm_hourly_mean_panels(
+    *,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+    start_date: np.datetime64 = LEGACY_HOURLY_MEAN_START_DATE,
+    n_days: int = LEGACY_HOURLY_MEAN_N_DAYS,
+    half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
+    tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
+    tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+) -> list[HourlyMeanPanelInput]:
+    """Build the generic hourly-mean panels for the MONAN/E3SM recipe."""
+    monan_adapter = build_legacy_monan_e3sm_adapter()
+    e3sm_adapter = build_legacy_e3sm_adapter()
+    time_vertical_request = _build_legacy_monan_e3sm_time_vertical_request(
+        point_lat=point_lat,
+        point_lon=point_lon,
+        start_date=start_date,
+        n_days=n_days,
+        half_box_deg=half_box_deg,
+    )
+    time_series_request = _build_legacy_monan_e3sm_time_series_request(
+        point_lat=point_lat,
+        point_lon=point_lon,
+        start_date=start_date,
+        n_days=n_days,
+        half_box_deg=half_box_deg,
+    )
+
+    return [
+        _build_legacy_hourly_mean_upper_panel(
+            adapter=monan_adapter,
+            label="MONAN",
+            time_vertical_request=time_vertical_request,
+            time_series_request=time_series_request,
+            tke_vmin=tke_vmin,
+            tke_vmax=tke_vmax,
+        ),
+        _build_legacy_hourly_mean_upper_panel(
+            adapter=e3sm_adapter,
+            label="E3SM",
+            time_vertical_request=time_vertical_request,
+            time_series_request=time_series_request,
+            tke_vmin=tke_vmin,
+            tke_vmax=tke_vmax,
+        ),
+        _build_legacy_hourly_mean_lower_panel(
+            adapter=monan_adapter,
+            label="MONAN",
+            time_series_request=time_series_request,
+        ),
+        _build_legacy_hourly_mean_lower_panel(
+            adapter=e3sm_adapter,
+            label="E3SM",
+            time_series_request=time_series_request,
+        ),
+    ]
+
+
+def _build_legacy_monan_e3sm_hourly_mean_figure_specification(
+    *,
+    region_name: str = LEGACY_HOURLY_MEAN_REGION_NAME,
+    point_lat: float = LEGACY_HOURLY_MEAN_POINT_LAT,
+    point_lon: float = LEGACY_HOURLY_MEAN_POINT_LON,
+) -> FigureSpecification:
+    """Build the figure specification for the generic MONAN/E3SM example."""
+    latitude_hemisphere = "N" if point_lat >= 0.0 else "S"
+    longitude_hemisphere = "E" if point_lon >= 0.0 else "W"
+    suptitle = (
+        "TKE Vertical Profile Hourly Mean - "
+        f"{region_name} "
+        f"({abs(point_lat):.2f}°{latitude_hemisphere}, "
+        f"{abs(point_lon):.2f}°{longitude_hemisphere}, UTC+0)"
+    )
+    return FigureSpecification(
+        nrows=2,
+        ncols=2,
+        suptitle=suptitle,
+        figure_kwargs={"figsize": (16, 12), "constrained_layout": True},
+    )
+
+
+def _build_legacy_hourly_mean_upper_panel(
+    *,
+    adapter: DataAdapter,
+    label: str,
+    time_vertical_request: TimeVerticalSectionRequest,
+    time_series_request: TimeSeriesRequest,
+    tke_vmin: float,
+    tke_vmax: float,
+) -> HourlyMeanPanelInput:
+    """Build one upper hourly-mean `time x pressure` panel."""
+    return HourlyMeanPanelInput(
+        layers=[
+            HourlyMeanLayerInput(
+                adapter=adapter,
+                request=time_vertical_request,
+                variable_name="tke_pbl",
+                data_kind="time_vertical",
+                render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs={
+                        "cmap": "viridis",
+                        "vmin": tke_vmin,
+                        "vmax": tke_vmax,
+                        "shading": "auto",
+                    },
+                ),
+            ),
+            HourlyMeanLayerInput(
+                adapter=adapter,
+                request=time_vertical_request,
+                variable_name="qc",
+                data_kind="time_vertical",
+                render_specification=RenderSpecification(
+                    artist_method="contour",
+                    artist_kwargs={
+                        "colors": "white",
+                        "linewidths": 0.8,
+                        "alpha": 0.8,
+                    },
+                ),
+            ),
+            HourlyMeanLayerInput(
+                adapter=adapter,
+                request=time_series_request,
+                variable_name="hpbl",
+                data_kind="time_series",
+                render_specification=RenderSpecification(
+                    artist_method="plot",
+                    artist_kwargs={
+                        "color": "black",
+                        "linewidth": 2.0,
+                    },
+                ),
+                legend_label="HPBL (pressure-equivalent)",
+                convert_height_to_pressure=True,
+            ),
+        ],
+        axes_set_kwargs={
+            "title": f"{label} - TKE Hourly Mean",
+            "xlabel": "Local hour",
+            "ylabel": "pressure [hPa]",
+            "xlim": (0, 23),
+        },
+        grid_kwargs={"visible": True, "alpha": 0.3},
+        legend_kwargs={"loc": "upper right"},
+        colorbar_specification=ColorbarSpecification(
+            source_layer_index=0,
+            label="TKE",
+        ),
+        axes_calls=[
+            {"method": "set_xticks", "args": (np.arange(0, 24, 3),)},
+            {"method": "invert_yaxis"},
+        ],
+    )
+
+
+def _build_legacy_hourly_mean_lower_panel(
+    *,
+    adapter: DataAdapter,
+    label: str,
+    time_series_request: TimeSeriesRequest,
+) -> HourlyMeanPanelInput:
+    """Build one lower hourly-mean sensible-heat-flux panel."""
+    return HourlyMeanPanelInput(
+        layers=[
+            HourlyMeanLayerInput(
+                adapter=adapter,
+                request=time_series_request,
+                variable_name="sensible_heat_flux",
+                data_kind="time_series",
+                render_specification=RenderSpecification(
+                    artist_method="plot",
+                    artist_kwargs={
+                        "color": "tab:red",
+                        "linewidth": 2.0,
+                    },
+                ),
+            )
+        ],
+        axes_set_kwargs={
+            "title": f"{label} - Sensible Heat Flux Hourly Mean",
+            "xlabel": "Local hour",
+            "ylabel": "Sensible Heat Flux [W/m²]",
+            "xlim": (0, 23),
+        },
+        grid_kwargs={"visible": True, "alpha": 0.3},
+        axes_calls=[
+            {"method": "set_xticks", "args": (np.arange(0, 24, 3),)},
+        ],
     )

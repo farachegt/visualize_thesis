@@ -113,7 +113,8 @@ Escopo do MVP:
 Resultado esperado:
 
 - ja ser possivel montar figuras a partir de `PlotData` manualmente criadas;
-- validacao inicial do contrato `PlotLayer` -> `PlotPanel` -> `FigureSpecification`.
+- validacao inicial do contrato:
+  - `PlotLayer` -> `PlotPanel` -> `FigureSpecification`.
 
 ## Fase 3
 
@@ -255,6 +256,13 @@ Resultado esperado desta fase:
   - `PlotPanel`
   - `FigureSpecification`
   - `SpecializedPlotter`
+- os recipes reconstruidos devem manter flexibilidade composicional:
+  - adicionar uma nova camada deve significar adicionar um novo item em uma
+    lista de entradas;
+  - adicionar um novo painel deve significar adicionar um novo item em uma
+    lista de paineis;
+  - a API publica dos recipes nao deve voltar a crescer por duplicacao de
+    parametros por fonte, por camada ou por variavel.
 
 ## Diretriz geral de migracao
 

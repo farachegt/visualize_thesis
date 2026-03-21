@@ -71,6 +71,9 @@ class TimeSeriesRequest(BaseRequest):
         Latitude used for point extraction in gridded sources.
     point_lon:
         Longitude used for point extraction in gridded sources.
+    bbox:
+        Optional bounding box used for regional averaging in gridded
+        sources. Its order is `(min_lon, max_lon, min_lat, max_lat)`.
     vertical_selection:
         Optional single vertical level to be selected before building the
         series.
@@ -86,6 +89,7 @@ class TimeSeriesRequest(BaseRequest):
 
     point_lat: float | None = None
     point_lon: float | None = None
+    bbox: BBox | None = None
     vertical_selection: Any | None = None
     time_frequency: str | None = None
 

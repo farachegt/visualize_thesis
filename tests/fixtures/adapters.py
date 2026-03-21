@@ -3,6 +3,8 @@ from __future__ import annotations
 from plot_core.adapter import DataAdapter
 
 from .paths import (
+    LEGACY_E3SM_GLOB_PATTERN,
+    LEGACY_MONAN_E3SM_GLOB_PATTERN,
     LEGACY_MYNN_MONAN_GLOB_PATTERN,
     LEGACY_SHOC_MONAN_GLOB_PATTERN,
     MODELO_U_PATH,
@@ -11,6 +13,8 @@ from .paths import (
 )
 from .source_specifications import (
     build_ceilometro_source_specification,
+    build_legacy_e3sm_source_specification,
+    build_legacy_monan_e3sm_source_specification,
     build_legacy_mynn_monan_source_specification,
     build_legacy_shoc_monan_source_specification,
     build_model_u_source_specification,
@@ -51,6 +55,49 @@ def build_legacy_shoc_monan_adapter() -> DataAdapter:
         reader_options={
             "combine": "nested",
             "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_legacy_monan_e3sm_adapter() -> DataAdapter:
+    """Build a `DataAdapter` for the legacy MONAN versus E3SM run.
+
+    Returns
+    -------
+    DataAdapter
+        Adapter configured with the MONAN path used in the old
+        `monan_data_subset` workflow.
+    """
+    return DataAdapter(
+        glob_pattern=LEGACY_MONAN_E3SM_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_legacy_monan_e3sm_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_legacy_e3sm_adapter() -> DataAdapter:
+    """Build a `DataAdapter` for the legacy E3SM comparison files.
+
+    Returns
+    -------
+    DataAdapter
+        Adapter configured with the same glob pattern used by the commented
+        E3SM path in the old `visualizations.main()` workflow.
+    """
+    return DataAdapter(
+        glob_pattern=LEGACY_E3SM_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_legacy_e3sm_source_specification(),
+        reader_options={
+            "combine": "by_coords",
             "parallel": True,
         },
     )

@@ -24,6 +24,12 @@ Regras base:
   nivel;
 - se uma funcao precisar conhecer demais de reader, geometry, derivation e
   plot ao mesmo tempo, ela provavelmente esta no lugar errado.
+- recipes devem ser pensados para crescimento por composicao, e nao por
+  aumento continuo da assinatura publica;
+- adicionar uma nova camada ou uma nova fonte deve significar adicionar um
+  novo item em uma estrutura de lista apropriada;
+- evitar APIs de recipe com proliferacao de parametros como `primary_`,
+  `secondary_`, `tertiary_` e similares.
 
 Estrutura recomendada:
 
@@ -95,6 +101,9 @@ Regras base:
 - a API deve ser explicita e previsivel, evitando automatismos excessivos;
 - combinacoes invalidas entre `PlotData` e `artist_method` devem falhar cedo;
 - o core deve separar claramente logica de negocio, IO e visualizacao.
+- recipes publicos devem preferir entradas composicionais, como listas de
+  camadas e paineis, em vez de assinaturas que crescem a cada novo caso de
+  uso.
 
 ## 5. Tests e fixtures
 

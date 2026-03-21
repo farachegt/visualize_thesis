@@ -16,6 +16,14 @@ LEGACY_SHOC_MONAN_GLOB_PATTERN = (
     "GLOBAL_GFdef_ERA5_x1.655362_shoc_transition_dry/"
     "2014090300/diag/posprocess/diag.*"
 )
+LEGACY_MONAN_E3SM_GLOB_PATTERN = (
+    "/mnt/beegfs/guilherme.farache/runs/MONAN/model/"
+    "GLOBAL_GFdef_ERA5_x1.655362_shoc_petervalidation/"
+    "2014022400/diag/posprocess/diag.*"
+)
+LEGACY_E3SM_GLOB_PATTERN = (
+    "/mnt/beegfs/guilherme.farache/peter_data/E3SM_in_MONAN*.nc"
+)
 LEGACY_MYNN_MONAN_GLOB_PATTERN = (
     "/mnt/beegfs/guilherme.farache/runs/MONAN/model/"
     "GLOBAL_GFdef_ERA5_x1.655362_mynn_transition_dry/"

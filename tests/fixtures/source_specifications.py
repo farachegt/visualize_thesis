@@ -3,6 +3,78 @@ from __future__ import annotations
 from plot_core.specifications import SourceSpecification, VariableSpecification
 
 
+def build_legacy_e3sm_source_specification() -> SourceSpecification:
+    """Build the legacy E3SM source specification.
+
+    Returns
+    -------
+    SourceSpecification
+        Semantic description aligned with the old `visualizations.main()`
+        comparison that used the E3SM files collocated onto the MONAN grid.
+    """
+    return SourceSpecification(
+        label="E3SM",
+        time_name="time",
+        vertical_name="lev",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        variables={
+            "qc": VariableSpecification(
+                source_name="qc",
+                input_units="kg kg-1",
+            ),
+            "qv": VariableSpecification(
+                source_name="qv",
+                input_units="kg kg-1",
+            ),
+            "qt": VariableSpecification(
+                derivation_kind="qt_from_qc_qv",
+                target_units="kg kg-1",
+            ),
+            "theta": VariableSpecification(
+                source_name="PotentialTemperature",
+                input_units="K",
+            ),
+            "tke_pbl": VariableSpecification(
+                source_name="tke",
+                input_units="m^2 s^-2",
+            ),
+            "hpbl": VariableSpecification(
+                source_name="pbl_height",
+                input_units="m",
+            ),
+            "u_wind": VariableSpecification(
+                source_name="U",
+                input_units="m s-1",
+            ),
+            "v_wind": VariableSpecification(
+                source_name="V",
+                input_units="m s-1",
+            ),
+            "wind_speed": VariableSpecification(
+                derivation_kind="wind_speed_from_uv",
+                target_units="m s-1",
+            ),
+            "sensible_heat_flux": VariableSpecification(
+                source_name="surf_sens_flux",
+                input_units="W m^-2",
+            ),
+        },
+    )
+
+
+def build_legacy_monan_e3sm_source_specification() -> SourceSpecification:
+    """Build the legacy MONAN source specification used against E3SM.
+
+    Returns
+    -------
+    SourceSpecification
+        Semantic description aligned with the old `monan_data_subset`
+        workflow used in MONAN versus E3SM plots.
+    """
+    return _build_legacy_monan_source_specification(label="MONAN")
+
+
 def build_legacy_shoc_monan_source_specification() -> SourceSpecification:
     """Build the legacy SHOC MONAN source specification.
 
@@ -151,6 +223,10 @@ def _build_legacy_monan_source_specification(
             "tke_pbl": VariableSpecification(
                 source_name="tke_pbl",
                 input_units="m^2 s^-2",
+            ),
+            "hpbl": VariableSpecification(
+                source_name="hpbl",
+                input_units="m",
             ),
             "pressure": VariableSpecification(
                 source_name="pressure",

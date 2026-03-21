@@ -41,6 +41,7 @@ class ColorbarSpecification:
     """Describe the colorbar associated with a plot panel."""
 
     source_layer_index: int
+    label: str | None = None
     colorbar_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
@@ -376,7 +377,7 @@ class SpecializedPlotter:
             return ("transect", plot_data.vertical_axis)
 
         if isinstance(plot_data, TimeSeriesPlotData):
-            return ("time", "value")
+            return ("time", plot_data.value_axis)
 
         if isinstance(plot_data, TimeVerticalSectionPlotData):
             return ("time", plot_data.vertical_axis)
@@ -467,11 +468,13 @@ class SpecializedPlotter:
                 "invalid PlotLayer."
             )
 
-        figure.colorbar(
+        colorbar = figure.colorbar(
             artists[layer_index],
             ax=axis,
             **colorbar_specification.colorbar_kwargs,
         )
+        if colorbar_specification.label is not None:
+            colorbar.set_label(colorbar_specification.label)
 
     def _flatten_axes(
         self,

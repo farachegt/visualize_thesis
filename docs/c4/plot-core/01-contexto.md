@@ -52,6 +52,12 @@ Em termos praticos:
 - esses modules de recipe devem orquestrar casos de uso concretos, preservando
   o comportamento cientifico dos plots antigos, mas sem reimplementar leitura,
   preparo e renderizacao de baixo nivel.
+- esses recipes devem nascer flexiveis, de forma que adicionar ou remover
+  camadas nao implique criar novas assinaturas inchadas com parametros
+  repetidos por fonte ou por variavel;
+- o crescimento funcional desejado deve acontecer por composicao de listas de
+  entradas de camada e painel, e nao pela proliferacao de argumentos como
+  `primary_`, `secondary_` ou equivalentes.
 
 Exemplos esperados dessa migracao:
 
@@ -103,7 +109,8 @@ Exemplo curto de objetivo:
 
 ```mermaid
 flowchart LR
-    A[Fontes brutas<br/>Modelo netCDF<br/>Observacao pontual netCDF<br/>Observacao pontual CSV] --> D[DataAdapter]
+    A[Fontes brutas<br/>Modelo netCDF<br/>Observacao pontual netCDF<br/>
+    Observacao pontual CSV] --> D[DataAdapter]
     B[FileFormatReader] --> D
     C[GeometryHandler] --> D
     E[SourceSpecification] --> D

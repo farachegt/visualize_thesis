@@ -245,7 +245,11 @@ class GeometryHandler(ABC):
 
     def _name_exists(self, dataset: xr.Dataset, name: str) -> bool:
         """Return whether a name exists as variable, coordinate or dim."""
-        return name in dataset or name in dataset.coords or name in dataset.dims
+        return (
+            name in dataset
+            or name in dataset.coords
+            or name in dataset.dims
+        )
 
     def _ensure_coordinate(
         self,
@@ -581,9 +585,12 @@ class GriddedGeometryHandler(GeometryHandler):
         """Prepare a time series dataset from a gridded source."""
         self.assert_geometry_compatible(dataset, source_specification)
 
-        if request.point_lat is None or request.point_lon is None:
+        if request.bbox is not None and (
+            request.point_lat is not None or request.point_lon is not None
+        ):
             raise ValueError(
-                "Gridded time series require `point_lat` and `point_lon`."
+                "Gridded time series must use either `bbox` or point "
+                "selection, not both."
             )
 
         prepared = self._select_required_variables(
@@ -591,12 +598,29 @@ class GriddedGeometryHandler(GeometryHandler):
             source_specification,
             required_variable_names,
         )
-        prepared = self._select_nearest_grid_point(
-            prepared,
-            source_specification,
-            request.point_lat,
-            request.point_lon,
-        )
+
+        if request.bbox is not None:
+            prepared = self._select_bbox(
+                prepared,
+                source_specification,
+                request.bbox,
+            )
+            prepared = self._average_horizontal_domain(
+                prepared,
+                source_specification,
+            )
+        elif request.point_lat is None or request.point_lon is None:
+            raise ValueError(
+                "Gridded time series require either `bbox` or both "
+                "`point_lat` and `point_lon`."
+            )
+        else:
+            prepared = self._select_nearest_grid_point(
+                prepared,
+                source_specification,
+                request.point_lat,
+                request.point_lon,
+            )
         prepared = self._apply_time_axis_logic(
             prepared,
             source_specification,

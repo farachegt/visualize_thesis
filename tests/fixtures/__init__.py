@@ -11,6 +11,8 @@ The fixture modules intentionally mirror the main integration flow:
 
 from .adapters import (
     build_ceilometro_adapter,
+    build_legacy_e3sm_adapter,
+    build_legacy_monan_e3sm_adapter,
     build_legacy_mynn_monan_adapter,
     build_legacy_shoc_monan_adapter,
     build_model_u_adapter,
@@ -18,6 +20,8 @@ from .adapters import (
 )
 from .paths import (
     DATAFILES_DIR,
+    LEGACY_E3SM_GLOB_PATTERN,
+    LEGACY_MONAN_E3SM_GLOB_PATTERN,
     LEGACY_MYNN_MONAN_GLOB_PATTERN,
     LEGACY_SHOC_MONAN_GLOB_PATTERN,
     MODELO_U_PATH,
@@ -34,6 +38,8 @@ from .requests import (
     build_radiosonde_vertical_profile_request,
 )
 from .recipes import (
+    build_legacy_monan_e3sm_hourly_mean_figure,
+    build_legacy_monan_e3sm_hourly_mean_inputs,
     build_legacy_main_vertical_profile_recipe_panels,
     build_legacy_vertical_profile_figure_specification,
     build_legacy_vertical_profile_recipe_panels,
@@ -43,6 +49,8 @@ from .recipes import (
 )
 from .source_specifications import (
     build_ceilometro_source_specification,
+    build_legacy_e3sm_source_specification,
+    build_legacy_monan_e3sm_source_specification,
     build_legacy_mynn_monan_source_specification,
     build_legacy_shoc_monan_source_specification,
     build_model_u_source_specification,
@@ -51,6 +59,8 @@ from .source_specifications import (
 
 __all__ = [
     "DATAFILES_DIR",
+    "LEGACY_E3SM_GLOB_PATTERN",
+    "LEGACY_MONAN_E3SM_GLOB_PATTERN",
     "LEGACY_MYNN_MONAN_GLOB_PATTERN",
     "LEGACY_SHOC_MONAN_GLOB_PATTERN",
     "MODELO_U_PATH",
@@ -60,7 +70,13 @@ __all__ = [
     "build_ceilometro_adapter",
     "build_ceilometro_source_specification",
     "build_ceilometro_time_series_request",
+    "build_legacy_e3sm_adapter",
+    "build_legacy_e3sm_source_specification",
+    "build_legacy_monan_e3sm_adapter",
+    "build_legacy_monan_e3sm_source_specification",
     "build_legacy_chile_coast_vertical_profile_request",
+    "build_legacy_monan_e3sm_hourly_mean_figure",
+    "build_legacy_monan_e3sm_hourly_mean_inputs",
     "build_legacy_main_vertical_profile_recipe_panels",
     "build_legacy_mynn_monan_adapter",
     "build_legacy_mynn_monan_source_specification",

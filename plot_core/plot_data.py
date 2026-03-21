@@ -6,6 +6,7 @@ from typing import Literal
 import numpy as np
 
 VerticalAxis = Literal["pressure", "height"]
+ValueAxis = Literal["value", "pressure", "height"]
 
 
 @dataclass
@@ -56,6 +57,7 @@ class TimeSeriesPlotData:
     units: str | None = None
     site_label: str | None = None
     vertical_label: str | None = None
+    value_axis: ValueAxis = "value"
     draw_mask: np.ndarray | None = None
 
 
