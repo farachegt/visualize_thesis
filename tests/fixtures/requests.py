@@ -9,6 +9,10 @@ from plot_core.requests import (
     VerticalProfileRequest,
 )
 
+LEGACY_CHILE_COAST_LATITUDE = -33.0
+LEGACY_CHILE_COAST_LONGITUDE = 288.0
+LEGACY_CHILE_COAST_TIME = np.datetime64("2014-09-03T00:00:00")
+
 
 def build_model_single_time_request(adapter: DataAdapter) -> np.ndarray:
     """Return the first model time as a one-item datetime64 array.
@@ -114,4 +118,33 @@ def build_radiosonde_vertical_profile_request() -> VerticalProfileRequest:
     return VerticalProfileRequest(
         times=np.asarray(["2014-02-24T00:00:00"], dtype="datetime64[ns]"),
         vertical_axis="pressure",
+    )
+
+
+def build_legacy_chile_coast_vertical_profile_request(
+    *,
+    time_value: np.datetime64 = LEGACY_CHILE_COAST_TIME,
+) -> VerticalProfileRequest:
+    """Build the legacy MONAN profile request over the Chilean coast.
+
+    The selected point is approximately offshore from central Chile at
+    `33°S, 72°W`. The longitude is expressed as `288.0` to match the common
+    `0-360` convention used by structured global model grids.
+
+    Parameters
+    ----------
+    time_value:
+        Requested time for the vertical profile. The default mirrors the
+        first time used by the legacy main loop.
+
+    Returns
+    -------
+    VerticalProfileRequest
+        Request compatible with the old SHOC vs MYNN profile comparison.
+    """
+    return VerticalProfileRequest(
+        times=np.asarray([time_value], dtype="datetime64[ns]"),
+        vertical_axis="pressure",
+        point_lat=LEGACY_CHILE_COAST_LATITUDE,
+        point_lon=LEGACY_CHILE_COAST_LONGITUDE,
     )

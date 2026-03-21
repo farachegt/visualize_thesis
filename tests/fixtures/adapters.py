@@ -2,9 +2,17 @@ from __future__ import annotations
 
 from plot_core.adapter import DataAdapter
 
-from .paths import MODELO_U_PATH, OBS_CEILOMETRO_PATH, OBS_RADIOSONDA_U_PATH
+from .paths import (
+    LEGACY_MYNN_MONAN_GLOB_PATTERN,
+    LEGACY_SHOC_MONAN_GLOB_PATTERN,
+    MODELO_U_PATH,
+    OBS_CEILOMETRO_PATH,
+    OBS_RADIOSONDA_U_PATH,
+)
 from .source_specifications import (
     build_ceilometro_source_specification,
+    build_legacy_mynn_monan_source_specification,
+    build_legacy_shoc_monan_source_specification,
     build_model_u_source_specification,
     build_radiosonde_u_source_specification,
 )
@@ -23,6 +31,50 @@ def build_model_u_adapter() -> DataAdapter:
         file_format="netcdf",
         geometry_type="gridded",
         source_specification=build_model_u_source_specification(),
+    )
+
+
+def build_legacy_shoc_monan_adapter() -> DataAdapter:
+    """Build a `DataAdapter` for the legacy SHOC MONAN run.
+
+    Returns
+    -------
+    DataAdapter
+        Adapter configured with the same glob pattern used by the old
+        `visualizations.main()` workflow.
+    """
+    return DataAdapter(
+        glob_pattern=LEGACY_SHOC_MONAN_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_legacy_shoc_monan_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_legacy_mynn_monan_adapter() -> DataAdapter:
+    """Build a `DataAdapter` for the legacy MYNN MONAN run.
+
+    Returns
+    -------
+    DataAdapter
+        Adapter configured with the same glob pattern used by the old
+        `visualizations.main()` workflow.
+    """
+    return DataAdapter(
+        glob_pattern=LEGACY_MYNN_MONAN_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_legacy_mynn_monan_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
     )
 
 

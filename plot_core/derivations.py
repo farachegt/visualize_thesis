@@ -77,6 +77,35 @@ def derive_wind_speed_from_uv(
     )
 
 
+def derive_qt_from_qc_qv(
+    qc: ArrayLike,
+    qv: ArrayLike,
+) -> ArrayLike:
+    """Derive total water mixing ratio from cloud and vapor mixing ratios.
+
+    Parameters
+    ----------
+    qc:
+        Cloud liquid water mixing ratio.
+    qv:
+        Water vapor mixing ratio.
+
+    Returns
+    -------
+    xr.DataArray | np.ndarray
+        Total water mixing ratio with the same structural type as the input
+        when possible.
+    """
+    qt_values = _to_numpy(qc) + _to_numpy(qv)
+    units_text = _extract_units(qc) or _extract_units(qv)
+    return _wrap_result(
+        template=qc,
+        values=qt_values,
+        units_text=units_text,
+        long_name="Total water mixing ratio",
+    )
+
+
 def derive_rh_from_qv_temperature_pressure(
     pressure: ArrayLike,
     temperature: ArrayLike,
@@ -211,6 +240,11 @@ DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
     "wind_speed_from_uv": {
         "dependencies": ("u_wind", "v_wind"),
         "function": derive_wind_speed_from_uv,
+        "accepted_options": (),
+    },
+    "qt_from_qc_qv": {
+        "dependencies": ("qc", "qv"),
+        "function": derive_qt_from_qc_qv,
         "accepted_options": (),
     },
     "rh_from_qv_temperature_pressure": {

@@ -1,5 +1,6 @@
 CANONICAL_VARIABLE_NAMES = {
     "theta",
+    "qt",
     "rh",
     "wind_speed",
     "u_wind",
@@ -11,6 +12,7 @@ CANONICAL_VARIABLE_NAMES = {
     "qv",
     "temperature",
     "tke",
+    "tke_pbl",
     "sensible_heat_flux",
     "rthblten",
     "rublten",
