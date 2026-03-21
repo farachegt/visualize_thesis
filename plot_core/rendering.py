@@ -34,6 +34,7 @@ class RenderSpecification:
 
     artist_method: ArtistMethod
     artist_kwargs: dict[str, Any] = field(default_factory=dict)
+    artist_calls: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -41,6 +42,17 @@ class ColorbarSpecification:
     """Describe the colorbar associated with a plot panel."""
 
     source_layer_index: int
+    label: str | None = None
+    colorbar_kwargs: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SharedColorbarSpecification:
+    """Describe a colorbar shared by multiple panels in one figure."""
+
+    source_panel_index: int
+    source_layer_index: int
+    target_panel_indices: list[int]
     label: str | None = None
     colorbar_kwargs: dict[str, Any] = field(default_factory=dict)
 
@@ -75,6 +87,9 @@ class FigureSpecification:
     figure_kwargs: dict[str, Any] = field(default_factory=dict)
     subplot_kwargs: dict[str, Any] = field(default_factory=dict)
     suptitle_kwargs: dict[str, Any] = field(default_factory=dict)
+    shared_colorbar_specifications: list[SharedColorbarSpecification] = (
+        field(default_factory=list)
+    )
 
 
 class SpecializedPlotter:
@@ -141,12 +156,21 @@ class SpecializedPlotter:
         )
         flat_axes = self._flatten_axes(axes)
 
+        artists_by_panel: list[list[ArtistResult]] = []
         for axis_index, panel in enumerate(panels):
             axis = flat_axes[axis_index]
-            self._plot_panel(axis, panel, figure)
+            panel_artists = self._plot_panel(axis, panel, figure)
+            artists_by_panel.append(panel_artists)
 
         for axis in flat_axes[len(panels):]:
             axis.set_visible(False)
+
+        self._apply_shared_colorbar_configurations(
+            figure,
+            flat_axes,
+            artists_by_panel,
+            figure_specification.shared_colorbar_specifications,
+        )
 
         if figure_specification.suptitle is not None:
             figure.suptitle(
@@ -161,7 +185,7 @@ class SpecializedPlotter:
         axis: Axes,
         panel: PlotPanel,
         figure: Figure,
-    ) -> None:
+    ) -> list[ArtistResult]:
         """Render a single panel on a matplotlib axis.
 
         Parameters
@@ -193,6 +217,7 @@ class SpecializedPlotter:
 
         self._apply_panel_configuration(axis, panel)
         self._apply_colorbar_configuration(figure, axis, panel, artists)
+        return artists
 
     def _plot_layer(
         self,
@@ -229,10 +254,15 @@ class SpecializedPlotter:
 
         artist_method = getattr(axis, render_specification.artist_method)
         artist_args = self._build_artist_args(plot_data)
-        return artist_method(
+        artist = artist_method(
             *artist_args,
             **render_specification.artist_kwargs,
         )
+        self._apply_artist_configuration(
+            artist,
+            render_specification.artist_calls,
+        )
+        return artist
 
     def _build_artist_args(
         self,
@@ -432,6 +462,38 @@ class SpecializedPlotter:
             axis_method = getattr(axis, method_name)
             axis_method(*method_args, **method_kwargs)
 
+    def _apply_artist_configuration(
+        self,
+        artist: ArtistResult,
+        artist_calls: list[dict[str, Any]],
+    ) -> None:
+        """Apply post-render configuration directly to the artist.
+
+        Parameters
+        ----------
+        artist:
+            Artist returned by the matplotlib plotting call.
+        artist_calls:
+            Ordered list of artist method calls to apply.
+
+        Raises
+        ------
+        AttributeError
+            If an item in `artist_calls` refers to a missing artist method.
+        """
+        for artist_call in artist_calls:
+            method_name = artist_call["method"]
+            method_args = artist_call.get("args", ())
+            method_kwargs = artist_call.get("kwargs", {})
+
+            if not hasattr(artist, method_name):
+                raise AttributeError(
+                    f"Artist has no method named {method_name!r}."
+                )
+
+            artist_method = getattr(artist, method_name)
+            artist_method(*method_args, **method_kwargs)
+
     def _apply_colorbar_configuration(
         self,
         figure: Figure,
@@ -475,6 +537,70 @@ class SpecializedPlotter:
         )
         if colorbar_specification.label is not None:
             colorbar.set_label(colorbar_specification.label)
+
+    def _apply_shared_colorbar_configurations(
+        self,
+        figure: Figure,
+        axes: list[Axes],
+        artists_by_panel: list[list[ArtistResult]],
+        shared_colorbar_specifications: list[SharedColorbarSpecification],
+    ) -> None:
+        """Create figure-level shared colorbars when requested.
+
+        Parameters
+        ----------
+        figure:
+            Figure that will host the shared colorbars.
+        axes:
+            Flat subplot axes list in figure order.
+        artists_by_panel:
+            Artists created for each rendered panel.
+        shared_colorbar_specifications:
+            Figure-level shared colorbar definitions.
+
+        Raises
+        ------
+        ValueError
+            If a shared colorbar references invalid panel or layer indices.
+        """
+        for specification in shared_colorbar_specifications:
+            source_panel_index = specification.source_panel_index
+            if (
+                source_panel_index < 0
+                or source_panel_index >= len(artists_by_panel)
+            ):
+                raise ValueError(
+                    "SharedColorbarSpecification.source_panel_index points "
+                    "to an invalid PlotPanel."
+                )
+
+            source_artists = artists_by_panel[source_panel_index]
+            source_layer_index = specification.source_layer_index
+            if (
+                source_layer_index < 0
+                or source_layer_index >= len(source_artists)
+            ):
+                raise ValueError(
+                    "SharedColorbarSpecification.source_layer_index points "
+                    "to an invalid PlotLayer."
+                )
+
+            target_axes = []
+            for panel_index in specification.target_panel_indices:
+                if panel_index < 0 or panel_index >= len(artists_by_panel):
+                    raise ValueError(
+                        "SharedColorbarSpecification.target_panel_indices "
+                        "contains an invalid PlotPanel index."
+                    )
+                target_axes.append(axes[panel_index])
+
+            colorbar = figure.colorbar(
+                source_artists[source_layer_index],
+                ax=target_axes,
+                **specification.colorbar_kwargs,
+            )
+            if specification.label is not None:
+                colorbar.set_label(specification.label)
 
     def _flatten_axes(
         self,

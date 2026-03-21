@@ -17,9 +17,9 @@ from plot_core.recipes.time_vertical import (
     plot_hourly_mean_panels,
 )
 from plot_core.rendering import (
-    ColorbarSpecification,
     FigureSpecification,
     RenderSpecification,
+    SharedColorbarSpecification,
 )
 from plot_core.requests import (
     TimeSeriesRequest,
@@ -545,7 +545,6 @@ def _build_legacy_monan_e3sm_hourly_mean_panels(
             time_series_request=time_series_request,
             tke_vmin=tke_vmin,
             tke_vmax=tke_vmax,
-            with_colorbar=True,
         ),
         _build_legacy_hourly_mean_upper_panel(
             adapter=e3sm_adapter,
@@ -554,7 +553,6 @@ def _build_legacy_monan_e3sm_hourly_mean_panels(
             time_series_request=time_series_request,
             tke_vmin=tke_vmin,
             tke_vmax=tke_vmax,
-            with_colorbar=False,
         ),
         _build_legacy_hourly_mean_lower_panel(
             adapter=monan_adapter,
@@ -589,6 +587,15 @@ def _build_legacy_monan_e3sm_hourly_mean_figure_specification(
         ncols=2,
         suptitle=suptitle,
         figure_kwargs={"figsize": (16, 12), "constrained_layout": True},
+        shared_colorbar_specifications=[
+            SharedColorbarSpecification(
+                source_panel_index=0,
+                source_layer_index=0,
+                target_panel_indices=[0, 1],
+                label="Turbulent Kinetic Energy [m²/s²]",
+                colorbar_kwargs={"pad": 0.03},
+            )
+        ],
     )
 
 
@@ -600,7 +607,6 @@ def _build_legacy_hourly_mean_upper_panel(
     time_series_request: TimeSeriesRequest,
     tke_vmin: float,
     tke_vmax: float,
-    with_colorbar: bool,
 ) -> HourlyMeanPanelInput:
     """Build one upper hourly-mean `time x pressure` panel."""
     return HourlyMeanPanelInput(
@@ -632,6 +638,16 @@ def _build_legacy_hourly_mean_upper_panel(
                         "linewidths": 0.8,
                         "alpha": 0.8,
                     },
+                    artist_calls=[
+                        {
+                            "method": "clabel",
+                            "kwargs": {
+                                "inline": True,
+                                "fontsize": 7,
+                                "fmt": "%.1e",
+                            },
+                        }
+                    ],
                 ),
             ),
             HourlyMeanLayerInput(
@@ -659,14 +675,6 @@ def _build_legacy_hourly_mean_upper_panel(
         },
         grid_kwargs={"visible": True, "alpha": 0.3},
         legend_kwargs={"loc": "upper right"},
-        colorbar_specification=(
-            ColorbarSpecification(
-                source_layer_index=0,
-                label="Turbulent Kinetic Energy [m²/s²]",
-            )
-            if with_colorbar
-            else None
-        ),
         axes_calls=[
             {"method": "set_xticks", "args": (np.arange(0, 24, 3),)},
         ],
