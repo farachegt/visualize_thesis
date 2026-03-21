@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from math import asin, cos, radians, sin, sqrt
 from typing import Optional, Sequence, Tuple
 
@@ -299,12 +300,22 @@ class GeometryHandler(ABC):
     ) -> xr.Dataset:
         """Select the nearest instant from a 1D time axis."""
         dataset = self._ensure_coordinate(dataset, time_name)
+        time_values = np.asarray(dataset[time_name].values)
+        coerced_target_time = self._coerce_time_target(
+            time_values,
+            target_time,
+        )
 
         try:
-            return dataset.sel({time_name: target_time}, method="nearest")
+            return dataset.sel(
+                {time_name: coerced_target_time},
+                method="nearest",
+            )
         except Exception:
-            time_values = np.asarray(dataset[time_name].values)
-            nearest_index = self._nearest_index(time_values, target_time)
+            nearest_index = self._nearest_index(
+                time_values,
+                coerced_target_time,
+            )
             time_dimension = dataset[time_name].dims[0]
             return dataset.isel({time_dimension: nearest_index})
 
@@ -318,8 +329,14 @@ class GeometryHandler(ABC):
         dataset = self._ensure_coordinate(dataset, time_name)
         time_values = np.asarray(dataset[time_name].values)
         time_dimension = dataset[time_name].dims[0]
-        start_time = np.min(times)
-        end_time = np.max(times)
+        start_time = self._coerce_time_target(
+            time_values,
+            np.min(times),
+        )
+        end_time = self._coerce_time_target(
+            time_values,
+            np.max(times),
+        )
 
         selected_indices = np.nonzero(
             (time_values >= start_time) & (time_values <= end_time)
@@ -418,6 +435,77 @@ class GeometryHandler(ABC):
         """Return the index of the value closest to a target."""
         distances = np.abs(values - target)
         return int(np.argmin(distances))
+
+    def _coerce_time_target(
+        self,
+        reference_values: np.ndarray,
+        target_time: np.datetime64,
+    ) -> object:
+        """Convert a requested time to the dataset native time type.
+
+        Parameters
+        ----------
+        reference_values:
+            Native time values extracted from the dataset.
+        target_time:
+            Requested time expressed as `numpy.datetime64`.
+
+        Returns
+        -------
+        object
+            Time value converted to the same family used by the dataset.
+        """
+        reference_array = np.asarray(reference_values)
+        if reference_array.size == 0:
+            return target_time
+
+        reference_value = reference_array.reshape(-1)[0]
+        if isinstance(reference_value, np.datetime64):
+            return np.datetime64(target_time, "ns")
+
+        if self._is_cftime_value(reference_value):
+            python_datetime = self._to_python_datetime(target_time)
+            reference_type = type(reference_value)
+            try:
+                return reference_type(
+                    python_datetime.year,
+                    python_datetime.month,
+                    python_datetime.day,
+                    python_datetime.hour,
+                    python_datetime.minute,
+                    python_datetime.second,
+                    python_datetime.microsecond,
+                )
+            except TypeError:
+                return reference_type(
+                    python_datetime.year,
+                    python_datetime.month,
+                    python_datetime.day,
+                    python_datetime.hour,
+                    python_datetime.minute,
+                    python_datetime.second,
+                )
+
+        if isinstance(reference_value, datetime):
+            return self._to_python_datetime(target_time)
+
+        return target_time
+
+    def _is_cftime_value(self, value: object) -> bool:
+        """Return whether a value belongs to the `cftime` family."""
+        module_name = type(value).__module__
+        return module_name.startswith("cftime.")
+
+    def _to_python_datetime(
+        self,
+        value: np.datetime64,
+    ) -> datetime:
+        """Convert `numpy.datetime64` values to Python `datetime`."""
+        iso_value = np.datetime_as_string(
+            np.datetime64(value, "us"),
+            unit="us",
+        )
+        return datetime.fromisoformat(iso_value)
 
     def _ordered_slice(
         self,

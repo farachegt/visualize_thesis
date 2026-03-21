@@ -79,7 +79,9 @@ class NetCDFFileFormatReader(FileFormatReader):
                 f"{self.glob_pattern}"
             )
 
-        return xr.open_mfdataset(self.glob_pattern, **self.reader_options)
+        reader_options = dict(self.reader_options)
+        reader_options.setdefault("data_vars", "all")
+        return xr.open_mfdataset(self.glob_pattern, **reader_options)
 
     def _validate_source_configuration(self) -> None:
         """Validate whether the reader source configuration is coherent.
