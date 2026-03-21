@@ -469,11 +469,21 @@ def _build_hourly_mean_time_vertical_plot_data(
         variable_name=layer_input.variable_name,
         request=request,
     )
+    _validate_non_empty_hourly_mean_source(
+        times=plot_data.times,
+        variable_name=layer_input.variable_name,
+        data_kind=layer_input.data_kind,
+    )
     local_hours = _compute_local_hours(
         plot_data.times,
         reference_longitude,
     )
     unique_hours = np.unique(local_hours)
+    if unique_hours.size == 0:
+        raise ValueError(
+            "The hourly-mean time-vertical selection produced no local-hour "
+            f"bins for variable {layer_input.variable_name!r}."
+        )
     hourly_field = np.column_stack(
         [
             np.nanmean(plot_data.field[:, local_hours == hour], axis=1)
@@ -512,11 +522,21 @@ def _build_hourly_mean_time_series_plot_data(
         variable_name=layer_input.variable_name,
         request=request,
     )
+    _validate_non_empty_hourly_mean_source(
+        times=plot_data.times,
+        variable_name=layer_input.variable_name,
+        data_kind=layer_input.data_kind,
+    )
     local_hours = _compute_local_hours(
         plot_data.times,
         reference_longitude,
     )
     unique_hours = np.unique(local_hours)
+    if unique_hours.size == 0:
+        raise ValueError(
+            "The hourly-mean time-series selection produced no local-hour "
+            f"bins for variable {layer_input.variable_name!r}."
+        )
     hourly_values = np.asarray(
         [
             np.nanmean(plot_data.values[local_hours == hour])
@@ -547,6 +567,37 @@ def _build_hourly_mean_time_series_plot_data(
         value_axis=value_axis,
         draw_mask=plot_data.draw_mask,
     )
+
+
+def _validate_non_empty_hourly_mean_source(
+    *,
+    times: np.ndarray,
+    variable_name: str,
+    data_kind: HourlyMeanDataKind,
+) -> None:
+    """Validate that an hourly-mean source contains at least one time step.
+
+    Parameters
+    ----------
+    times:
+        Time axis returned by the adapter before hourly reduction.
+    variable_name:
+        Canonical variable used to build the plot data.
+    data_kind:
+        Kind of hourly-mean product being prepared.
+
+    Raises
+    ------
+    ValueError
+        If the upstream selection returned no time samples.
+    """
+    if np.asarray(times).size == 0:
+        raise ValueError(
+            "The hourly-mean "
+            f"{data_kind.replace('_', '-')} selection returned no time "
+            f"samples for variable {variable_name!r}. Check the requested "
+            "time interval and source path."
+        )
 
 
 def _build_tke_legacy_panels(
