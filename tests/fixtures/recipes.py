@@ -545,6 +545,7 @@ def _build_legacy_monan_e3sm_hourly_mean_panels(
             time_series_request=time_series_request,
             tke_vmin=tke_vmin,
             tke_vmax=tke_vmax,
+            with_colorbar=True,
         ),
         _build_legacy_hourly_mean_upper_panel(
             adapter=e3sm_adapter,
@@ -553,6 +554,7 @@ def _build_legacy_monan_e3sm_hourly_mean_panels(
             time_series_request=time_series_request,
             tke_vmin=tke_vmin,
             tke_vmax=tke_vmax,
+            with_colorbar=False,
         ),
         _build_legacy_hourly_mean_lower_panel(
             adapter=monan_adapter,
@@ -598,6 +600,7 @@ def _build_legacy_hourly_mean_upper_panel(
     time_series_request: TimeSeriesRequest,
     tke_vmin: float,
     tke_vmax: float,
+    with_colorbar: bool,
 ) -> HourlyMeanPanelInput:
     """Build one upper hourly-mean `time x pressure` panel."""
     return HourlyMeanPanelInput(
@@ -652,16 +655,20 @@ def _build_legacy_hourly_mean_upper_panel(
             "xlabel": "Local hour",
             "ylabel": "pressure [hPa]",
             "xlim": (0, 23),
+            "ylim": (1000, 500),
         },
         grid_kwargs={"visible": True, "alpha": 0.3},
         legend_kwargs={"loc": "upper right"},
-        colorbar_specification=ColorbarSpecification(
-            source_layer_index=0,
-            label="TKE",
+        colorbar_specification=(
+            ColorbarSpecification(
+                source_layer_index=0,
+                label="Turbulent Kinetic Energy [m²/s²]",
+            )
+            if with_colorbar
+            else None
         ),
         axes_calls=[
             {"method": "set_xticks", "args": (np.arange(0, 24, 3),)},
-            {"method": "invert_yaxis"},
         ],
     )
 
