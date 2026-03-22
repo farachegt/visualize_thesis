@@ -44,3 +44,5 @@ organizado assim:
 - [05-boas-praticas.md](./05-boas-praticas.md):
   principios de implementacao e estilo.
 - [06-recipes.md](./06-recipes.md): indice visual dos recipes publicos.
+- [07-como-criar-um-recipe.md](./07-como-criar-um-recipe.md):
+  guia pratico para criar um recipe novo.

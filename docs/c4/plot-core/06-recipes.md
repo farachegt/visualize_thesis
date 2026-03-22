@@ -14,6 +14,10 @@ Cada recipe deve ter um markdown proprio com:
 - orientacao de extensao por layer;
 - exemplo minimo de chamada.
 
+Para criar um recipe novo do zero, consulte tambem:
+
+- [Como criar um recipe](./07-como-criar-um-recipe.md)
+
 ## Constraint de extensibilidade
 
 Sim: adicionar ou remover uma layer compativel com o tipo do plot sem
