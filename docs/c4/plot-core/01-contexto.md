@@ -64,14 +64,15 @@ Em termos praticos:
 
 Exemplos esperados dessa migracao:
 
-- [plot_profiles.py](/home/gfarache/git/visualize_thesis/plot_profiles.py)
-  deve evoluir para um recipe que instancia `DataAdapter`s, solicita
-  `VerticalProfilePlotData`, monta `PlotLayer`s e chama o
-  `SpecializedPlotter`;
-- [plot_diurnal.py](/home/gfarache/git/visualize_thesis/plot_diurnal.py)
-  deve evoluir para um recipe que monta `HorizontalFieldPlotData`,
-  `TimeSeriesPlotData` ou `TimeVerticalSectionPlotData`, dependendo do caso, e
-  organiza a figura pela nova estrutura.
+- [plot_profiles.py](/home/gfarache/git/visualize_thesis/legacy/code/plot_profiles.py)
+  representa o fluxo legado que foi traduzido para recipes que instanciam
+  `DataAdapter`s, solicitam `VerticalProfilePlotData`, montam `PlotLayer`s e
+  chamam o `SpecializedPlotter`;
+- [plot_diurnal.py](/home/gfarache/git/visualize_thesis/legacy/code/plot_diurnal.py)
+  representa o fluxo legado que foi traduzido para recipes que montam
+  `HorizontalFieldPlotData`, `TimeSeriesPlotData` ou
+  `TimeVerticalSectionPlotData`, dependendo do caso, e organizam a figura pela
+  nova estrutura.
 
 ## Problema atual
 

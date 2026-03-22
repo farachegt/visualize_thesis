@@ -2,6 +2,20 @@
 
 Este diretorio concentra a documentacao C4 do modulo `plot_core`.
 
+## Superficie oficial atual
+
+O codigo oficial do projeto, a partir desta fase da migracao, esta
+organizado assim:
+
+- `plot_core/`
+  - contratos, adapters, renderizacao e recipes genericos;
+- `plot_core/scenarios/`
+  - cenarios oficiais concretos do projeto;
+- `scripts/recipes/`
+  - scripts oficiais de geracao de figuras;
+- `legacy/`
+  - referencia historica do codigo e da documentacao anteriores.
+
 ## Conteudo
 
 - [01-contexto.md](./01-contexto.md):

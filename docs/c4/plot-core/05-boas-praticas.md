@@ -16,8 +16,13 @@ implementacao completa de cada fase.
 Regras base:
 
 - `plot_core` deve conter apenas codigo reutilizavel de producao;
-- tudo que for fixture, dado de apoio e exemplo concreto deve ficar em
-  `tests/`;
+- `plot_core/scenarios/` deve concentrar cenarios oficiais, adapters,
+  requests e builders concretos que representam o uso real do projeto;
+- `scripts/recipes/` deve concentrar os entrypoints oficiais de geracao de
+  figuras;
+- `legacy/` deve concentrar apenas material historico, sem novas features;
+- `tests/` deve conter apenas dados de apoio, compatibilidade temporaria e
+  testes;
 - cada modulo deve ter uma responsabilidade principal clara;
 - evitar arquivos que misturem contrato, IO, transformacao e renderizacao;
 - recipes devem apenas orquestrar o core, sem reintroduzir logica de baixo
@@ -115,13 +120,12 @@ Regras base:
 
 Regras base:
 
-- tudo que for fixture, dado real de exemplo e apoio a validacao deve ficar em
-  `tests/`;
+- cenarios oficiais devem ficar em `plot_core/scenarios/`;
 - os arquivos atualmente em `tests/datafiles/` devem ser tratados como dados
   de apoio ao desenvolvimento e aos testes do MVP;
 - `SourceSpecification`s concretos desses dados devem ficar em
-  `tests/fixtures/`;
-- o core nao deve depender desses fixtures para funcionar.
+  `plot_core/scenarios/`;
+- o core nao deve depender desses cenarios para funcionar.
 
 ## Regras gerais de estilo Python
 

@@ -1,17 +1,37 @@
-# Documentacao do projeto `visualize_thesis`
+# Documentacao oficial do projeto `visualize_thesis`
 
-Este diretorio organiza o contexto tecnico do projeto para facilitar handoff entre chats.
+Este diretorio concentra a documentacao oficial da arquitetura atual do
+projeto.
 
-## Conteudo
+## Comece por aqui
 
-- [01-visao-geral.md](./01-visao-geral.md): objetivo, escopo e componentes.
-- [02-fluxo-execucao.md](./02-fluxo-execucao.md): caminho de execucao ponta a ponta.
-- [03-modulos-e-funcoes.md](./03-modulos-e-funcoes.md): catalogo pratico dos modulos.
-- [04-contratos-de-dados.md](./04-contratos-de-dados.md): variaveis, dimensoes e convencoes.
-- [05-pontos-de-atencao.md](./05-pontos-de-atencao.md): riscos e armadilhas atuais.
-- [06-contexto-rapido-para-chat.md](./06-contexto-rapido-para-chat.md): prompt-base curto para reutilizar em outros chats.
-- [c4/README.md](./c4/README.md): documentacao de arquitetura em estilo C4.
+- [c4/README.md](./c4/README.md): indice principal da documentacao
+  arquitetural.
+- [c4/plot-core/README.md](./c4/plot-core/README.md): arquitetura oficial do
+  `plot_core`.
+
+## Superficie oficial do codigo
+
+- `plot_core/`
+  - nucleo de preparo, contratos e renderizacao;
+- `plot_core/scenarios/`
+  - cenarios oficiais, `SourceSpecification`s, adapters, requests e builders
+    concretos;
+- `scripts/recipes/`
+  - entrypoints oficiais para geracao de figuras e execucao batch.
+
+## Material legado
+
+O material da implementacao anterior foi preservado separadamente em:
+
+- `legacy/code/`
+  - codigo legado mantido apenas para referencia historica;
+- `legacy/docs/README.md`
+  - documentacao legada preservada.
 
 ## Escopo desta documentacao
 
-- Cobre apenas `visualize_thesis/`.
+- esta documentacao cobre apenas a arquitetura oficial atual de
+  `visualize_thesis`;
+- wrappers de compatibilidade na raiz e em `tests/` nao sao a superficie
+  recomendada para extensao futura.

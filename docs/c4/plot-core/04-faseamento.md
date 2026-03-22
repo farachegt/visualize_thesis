@@ -7,7 +7,8 @@ ordem de implementacao pragmatica para o MVP, reduzindo retrabalho e
 separando claramente:
 
 - o nucleo reutilizavel em `plot_core`;
-- fixtures de teste e exemplos concretos baseados nos arquivos em `datafiles`;
+- cenarios oficiais e exemplos concretos baseados nos arquivos em
+  `datafiles`;
 - recipes que substituirao gradualmente os scripts antigos da raiz.
 
 ## Estrutura-alvo inicial
@@ -15,6 +16,12 @@ separando claramente:
 Para o MVP, a estrutura sugerida e esta:
 
 ```text
+scripts/
+└── recipes/
+    └── generate_*.py
+legacy/
+├── code/
+└── docs/
 plot_core/
 ├── __init__.py
 ├── canonical_variables.py
@@ -26,22 +33,23 @@ plot_core/
 ├── adapter.py
 ├── readers.py
 ├── geometry.py
+├── scenarios/
+│   └── source_specifications.py
 └── recipes/
     ├── __init__.py
     ├── profiles.py
     ├── diurnal.py
     └── maps.py
-
-tests/
-└── fixtures/
-    └── source_specifications.py
 ```
 
 Leitura correta dessa organizacao:
 
+- `scripts/recipes/` contem os entrypoints oficiais para execucao batch;
+- `legacy/` preserva a implementacao e a documentacao anteriores;
 - `plot_core` contem apenas contratos e implementacoes reutilizaveis;
-- `tests/fixtures/source_specifications.py` contem `SourceSpecification`s
-  concretos dos arquivos de teste presentes em `datafiles`;
+- `plot_core/scenarios/source_specifications.py` contem
+  `SourceSpecification`s concretos dos arquivos de teste presentes em
+  `datafiles`;
 - `plot_core/recipes/` ou recipes equivalentes substituem gradualmente os
   scripts antigos da raiz, passando a operar como clientes do core.
 
@@ -212,14 +220,14 @@ Resultado esperado:
 
 ## Fase 6
 
-Criar fixtures de teste reais para os arquivos em `datafiles`.
+Criar cenarios oficiais reais para os arquivos em `datafiles`.
 
 Arquivo foco:
 
-- `tests/fixtures/source_specifications.py`
+- `plot_core/scenarios/source_specifications.py`
 
-Essas fixtures devem conter `SourceSpecification`s especificos para os dados de
-teste, por exemplo:
+Esses cenarios devem conter `SourceSpecification`s especificos para os dados
+de teste, por exemplo:
 
 - modelo em NetCDF;
 - radiossonda observada em NetCDF;
@@ -227,8 +235,9 @@ teste, por exemplo:
 
 Diretriz importante:
 
-- essas specifications de teste nao pertencem ao `plot_core`;
-- elas existem apenas para desenvolvimento, validacao e testes do MVP.
+- essas specifications pertencem ao pacote oficial de cenarios;
+- os dados de apoio continuam em `tests/datafiles/`;
+- o core continua desacoplado desses cenarios concretos.
 
 Resultado esperado:
 
@@ -284,5 +293,5 @@ Ao longo das fases acima, a diretriz deve ser esta:
 Leitura correta dessa estrategia:
 
 - `plot_core` = nucleo reutilizavel da arquitetura;
-- fixtures de teste = contratos concretos para validar o MVP com dados reais;
+- cenarios oficiais = contratos concretos para validar o MVP com dados reais;
 - recipes = camada de orquestracao de casos de uso concretos.
