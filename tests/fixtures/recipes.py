@@ -14,8 +14,12 @@ from plot_core.recipes.cross_sections import (
 from plot_core.recipes.diurnal import (
     DiurnalAmplitudeRowInput,
     DiurnalAmplitudeSourceInput,
+    DiurnalPeakPhaseRowInput,
+    DiurnalPeakPhaseSourceInput,
     plot_diurnal_amplitude_rows,
     plot_diurnal_cycle_amplitude_pblh,
+    plot_diurnal_peak_phase_pblh,
+    plot_diurnal_peak_phase_rows,
 )
 from plot_core.recipes.maps import (
     MapComparisonRowInput,
@@ -137,6 +141,16 @@ LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF = "RdBu_r"
 LEGACY_DIURNAL_AMPLITUDE_VMIN = 0.0
 LEGACY_DIURNAL_AMPLITUDE_VMAX: float | None = 2500.0
 LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT: float | None = 1500.0
+LEGACY_DIURNAL_PHASE_START_DATE = np.datetime64("2014-02-24")
+LEGACY_DIURNAL_PHASE_N_DAYS = 3
+LEGACY_DIURNAL_PHASE_MONAN_VAR = "hpbl"
+LEGACY_DIURNAL_PHASE_E3SM_VAR = "hpbl"
+LEGACY_DIURNAL_PHASE_FIELD_LABEL = "Peak Hour PBLH"
+LEGACY_DIURNAL_PHASE_CMAP_ABS = "twilight"
+LEGACY_DIURNAL_PHASE_CMAP_DIFF = "RdBu_r"
+LEGACY_DIURNAL_PHASE_VMIN = 0.0
+LEGACY_DIURNAL_PHASE_VMAX = 23.0
+LEGACY_DIURNAL_PHASE_DIFF_LIMIT = 12.0
 
 
 # ============================================================================
@@ -1084,6 +1098,136 @@ def build_legacy_monan_e3sm_diurnal_amplitude_figure(
         cmap_diff=cmap_diff,
         vmin=vmin,
         vmax=vmax,
+        diff_limit=diff_limit,
+    )
+
+
+def build_legacy_monan_e3sm_diurnal_peak_phase_inputs(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_PHASE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_PHASE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_PHASE_E3SM_VAR,
+    field_label: str = LEGACY_DIURNAL_PHASE_FIELD_LABEL,
+    cmap_phase: str = LEGACY_DIURNAL_PHASE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_PHASE_CMAP_DIFF,
+    phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
+    phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
+    diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> tuple[list[DiurnalPeakPhaseRowInput], FigureSpecification]:
+    """Build the full input set for the legacy diurnal peak-phase recipe.
+
+    Parameters
+    ----------
+    day_start:
+        First instant of the day represented by the figure.
+    monan_var:
+        Canonical variable name used by the MONAN source.
+    e3sm_var:
+        Canonical variable name used by the E3SM source.
+    field_label:
+        Human-readable label used in panel titles and colorbars.
+    cmap_phase:
+        Colormap used by the absolute phase fields.
+    cmap_diff:
+        Colormap used by the difference field.
+    phase_vmin:
+        Minimum color value used by the absolute phase fields.
+    phase_vmax:
+        Maximum color value used by the absolute phase fields.
+    diff_limit:
+        Symmetric difference limit centred on zero.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    tuple[list[DiurnalPeakPhaseRowInput], FigureSpecification]
+        Tuple containing:
+        - the comparison rows consumed by
+          `plot_diurnal_peak_phase_rows(...)`;
+        - the matching `FigureSpecification`.
+    """
+    rows = _build_legacy_monan_e3sm_diurnal_peak_phase_rows(
+        day_start=day_start,
+        monan_var=monan_var,
+        e3sm_var=e3sm_var,
+        field_label=field_label,
+        cmap_phase=cmap_phase,
+        cmap_diff=cmap_diff,
+        phase_vmin=phase_vmin,
+        phase_vmax=phase_vmax,
+        diff_limit=diff_limit,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_diurnal_peak_phase_figure_specification(
+            day_start=day_start,
+        )
+    )
+    return rows, figure_specification
+
+
+def build_legacy_monan_e3sm_diurnal_peak_phase_figure(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_PHASE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_PHASE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_PHASE_E3SM_VAR,
+    cmap_phase: str = LEGACY_DIURNAL_PHASE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_PHASE_CMAP_DIFF,
+    phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
+    phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
+    diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM diurnal peak-phase recipe example.
+
+    Parameters
+    ----------
+    day_start:
+        First instant of the day represented by the figure.
+    monan_var:
+        Canonical variable name used by the MONAN source.
+    e3sm_var:
+        Canonical variable name used by the E3SM source.
+    cmap_phase:
+        Colormap used by the absolute phase fields.
+    cmap_diff:
+        Colormap used by the difference field.
+    phase_vmin:
+        Minimum color value used by the absolute phase fields.
+    phase_vmax:
+        Maximum color value used by the absolute phase fields.
+    diff_limit:
+        Symmetric difference limit centred on zero.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the legacy `plot_diurnal_peak_phase_pblh(...)`
+        wrapper.
+    """
+    return plot_diurnal_peak_phase_pblh(
+        monan_adapter=(
+            monan_adapter or build_legacy_monan_e3sm_adapter()
+        ),
+        e3sm_adapter=e3sm_adapter or build_legacy_e3sm_adapter(),
+        day_start=day_start,
+        monan_var=monan_var,
+        e3sm_var=e3sm_var,
+        cmap_phase=cmap_phase,
+        cmap_diff=cmap_diff,
+        phase_vmin=phase_vmin,
+        phase_vmax=phase_vmax,
         diff_limit=diff_limit,
     )
 
@@ -2067,6 +2211,100 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_figure_specification(
         nrows=1,
         ncols=3,
         suptitle=f"Diurnal-Cycle Amplitude of PBLH - {day_label}",
+        figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
+    )
+
+
+def _build_legacy_monan_e3sm_diurnal_peak_phase_rows(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_PHASE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_PHASE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_PHASE_E3SM_VAR,
+    field_label: str = LEGACY_DIURNAL_PHASE_FIELD_LABEL,
+    cmap_phase: str = LEGACY_DIURNAL_PHASE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_PHASE_CMAP_DIFF,
+    phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
+    phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
+    diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> list[DiurnalPeakPhaseRowInput]:
+    """Build the legacy MONAN/E3SM diurnal peak-phase comparison rows."""
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
+    return [
+        DiurnalPeakPhaseRowInput(
+            left_source=DiurnalPeakPhaseSourceInput(
+                adapter=monan_adapter,
+                variable_name=monan_var,
+                source_label="MONAN",
+            ),
+            right_source=DiurnalPeakPhaseSourceInput(
+                adapter=e3sm_adapter,
+                variable_name=e3sm_var,
+                source_label="E3SM",
+            ),
+            day_start=day_start,
+            field_label=field_label,
+            absolute_render_specification=RenderSpecification(
+                artist_method="pcolormesh",
+                artist_kwargs={
+                    "cmap": cmap_phase,
+                    "vmin": float(phase_vmin),
+                    "vmax": float(phase_vmax),
+                },
+            ),
+            difference_render_specification=RenderSpecification(
+                artist_method="pcolormesh",
+                artist_kwargs={
+                    "cmap": cmap_diff,
+                    "vmin": -float(diff_limit),
+                    "vmax": float(diff_limit),
+                },
+            ),
+            left_panel_title="Peak Hour MONAN",
+            right_panel_title="Peak Hour E3SM",
+            difference_panel_title="Phase Difference (MONAN - E3SM)",
+            absolute_colorbar_label="Peak Hour (local model hour)",
+            difference_colorbar_label="Phase Difference",
+            absolute_colorbar_kwargs={
+                "orientation": "horizontal",
+                "fraction": 0.045,
+                "pad": 0.04,
+                "ticks": np.arange(0, 24, 3),
+            },
+            difference_colorbar_kwargs={
+                "orientation": "horizontal",
+                "fraction": 0.045,
+                "pad": 0.04,
+                "ticks": np.arange(-12, 13, 3),
+            },
+            coastlines_kwargs={"linewidth": 0.8},
+            borders_kwargs={"linewidth": 0.5},
+            gridlines_kwargs={
+                "draw_labels": True,
+                "linewidth": 0.6,
+                "alpha": 0.3,
+                "x_inline": False,
+                "y_inline": False,
+            },
+        )
+    ]
+
+
+def _build_legacy_monan_e3sm_diurnal_peak_phase_figure_specification(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_PHASE_START_DATE,
+) -> FigureSpecification:
+    """Build the figure specification for the legacy diurnal peak phase."""
+    day_label = np.datetime_as_string(day_start, unit="D")
+    return FigureSpecification(
+        nrows=1,
+        ncols=3,
+        suptitle=f"Diurnal Peak Phase of PBLH - {day_label}",
         figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
     )
 

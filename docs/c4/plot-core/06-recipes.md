@@ -55,3 +55,5 @@ Em geracao batch de figuras:
 - [Diurnal Cycle Amplitude PBLH](
   ./recipes/09-diurnal-cycle-amplitude-pblh.md
   )
+- [Diurnal Peak Phase Rows](./recipes/10-diurnal-peak-phase-rows.md)
+- [Diurnal Peak Phase PBLH](./recipes/11-diurnal-peak-phase-pblh.md)

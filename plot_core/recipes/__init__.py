@@ -8,8 +8,12 @@ from .cross_sections import (
 from .diurnal import (
     DiurnalAmplitudeRowInput,
     DiurnalAmplitudeSourceInput,
+    DiurnalPeakPhaseRowInput,
+    DiurnalPeakPhaseSourceInput,
     plot_diurnal_amplitude_rows,
     plot_diurnal_cycle_amplitude_pblh,
+    plot_diurnal_peak_phase_pblh,
+    plot_diurnal_peak_phase_rows,
 )
 from .maps import (
     MapComparisonRowInput,
@@ -39,6 +43,8 @@ __all__ = [
     "CrossSectionPanelInput",
     "DiurnalAmplitudeRowInput",
     "DiurnalAmplitudeSourceInput",
+    "DiurnalPeakPhaseRowInput",
+    "DiurnalPeakPhaseSourceInput",
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
@@ -51,6 +57,8 @@ __all__ = [
     "plot_cross_section_panels",
     "plot_diurnal_amplitude_rows",
     "plot_diurnal_cycle_amplitude_pblh",
+    "plot_diurnal_peak_phase_pblh",
+    "plot_diurnal_peak_phase_rows",
     "plot_hourly_mean_panels",
     "plot_map_comparison_rows",
     "plot_map_panels",
