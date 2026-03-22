@@ -512,6 +512,10 @@ def build_legacy_monan_e3sm_cross_section_inputs(
         tke_vmin=tke_vmin,
         tke_vmax=tke_vmax,
     )
+    _apply_common_cross_section_pressure_ylim(
+        panels,
+        panel_indices=[0, 1],
+    )
     figure_specification = (
         _build_legacy_monan_e3sm_cross_section_figure_specification(
             time=time,
@@ -685,6 +689,67 @@ def _apply_common_hourly_mean_pressure_ylim(
         if panel_index >= len(panels):
             continue
         panels[panel_index].axes_set_kwargs["ylim"] = shared_ylim
+        panels[panel_index].axes_set_kwargs["yticks"] = (
+            _build_pressure_yticks(*shared_ylim)
+        )
+
+
+def _apply_common_cross_section_pressure_ylim(
+    panels: Sequence[CrossSectionPanelInput],
+    *,
+    panel_indices: Sequence[int],
+) -> None:
+    """Apply one shared pressure range to the selected cross-section panels.
+
+    The shared interval is computed from the actual valid TKE data of each
+    selected panel. This keeps the comparison fair when one source does not
+    provide valid values near the surface or near the top of the section.
+    """
+    pressure_intervals: list[tuple[float, float]] = []
+    for panel_index in panel_indices:
+        if panel_index >= len(panels):
+            continue
+
+        panel = panels[panel_index]
+        if not panel.layers:
+            continue
+
+        layer = panel.layers[0]
+        try:
+            plot_data = layer.adapter.to_vertical_cross_section_plot_data(
+                variable_name=layer.variable_name,
+                request=layer.request,
+            )
+        except (FileNotFoundError, OSError):
+            return
+
+        pressure_interval = _compute_valid_pressure_interval(
+            plot_data.field,
+            plot_data.vertical_values,
+        )
+        if pressure_interval is not None:
+            pressure_intervals.append(pressure_interval)
+
+    if len(pressure_intervals) < 2:
+        return
+
+    shared_pressure_top = max(
+        interval[0] for interval in pressure_intervals
+    )
+    shared_pressure_bottom = min(
+        interval[1] for interval in pressure_intervals
+    )
+    if shared_pressure_top >= shared_pressure_bottom:
+        return
+
+    shared_ylim = (shared_pressure_bottom, shared_pressure_top)
+    for panel_index in panel_indices:
+        if panel_index >= len(panels):
+            continue
+        panels[panel_index].axes_set_kwargs["ylim"] = shared_ylim
+        panels[panel_index].axes_set_kwargs["yticks"] = (
+            _build_pressure_yticks(*shared_ylim)
+        )
 
 
 def _compute_valid_pressure_interval(
@@ -717,6 +782,21 @@ def _convert_pressure_values_to_hpa(values: np.ndarray) -> np.ndarray:
         return pressure_values / 100.0
 
     return pressure_values
+
+
+def _build_pressure_yticks(
+    pressure_bottom: float,
+    pressure_top: float,
+    tick_count: int = 6,
+) -> np.ndarray:
+    """Build pressure y-ticks with min, max and intermediate values."""
+    safe_tick_count = max(int(tick_count), 3)
+    tick_values = np.linspace(
+        float(pressure_bottom),
+        float(pressure_top),
+        safe_tick_count,
+    )
+    return np.round(tick_values, 1)
 
 
 def _build_legacy_monan_e3sm_hourly_mean_times(
@@ -938,6 +1018,7 @@ def _build_legacy_hourly_mean_upper_panel(
             "ylabel": "pressure [hPa]",
             "xlim": (0, 23),
             "ylim": (1000, 500),
+            "yticks": _build_pressure_yticks(1000.0, 500.0),
         },
         grid_kwargs={"visible": True, "alpha": 0.3},
         legend_kwargs={"loc": "upper right"},
@@ -1134,6 +1215,7 @@ def _build_legacy_cross_section_panel(
             "xlabel": "Coordinates along transect",
             "ylabel": "Pressure [hPa]",
             "ylim": (1000.0, 700.0),
+            "yticks": _build_pressure_yticks(1000.0, 700.0),
         },
         grid_kwargs={"visible": True, "alpha": 0.25},
         transect_axis_mode="distance_km",
