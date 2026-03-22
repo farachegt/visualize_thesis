@@ -255,5 +255,13 @@ def _build_legacy_monan_source_specification(
                 source_name="hfx",
                 input_units="W m^-2",
             ),
+            "rainnc": VariableSpecification(
+                source_name="rainnc",
+                input_units="mm",
+            ),
+            "rainc": VariableSpecification(
+                source_name="rainc",
+                input_units="mm",
+            ),
         },
     )

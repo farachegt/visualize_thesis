@@ -14,6 +14,8 @@ CANONICAL_VARIABLE_NAMES = {
     "tke",
     "tke_pbl",
     "sensible_heat_flux",
+    "rainnc",
+    "rainc",
     "rthblten",
     "rublten",
     "rvblten",

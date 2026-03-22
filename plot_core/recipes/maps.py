@@ -5,6 +5,7 @@ from typing import Any, Sequence, Tuple, Union
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib.colors as mcolors
 import numpy as np
 from matplotlib.figure import Figure
 
@@ -465,6 +466,131 @@ def plot_paper_grade_panel(
     )
 
 
+def plot_precipitation_monan(
+    *,
+    monan_adapter: DataAdapter,
+    date: np.datetime64,
+    rainnc_var: str = "rainnc",
+    rainc_var: str = "rainc",
+    levels: Sequence[float] | None = None,
+    extra_layers: Sequence[MapLayerDefinition] | None = None,
+    plotter: SpecializedPlotter | None = None,
+) -> Figure:
+    """Build one legacy MONAN hourly-precipitation map.
+
+    Parameters
+    ----------
+    monan_adapter:
+        Adapter representing the MONAN source.
+    date:
+        UTC instant represented by the precipitation map. This should not be
+        the first cumulative instant because the hourly field is computed as
+        a difference against the previous hour.
+    rainnc_var:
+        Canonical name of the non-convective cumulative precipitation field.
+    rainc_var:
+        Canonical name of the convective cumulative precipitation field.
+    levels:
+        Optional precipitation bins in millimetres. When omitted, the legacy
+        level list is used.
+    extra_layers:
+        Optional additional map layers appended on top of the precipitation
+        shading. This is the main extension point for adding compatible
+        overlays without changing the recipe signature.
+    plotter:
+        Optional plotter instance. When omitted, a fresh
+        `SpecializedPlotter` is created.
+
+    Returns
+    -------
+    Figure
+        Rendered matplotlib figure ready for `savefig` or `show`.
+    """
+    date = np.datetime64(date, "ns")
+    previous_date = date - np.timedelta64(1, "h")
+    current_request = HorizontalFieldRequest(
+        times=np.asarray([date], dtype="datetime64[ns]"),
+    )
+    previous_request = HorizontalFieldRequest(
+        times=np.asarray([previous_date], dtype="datetime64[ns]"),
+    )
+
+    current_rainnc = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=rainnc_var,
+        request=current_request,
+    )
+    previous_rainnc = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=rainnc_var,
+        request=previous_request,
+    )
+    current_rainc = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=rainc_var,
+        request=current_request,
+    )
+    previous_rainc = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=rainc_var,
+        request=previous_request,
+    )
+
+    precipitation_plot_data = _build_precipitation_plot_data(
+        current_rainnc=current_rainnc,
+        previous_rainnc=previous_rainnc,
+        current_rainc=current_rainc,
+        previous_rainc=previous_rainc,
+        label="MONAN",
+        time_label=np.datetime_as_string(date, unit="m"),
+    )
+    precipitation_levels, precipitation_cmap, precipitation_norm = (
+        _build_precipitation_color_mapping(levels)
+    )
+    panel_layers: list[MapLayerDefinition] = [
+        PreparedMapLayerInput(
+            plot_data=precipitation_plot_data,
+            render_specification=RenderSpecification(
+                artist_method="pcolormesh",
+                artist_kwargs={
+                    "cmap": precipitation_cmap,
+                    "norm": precipitation_norm,
+                },
+            ),
+        )
+    ]
+    if extra_layers is not None:
+        panel_layers.extend(extra_layers)
+
+    return plot_map_panels(
+        panels=[
+            MapPanelInput(
+                layers=panel_layers,
+                axes_set_kwargs={
+                    "title": (
+                        "MONAN - Precipitation "
+                        f"{np.datetime_as_string(date, unit='m')}"
+                    )
+                },
+                colorbar_specification=ColorbarSpecification(
+                    source_layer_index=0,
+                    label="Precipitation [mm]",
+                    colorbar_kwargs={
+                        "boundaries": precipitation_levels,
+                        "ticks": precipitation_levels,
+                    },
+                ),
+                coastlines_kwargs={},
+                borders_kwargs={},
+                gridlines_kwargs={"draw_labels": True},
+                gridliner_attrs={"top_labels": False},
+            )
+        ],
+        figure_specification=FigureSpecification(
+            nrows=1,
+            ncols=1,
+            figure_kwargs={"figsize": (12, 6), "constrained_layout": True},
+        ),
+        plotter=plotter,
+    )
+
+
 def _build_map_plot_panel(
     panel_input: MapPanelInput,
 ) -> PlotPanel:
@@ -810,6 +936,97 @@ def _build_difference_plot_data(
             left_plot_data.vertical_label or right_plot_data.vertical_label
         ),
     )
+
+
+def _build_precipitation_plot_data(
+    *,
+    current_rainnc: HorizontalFieldPlotData,
+    previous_rainnc: HorizontalFieldPlotData,
+    current_rainc: HorizontalFieldPlotData,
+    previous_rainc: HorizontalFieldPlotData,
+    label: str,
+    time_label: str,
+) -> HorizontalFieldPlotData:
+    """Build one hourly precipitation field from cumulative rain products."""
+    _validate_horizontal_field_compatibility(
+        current_rainnc,
+        previous_rainnc,
+    )
+    _validate_horizontal_field_compatibility(
+        current_rainc,
+        previous_rainc,
+    )
+    _validate_horizontal_field_compatibility(
+        current_rainnc,
+        current_rainc,
+    )
+    precipitation_field = (
+        current_rainnc.field
+        - previous_rainnc.field
+        + current_rainc.field
+        - previous_rainc.field
+    )
+    return HorizontalFieldPlotData(
+        label=label,
+        field=precipitation_field,
+        longitude=np.asarray(current_rainnc.longitude),
+        latitude=np.asarray(current_rainnc.latitude),
+        units="mm",
+        time_label=time_label,
+    )
+
+
+def _build_precipitation_color_mapping(
+    levels: Sequence[float] | None,
+) -> tuple[list[float], mcolors.ListedColormap, mcolors.BoundaryNorm]:
+    """Return the legacy precipitation color mapping."""
+    if levels is None:
+        levels = [
+            0,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            0.75,
+            1,
+            1.25,
+            1.5,
+            1.75,
+            2,
+            2.5,
+            3,
+            4,
+            5,
+            7.5,
+            10,
+            15,
+            20,
+            30,
+            45,
+        ]
+
+    base_cmap = mcolors.LinearSegmentedColormap.from_list(
+        "BlueDarkGreenYellowRed",
+        [
+            (0.70, 0.85, 1.00),
+            (0.00, 0.20, 0.80),
+            (0.00, 0.70, 0.20),
+            (1.00, 0.95, 0.00),
+            (0.90, 0.00, 0.00),
+        ],
+        N=256,
+    )
+    level_list = list(levels)
+    bin_count = len(level_list) - 1
+    viridis_like_colors = base_cmap(np.linspace(0, 1, bin_count - 1))
+    colors = np.vstack(([1, 1, 1, 1], viridis_like_colors))
+    discrete_cmap = mcolors.ListedColormap(colors)
+    norm = mcolors.BoundaryNorm(
+        level_list,
+        ncolors=bin_count,
+        clip=True,
+    )
+    return level_list, discrete_cmap, norm
 
 
 def _resolve_difference_units(

@@ -29,6 +29,7 @@ from plot_core.recipes.maps import (
     plot_map_panels,
     plot_map_comparison_rows,
     plot_paper_grade_panel,
+    plot_precipitation_monan,
 )
 from plot_core.recipes.profiles import (
     PanelInput,
@@ -156,6 +157,8 @@ LEGACY_DIURNAL_PHASE_CMAP_DIFF = "RdBu_r"
 LEGACY_DIURNAL_PHASE_VMIN = 0.0
 LEGACY_DIURNAL_PHASE_VMAX = 23.0
 LEGACY_DIURNAL_PHASE_DIFF_LIMIT = 12.0
+LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
+LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
 
 
 # ============================================================================
@@ -473,6 +476,35 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
         figure_specification=(
             build_legacy_vertical_profile_figure_specification()
         ),
+    )
+
+
+def build_legacy_monan_precipitation_figure(
+    *,
+    date: np.datetime64 = LEGACY_MONAN_PRECIPITATION_START_TIME,
+    monan_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy MONAN precipitation wrapper.
+
+    Parameters
+    ----------
+    date:
+        UTC instant represented by the hourly precipitation map.
+    monan_adapter:
+        Optional MONAN adapter. When omitted, the legacy MONAN adapter used
+        in the MONAN/E3SM recipes is created.
+
+    Returns
+    -------
+    Figure
+        Figure produced by `plot_precipitation_monan(...)`.
+    """
+    resolved_monan_adapter = (
+        monan_adapter or build_legacy_monan_e3sm_adapter()
+    )
+    return plot_precipitation_monan(
+        monan_adapter=resolved_monan_adapter,
+        date=date,
     )
 
 

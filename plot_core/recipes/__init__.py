@@ -24,6 +24,7 @@ from .maps import (
     plot_map_comparison_rows,
     plot_map_panels,
     plot_paper_grade_panel,
+    plot_precipitation_monan,
 )
 from .profiles import (
     PanelInput,
@@ -66,6 +67,7 @@ __all__ = [
     "plot_map_comparison_rows",
     "plot_map_panels",
     "plot_paper_grade_panel",
+    "plot_precipitation_monan",
     "VerticalProfileLayerInput",
     "plot_vertical_profiles_panel_at_point",
     "plot_vertical_profile_tke_hourly_mean",
