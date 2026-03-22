@@ -6,6 +6,11 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
+from plot_core.recipes.cross_sections import (
+    CrossSectionLayerInput,
+    CrossSectionPanelInput,
+    plot_cross_section_panels,
+)
 from plot_core.recipes.profiles import (
     PanelInput,
     VerticalProfileLayerInput,
@@ -24,6 +29,7 @@ from plot_core.rendering import (
 from plot_core.requests import (
     TimeSeriesRequest,
     TimeVerticalSectionRequest,
+    VerticalCrossSectionRequest,
     VerticalProfileRequest,
 )
 
@@ -70,6 +76,16 @@ LEGACY_HOURLY_MEAN_HALF_BOX_DEG = 0.5
 LEGACY_HOURLY_MEAN_TKE_VMIN = 0.0
 LEGACY_HOURLY_MEAN_TKE_VMAX = 2.0
 LEGACY_HOURLY_MEAN_QC_CONTOUR_MIN = 1e-5
+LEGACY_CROSS_SECTION_START_LAT = -10.0
+LEGACY_CROSS_SECTION_START_LON = -70.0
+LEGACY_CROSS_SECTION_END_LAT = 2.0
+LEGACY_CROSS_SECTION_END_LON = -50.0
+LEGACY_CROSS_SECTION_START_DATE = np.datetime64("2014-02-24T00:00")
+LEGACY_CROSS_SECTION_END_DATE = np.datetime64("2014-02-27T00:00")
+LEGACY_CROSS_SECTION_SPACING_KM = 30.0
+LEGACY_CROSS_SECTION_TKE_VMIN = 0.0
+LEGACY_CROSS_SECTION_TKE_VMAX = 2.0
+LEGACY_CROSS_SECTION_QC_CONTOUR_MIN = 1e-5
 
 
 # ============================================================================
@@ -367,6 +383,10 @@ def build_legacy_monan_e3sm_hourly_mean_inputs(
         tke_vmin=tke_vmin,
         tke_vmax=tke_vmax,
     )
+    _apply_common_hourly_mean_pressure_ylim(
+        panels,
+        panel_indices=[0, 1],
+    )
     figure_specification = (
         _build_legacy_monan_e3sm_hourly_mean_figure_specification(
             region_name=region_name,
@@ -442,6 +462,129 @@ def build_legacy_monan_e3sm_hourly_mean_figure(
     return figure
 
 
+def build_legacy_monan_e3sm_cross_section_inputs(
+    *,
+    time: np.datetime64 = LEGACY_CROSS_SECTION_START_DATE,
+    start_lat: float = LEGACY_CROSS_SECTION_START_LAT,
+    start_lon: float = LEGACY_CROSS_SECTION_START_LON,
+    end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
+    end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+    spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
+    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
+    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+) -> tuple[list[CrossSectionPanelInput], FigureSpecification]:
+    """Build the full input set for the legacy MONAN/E3SM transect plot.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the cross section.
+    start_lat:
+        Starting latitude of the transect in degrees.
+    start_lon:
+        Starting longitude of the transect in degrees.
+    end_lat:
+        Ending latitude of the transect in degrees.
+    end_lon:
+        Ending longitude of the transect in degrees.
+    spacing_km:
+        Approximate spacing, in kilometres, between sampled transect
+        points.
+    tke_vmin:
+        Optional minimum color value used by the TKE shading.
+    tke_vmax:
+        Optional maximum color value used by the TKE shading.
+
+    Returns
+    -------
+    tuple[list[CrossSectionPanelInput], FigureSpecification]
+        Tuple containing:
+        - the panel list consumed by `plot_cross_section_panels(...)`;
+        - the matching `FigureSpecification`.
+    """
+    panels = _build_legacy_monan_e3sm_cross_section_panels(
+        time=time,
+        start_lat=start_lat,
+        start_lon=start_lon,
+        end_lat=end_lat,
+        end_lon=end_lon,
+        spacing_km=spacing_km,
+        tke_vmin=tke_vmin,
+        tke_vmax=tke_vmax,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_cross_section_figure_specification(
+            time=time,
+            start_lat=start_lat,
+            start_lon=start_lon,
+            end_lat=end_lat,
+            end_lon=end_lon,
+        )
+    )
+    return panels, figure_specification
+
+
+def build_legacy_monan_e3sm_cross_section_figure(
+    *,
+    time: np.datetime64 = LEGACY_CROSS_SECTION_START_DATE,
+    start_lat: float = LEGACY_CROSS_SECTION_START_LAT,
+    start_lon: float = LEGACY_CROSS_SECTION_START_LON,
+    end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
+    end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+    spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
+    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
+    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM transect recipe example.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the cross section.
+    start_lat:
+        Starting latitude of the transect in degrees.
+    start_lon:
+        Starting longitude of the transect in degrees.
+    end_lat:
+        Ending latitude of the transect in degrees.
+    end_lon:
+        Ending longitude of the transect in degrees.
+    spacing_km:
+        Approximate spacing, in kilometres, between sampled transect
+        points.
+    tke_vmin:
+        Optional minimum color value used by the TKE shading.
+    tke_vmax:
+        Optional maximum color value used by the TKE shading.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the generic `plot_cross_section_panels(...)`
+        recipe.
+    """
+    panels, figure_specification = (
+        build_legacy_monan_e3sm_cross_section_inputs(
+            time=time,
+            start_lat=start_lat,
+            start_lon=start_lon,
+            end_lat=end_lat,
+            end_lon=end_lon,
+            spacing_km=spacing_km,
+            tke_vmin=tke_vmin,
+            tke_vmax=tke_vmax,
+        )
+    )
+    return plot_cross_section_panels(
+        panels=panels,
+        figure_specification=figure_specification,
+        share_main_field_limits=(
+            tke_vmin is None or tke_vmax is None
+        ),
+        synchronize_y_limits=True,
+    )
+
+
 # ============================================================================
 # Private fixture helpers
 # ============================================================================
@@ -482,6 +625,98 @@ def _synchronize_panel_y_limits(
     shared_ymax = max(limit[1] for limit in y_limits)
     for axis in selected_axes:
         axis.set_ylim(shared_ymin, shared_ymax)
+
+
+def _apply_common_hourly_mean_pressure_ylim(
+    panels: Sequence[HourlyMeanPanelInput],
+    *,
+    panel_indices: Sequence[int],
+) -> None:
+    """Apply one shared pressure range to the selected upper panels.
+
+    The shared interval is computed from the actual valid TKE data of each
+    selected panel, not from a fixed pressure window. This keeps the
+    comparison fair when one source does not provide values near the
+    surface.
+    """
+    pressure_intervals: list[tuple[float, float]] = []
+    for panel_index in panel_indices:
+        if panel_index >= len(panels):
+            continue
+
+        panel = panels[panel_index]
+        if not panel.layers:
+            continue
+
+        layer = panel.layers[0]
+        if layer.data_kind != "time_vertical":
+            continue
+        if not isinstance(layer.request, TimeVerticalSectionRequest):
+            continue
+
+        try:
+            plot_data = layer.adapter.to_time_vertical_section_plot_data(
+                variable_name=layer.variable_name,
+                request=layer.request,
+            )
+        except (FileNotFoundError, OSError):
+            return
+        pressure_interval = _compute_valid_pressure_interval(
+            plot_data.field,
+            plot_data.vertical_values,
+        )
+        if pressure_interval is not None:
+            pressure_intervals.append(pressure_interval)
+
+    if len(pressure_intervals) < 2:
+        return
+
+    shared_pressure_top = max(
+        interval[0] for interval in pressure_intervals
+    )
+    shared_pressure_bottom = min(
+        interval[1] for interval in pressure_intervals
+    )
+    if shared_pressure_top >= shared_pressure_bottom:
+        return
+
+    shared_ylim = (shared_pressure_bottom, shared_pressure_top)
+    for panel_index in panel_indices:
+        if panel_index >= len(panels):
+            continue
+        panels[panel_index].axes_set_kwargs["ylim"] = shared_ylim
+
+
+def _compute_valid_pressure_interval(
+    field: np.ndarray,
+    vertical_values: np.ndarray,
+) -> tuple[float, float] | None:
+    """Return the pressure interval where the section contains valid data."""
+    valid_rows = np.any(np.isfinite(field), axis=1)
+    if not np.any(valid_rows):
+        return None
+
+    pressure_values = _convert_pressure_values_to_hpa(
+        np.asarray(vertical_values, dtype=float)
+    )
+    valid_pressure_values = pressure_values[valid_rows]
+    if valid_pressure_values.size == 0:
+        return None
+
+    pressure_top = float(np.nanmin(valid_pressure_values))
+    pressure_bottom = float(np.nanmax(valid_pressure_values))
+    return pressure_top, pressure_bottom
+
+
+def _convert_pressure_values_to_hpa(values: np.ndarray) -> np.ndarray:
+    """Convert pressure values to hPa when they appear to be in Pa."""
+    pressure_values = np.asarray(values, dtype=float)
+    if pressure_values.size == 0:
+        return pressure_values
+    if float(np.nanmax(np.abs(pressure_values))) > 2000.0:
+        return pressure_values / 100.0
+
+    return pressure_values
 
 
 def _build_legacy_monan_e3sm_hourly_mean_times(
@@ -745,4 +980,174 @@ def _build_legacy_hourly_mean_lower_panel(
         axes_calls=[
             {"method": "set_xticks", "args": (np.arange(0, 24, 3),)},
         ],
+    )
+
+
+def _build_legacy_monan_e3sm_cross_section_request(
+    *,
+    time: np.datetime64 = LEGACY_CROSS_SECTION_START_DATE,
+    start_lat: float = LEGACY_CROSS_SECTION_START_LAT,
+    start_lon: float = LEGACY_CROSS_SECTION_START_LON,
+    end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
+    end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+    spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
+) -> VerticalCrossSectionRequest:
+    """Build the legacy cross-section request for MONAN/E3SM comparison."""
+    return VerticalCrossSectionRequest(
+        times=np.asarray([time], dtype="datetime64[ns]"),
+        start_lat=start_lat,
+        start_lon=start_lon,
+        end_lat=end_lat,
+        end_lon=end_lon,
+        vertical_axis="pressure",
+        spacing_km=spacing_km,
+    )
+
+
+def _build_legacy_monan_e3sm_cross_section_panels(
+    *,
+    time: np.datetime64 = LEGACY_CROSS_SECTION_START_DATE,
+    start_lat: float = LEGACY_CROSS_SECTION_START_LAT,
+    start_lon: float = LEGACY_CROSS_SECTION_START_LON,
+    end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
+    end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+    spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
+    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
+    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+) -> list[CrossSectionPanelInput]:
+    """Build the legacy MONAN/E3SM transect panels."""
+    monan_adapter = build_legacy_monan_e3sm_adapter()
+    e3sm_adapter = build_legacy_e3sm_adapter()
+    request = _build_legacy_monan_e3sm_cross_section_request(
+        time=time,
+        start_lat=start_lat,
+        start_lon=start_lon,
+        end_lat=end_lat,
+        end_lon=end_lon,
+        spacing_km=spacing_km,
+    )
+    return [
+        _build_legacy_cross_section_panel(
+            adapter=monan_adapter,
+            label="MONAN",
+            request=request,
+            tke_vmin=tke_vmin,
+            tke_vmax=tke_vmax,
+        ),
+        _build_legacy_cross_section_panel(
+            adapter=e3sm_adapter,
+            label="E3SM",
+            request=request,
+            tke_vmin=tke_vmin,
+            tke_vmax=tke_vmax,
+        ),
+    ]
+
+
+def _build_legacy_monan_e3sm_cross_section_figure_specification(
+    *,
+    time: np.datetime64 = LEGACY_CROSS_SECTION_START_DATE,
+    start_lat: float = LEGACY_CROSS_SECTION_START_LAT,
+    start_lon: float = LEGACY_CROSS_SECTION_START_LON,
+    end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
+    end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+) -> FigureSpecification:
+    """Build the figure specification for the legacy transect recipe."""
+    time_label = np.datetime_as_string(time, unit="m")
+    suptitle = (
+        f"Transect tke_pbl | {time_label} | "
+        f"({_format_latlon_label(start_lat, start_lon)}) -> "
+        f"({_format_latlon_label(end_lat, end_lon)})"
+    )
+    return FigureSpecification(
+        nrows=1,
+        ncols=2,
+        suptitle=suptitle,
+        figure_kwargs={"figsize": (14, 6), "constrained_layout": True},
+        shared_colorbar_specifications=[
+            SharedColorbarSpecification(
+                source_panel_index=0,
+                source_layer_index=0,
+                target_panel_indices=[0, 1],
+                label="Turbulent Kinetic Energy [m²/s²]",
+                colorbar_kwargs={"orientation": "horizontal", "pad": 0.14},
+            )
+        ],
+    )
+
+
+def _build_legacy_cross_section_panel(
+    *,
+    adapter: DataAdapter,
+    label: str,
+    request: VerticalCrossSectionRequest,
+    tke_vmin: float | None,
+    tke_vmax: float | None,
+) -> CrossSectionPanelInput:
+    """Build one legacy cross-section panel for MONAN or E3SM."""
+    tke_artist_kwargs = {"cmap": "viridis", "shading": "auto"}
+    if tke_vmin is not None:
+        tke_artist_kwargs["vmin"] = tke_vmin
+    if tke_vmax is not None:
+        tke_artist_kwargs["vmax"] = tke_vmax
+
+    return CrossSectionPanelInput(
+        layers=[
+            CrossSectionLayerInput(
+                adapter=adapter,
+                request=request,
+                variable_name="tke_pbl",
+                render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=tke_artist_kwargs,
+                ),
+                convert_pressure_to_hpa=True,
+            ),
+            CrossSectionLayerInput(
+                adapter=adapter,
+                request=request,
+                variable_name="qc",
+                render_specification=RenderSpecification(
+                    artist_method="contour",
+                    artist_kwargs={
+                        "colors": "white",
+                        "linewidths": 0.8,
+                        "alpha": 0.8,
+                    },
+                    artist_calls=[
+                        {
+                            "method": "clabel",
+                            "kwargs": {
+                                "inline": True,
+                                "fontsize": 7,
+                                "fmt": "%.1e",
+                            },
+                        }
+                    ],
+                ),
+                minimum_contour_level=LEGACY_CROSS_SECTION_QC_CONTOUR_MIN,
+                convert_pressure_to_hpa=True,
+            ),
+        ],
+        axes_set_kwargs={
+            "title": label,
+            "xlabel": "Coordinates along transect",
+            "ylabel": "Pressure [hPa]",
+            "ylim": (1000.0, 700.0),
+        },
+        grid_kwargs={"visible": True, "alpha": 0.25},
+        transect_axis_mode="distance_km",
+        use_coordinate_tick_labels=True,
+        transect_tick_count=4,
+    )
+
+
+def _format_latlon_label(lat: float, lon: float) -> str:
+    """Format latitude/longitude with hemisphere suffixes."""
+    normalized_lon = ((lon + 180.0) % 360.0) - 180.0
+    lat_hemi = "N" if lat >= 0.0 else "S"
+    lon_hemi = "E" if normalized_lon >= 0.0 else "W"
+    return (
+        f"{abs(lat):.2f}°{lat_hemi}, "
+        f"{abs(normalized_lon):.2f}°{lon_hemi}"
     )

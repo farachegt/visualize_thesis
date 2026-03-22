@@ -38,6 +38,8 @@ from .requests import (
     build_radiosonde_vertical_profile_request,
 )
 from .recipes import (
+    build_legacy_monan_e3sm_cross_section_figure,
+    build_legacy_monan_e3sm_cross_section_inputs,
     build_legacy_monan_e3sm_hourly_mean_figure,
     build_legacy_monan_e3sm_hourly_mean_inputs,
     build_legacy_main_vertical_profile_recipe_panels,
@@ -75,6 +77,8 @@ __all__ = [
     "build_legacy_monan_e3sm_adapter",
     "build_legacy_monan_e3sm_source_specification",
     "build_legacy_chile_coast_vertical_profile_request",
+    "build_legacy_monan_e3sm_cross_section_figure",
+    "build_legacy_monan_e3sm_cross_section_inputs",
     "build_legacy_monan_e3sm_hourly_mean_figure",
     "build_legacy_monan_e3sm_hourly_mean_inputs",
     "build_legacy_main_vertical_profile_recipe_panels",

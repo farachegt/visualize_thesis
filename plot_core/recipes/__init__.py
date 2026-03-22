@@ -1,5 +1,10 @@
 """High-level plotting recipes built on top of the reusable core."""
 
+from .cross_sections import (
+    CrossSectionLayerInput,
+    CrossSectionPanelInput,
+    plot_cross_section_panels,
+)
 from .profiles import (
     PanelInput,
     VerticalProfileLayerInput,
@@ -14,10 +19,13 @@ from .time_vertical import (
 )
 
 __all__ = [
+    "CrossSectionLayerInput",
+    "CrossSectionPanelInput",
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
     "PanelInput",
+    "plot_cross_section_panels",
     "plot_hourly_mean_panels",
     "VerticalProfileLayerInput",
     "plot_vertical_profile_tke_hourly_mean",
