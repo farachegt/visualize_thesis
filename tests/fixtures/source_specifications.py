@@ -59,6 +59,11 @@ def build_legacy_e3sm_source_specification() -> SourceSpecification:
                 source_name="surf_sens_flux",
                 input_units="W m^-2",
             ),
+            "pressure": VariableSpecification(
+                source_name="lev",
+                input_units="hPa",
+                target_units="hPa",
+            ),
         },
     )
 
@@ -126,6 +131,7 @@ def build_model_u_source_specification() -> SourceSpecification:
             "pressure": VariableSpecification(
                 source_name="pressure",
                 input_units="Pa",
+                target_units="hPa",
             ),
         },
     )
@@ -231,6 +237,7 @@ def _build_legacy_monan_source_specification(
             "pressure": VariableSpecification(
                 source_name="pressure",
                 input_units="Pa",
+                target_units="hPa",
             ),
             "u_wind": VariableSpecification(
                 source_name="u",

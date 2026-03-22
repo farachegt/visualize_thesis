@@ -107,6 +107,7 @@ figure = plot_vertical_profiles_panel_at_point(
     ),
     x_units=("K", "m2 s-2", "kg kg-1", "m s-1"),
     vertical_axis="pressure",
+    vertical_axis_label="Pressure [hPa]",
 )
 ```
 

@@ -357,7 +357,7 @@ def build_legacy_vertical_profile_recipe_panels(
                 axes_set_kwargs={
                     "title": panel_label,
                     "xlabel": f"{panel_label} [{x_unit}]",
-                    "ylabel": "Pressure (Pa)",
+                    "ylabel": "Pressure [hPa]",
                 },
                 grid_kwargs={"visible": True, "alpha": 0.3},
                 legend_kwargs={"loc": "best"},
@@ -469,6 +469,7 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
         panel_labels=LEGACY_PROFILE_PANEL_LABELS,
         x_units=LEGACY_PROFILE_X_UNITS,
         vertical_axis=request.vertical_axis,
+        vertical_axis_label="Pressure [hPa]",
         figure_specification=(
             build_legacy_vertical_profile_figure_specification()
         ),

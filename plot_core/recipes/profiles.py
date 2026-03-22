@@ -147,6 +147,7 @@ def plot_vertical_profiles_panel_at_point(
     panel_labels: Sequence[str],
     x_units: Sequence[str],
     vertical_axis: str = "pressure",
+    vertical_axis_label: str | None = None,
     time_reduce: TimeReduce | None = None,
     panel_extra_layers: Sequence[
         Sequence[VerticalProfileLayerInput]
@@ -175,6 +176,10 @@ def plot_vertical_profiles_panel_at_point(
         X-axis units, one per panel. Empty strings are allowed.
     vertical_axis:
         Semantic vertical axis used by the request.
+    vertical_axis_label:
+        Optional y-axis label used by the generated profile panels. When
+        omitted, the wrapper uses a generic label derived from
+        `vertical_axis`.
     time_reduce:
         Optional temporal reducer applied when `time` contains multiple
         instants.
@@ -269,7 +274,10 @@ def plot_vertical_profiles_panel_at_point(
             panel_count,
             final_figure_specification.ncols,
         ):
-            axes_set_kwargs["ylabel"] = _build_profile_ylabel(vertical_axis)
+            axes_set_kwargs["ylabel"] = (
+                vertical_axis_label
+                or _build_profile_ylabel(vertical_axis)
+            )
 
         panels.append(
             PanelInput(
