@@ -33,6 +33,8 @@ from plot_core.recipes.maps import (
 from plot_core.recipes.profiles import (
     PanelInput,
     VerticalProfileLayerInput,
+    VerticalProfileSourceInput,
+    plot_vertical_profiles_panel_at_point,
     plot_vertical_profiles_panel,
 )
 from plot_core.recipes.time_vertical import (
@@ -396,6 +398,79 @@ def build_legacy_main_vertical_profile_recipe_panels() -> list[PanelInput]:
         primary_request=request,
         secondary_adapter=mynn_adapter,
         secondary_request=request,
+    )
+
+
+def build_legacy_vertical_profiles_panel_at_point_figure(
+    *,
+    time_value: np.datetime64 | None = None,
+    primary_adapter: DataAdapter | None = None,
+    secondary_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy point-profile wrapper using real SHOC and MYNN.
+
+    Parameters
+    ----------
+    time_value:
+        Optional requested time. When omitted, the default Chile-coast legacy
+        time from the request fixture is used.
+    primary_adapter:
+        Optional adapter for the primary source. When omitted, the legacy
+        SHOC MONAN adapter is created.
+    secondary_adapter:
+        Optional adapter for the secondary source. When omitted, the legacy
+        MYNN MONAN adapter is created.
+
+    Returns
+    -------
+    Figure
+        Figure produced by `plot_vertical_profiles_panel_at_point(...)`.
+    """
+    shoc_adapter = primary_adapter or build_legacy_shoc_monan_adapter()
+    mynn_adapter = secondary_adapter or build_legacy_mynn_monan_adapter()
+    request = build_legacy_chile_coast_vertical_profile_request(
+        **(
+            {"time_value": time_value}
+            if time_value is not None
+            else {}
+        )
+    )
+    return plot_vertical_profiles_panel_at_point(
+        sources=[
+            VerticalProfileSourceInput(
+                adapter=shoc_adapter,
+                variable_names=LEGACY_PROFILE_VARIABLE_NAMES,
+                legend_label=LEGACY_PROFILE_PRIMARY_LABEL,
+                render_specification=RenderSpecification(
+                    artist_method="plot",
+                    artist_kwargs={
+                        "color": "tab:blue",
+                        "linewidth": 2.0,
+                    },
+                ),
+            ),
+            VerticalProfileSourceInput(
+                adapter=mynn_adapter,
+                variable_names=LEGACY_PROFILE_VARIABLE_NAMES,
+                legend_label=LEGACY_PROFILE_SECONDARY_LABEL,
+                render_specification=RenderSpecification(
+                    artist_method="plot",
+                    artist_kwargs={
+                        "color": "tab:orange",
+                        "linewidth": 2.0,
+                    },
+                ),
+            ),
+        ],
+        point_lat=float(request.point_lat),
+        point_lon=float(request.point_lon),
+        time=request.times,
+        panel_labels=LEGACY_PROFILE_PANEL_LABELS,
+        x_units=LEGACY_PROFILE_X_UNITS,
+        vertical_axis=request.vertical_axis,
+        figure_specification=(
+            build_legacy_vertical_profile_figure_specification()
+        ),
     )
 
 

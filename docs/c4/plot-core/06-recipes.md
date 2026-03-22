@@ -57,3 +57,6 @@ Em geracao batch de figuras:
   )
 - [Diurnal Peak Phase Rows](./recipes/10-diurnal-peak-phase-rows.md)
 - [Diurnal Peak Phase PBLH](./recipes/11-diurnal-peak-phase-pblh.md)
+- [Vertical Profiles Panel At Point](
+  ./recipes/12-vertical-profiles-panel-at-point.md
+  )

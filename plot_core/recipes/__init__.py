@@ -27,7 +27,9 @@ from .maps import (
 )
 from .profiles import (
     PanelInput,
+    VerticalProfileSourceInput,
     VerticalProfileLayerInput,
+    plot_vertical_profiles_panel_at_point,
     plot_vertical_profiles_panel,
 )
 from .time_vertical import (
@@ -54,6 +56,7 @@ __all__ = [
     "MapPanelInput",
     "PreparedMapLayerInput",
     "PanelInput",
+    "VerticalProfileSourceInput",
     "plot_cross_section_panels",
     "plot_diurnal_amplitude_rows",
     "plot_diurnal_cycle_amplitude_pblh",
@@ -64,6 +67,7 @@ __all__ = [
     "plot_map_panels",
     "plot_paper_grade_panel",
     "VerticalProfileLayerInput",
+    "plot_vertical_profiles_panel_at_point",
     "plot_vertical_profile_tke_hourly_mean",
     "plot_vertical_profiles_panel",
 ]
