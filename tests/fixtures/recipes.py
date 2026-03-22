@@ -69,6 +69,7 @@ LEGACY_HOURLY_MEAN_N_DAYS = 3
 LEGACY_HOURLY_MEAN_HALF_BOX_DEG = 0.5
 LEGACY_HOURLY_MEAN_TKE_VMIN = 0.0
 LEGACY_HOURLY_MEAN_TKE_VMAX = 2.0
+LEGACY_HOURLY_MEAN_QC_CONTOUR_MIN = 1e-5
 
 
 # ============================================================================
@@ -649,6 +650,7 @@ def _build_legacy_hourly_mean_upper_panel(
                         }
                     ],
                 ),
+                minimum_contour_level=LEGACY_HOURLY_MEAN_QC_CONTOUR_MIN,
             ),
             HourlyMeanLayerInput(
                 adapter=adapter,

@@ -48,6 +48,10 @@ class HourlyMeanLayerInput:
         When `True`, a time-series input is converted from height in metres
         to pressure before plotting. This is useful for overlaying `hpbl`
         over a `time x pressure` panel.
+    minimum_contour_level:
+        Optional lower bound used when automatically computing contour
+        levels for `artist_method="contour"`. When the resolved field
+        maximum does not exceed this threshold, the contour layer is skipped.
     """
 
     adapter: DataAdapter
@@ -57,6 +61,7 @@ class HourlyMeanLayerInput:
     render_specification: RenderSpecification
     legend_label: str | None = None
     convert_height_to_pressure: bool = False
+    minimum_contour_level: float | None = None
 
 
 @dataclass
@@ -319,13 +324,21 @@ def _build_hourly_mean_plot_panel(
             "Each HourlyMeanPanelInput must contain at least one layer."
         )
 
-    plot_layers = [
-        _build_hourly_mean_plot_layer(
+    plot_layers = []
+    for layer_input in panel_input.layers:
+        plot_layer = _build_hourly_mean_plot_layer(
             layer_input,
             reference_longitude,
         )
-        for layer_input in panel_input.layers
-    ]
+        if plot_layer is not None:
+            plot_layers.append(plot_layer)
+
+    if not plot_layers:
+        raise ValueError(
+            "Each HourlyMeanPanelInput must resolve to at least one "
+            "PlotLayer."
+        )
+
     return PlotPanel(
         layers=plot_layers,
         axes_set_kwargs=dict(panel_input.axes_set_kwargs),
@@ -339,7 +352,7 @@ def _build_hourly_mean_plot_panel(
 def _build_hourly_mean_plot_layer(
     layer_input: HourlyMeanLayerInput,
     reference_longitude: float,
-) -> PlotLayer:
+) -> PlotLayer | None:
     """Resolve one hourly-mean layer input into a `PlotLayer`.
 
     Parameters
@@ -351,9 +364,10 @@ def _build_hourly_mean_plot_layer(
 
     Returns
     -------
-    PlotLayer
+    PlotLayer | None
         Plot layer containing prepared `PlotData` and rendering
-        instructions.
+        instructions. Returns `None` when a contour layer is configured
+        with a minimum contour level that is not reached by the data.
     """
     plot_data = _resolve_hourly_mean_plot_data(
         layer_input,
@@ -363,6 +377,14 @@ def _build_hourly_mean_plot_layer(
         layer_input.render_specification,
         layer_input.legend_label,
     )
+    render_specification = _apply_hourly_mean_contour_levels(
+        plot_data,
+        render_specification,
+        layer_input.minimum_contour_level,
+    )
+    if render_specification is None:
+        return None
+
     return PlotLayer(
         plot_data=plot_data,
         render_specification=render_specification,
@@ -737,6 +759,9 @@ def _build_render_specification(
     return RenderSpecification(
         artist_method=render_specification.artist_method,
         artist_kwargs=artist_kwargs,
+        artist_calls=[
+            dict(call) for call in render_specification.artist_calls
+        ],
     )
 
 
@@ -754,6 +779,9 @@ def _build_tke_render_specification(
     return RenderSpecification(
         artist_method=render_specification.artist_method,
         artist_kwargs=artist_kwargs,
+        artist_calls=[
+            dict(call) for call in render_specification.artist_calls
+        ],
     )
 
 
@@ -767,6 +795,54 @@ def _build_qc_render_specification(
     return RenderSpecification(
         artist_method=render_specification.artist_method,
         artist_kwargs=artist_kwargs,
+        artist_calls=[
+            dict(call) for call in render_specification.artist_calls
+        ],
+    )
+
+
+def _apply_hourly_mean_contour_levels(
+    plot_data: TimeSeriesPlotData | TimeVerticalSectionPlotData,
+    render_specification: RenderSpecification,
+    minimum_contour_level: float | None,
+) -> RenderSpecification | None:
+    """Apply automatic contour levels to hourly-mean contour layers.
+
+    Parameters
+    ----------
+    plot_data:
+        Resolved plot data associated with the layer.
+    render_specification:
+        Base render specification for the layer.
+    minimum_contour_level:
+        Optional lower bound used when generating contour levels.
+
+    Returns
+    -------
+    RenderSpecification | None
+        Render specification with contour levels applied, or `None` when a
+        contour layer should be skipped because its field does not exceed
+        the configured minimum level.
+    """
+    if render_specification.artist_method != "contour":
+        return render_specification
+
+    if "levels" in render_specification.artist_kwargs:
+        return render_specification
+
+    if not isinstance(plot_data, TimeVerticalSectionPlotData):
+        return render_specification
+
+    contour_levels = _build_contour_levels(
+        plot_data.field,
+        minimum_level=minimum_contour_level,
+    )
+    if contour_levels is None:
+        return None
+
+    return _build_qc_render_specification(
+        render_specification,
+        contour_levels,
     )
 
 
@@ -1092,14 +1168,25 @@ def _convert_pressure_values_to_hpa(values: np.ndarray) -> np.ndarray:
     return values
 
 
-def _build_contour_levels(field: np.ndarray) -> np.ndarray | None:
+def _build_contour_levels(
+    field: np.ndarray,
+    minimum_level: float | None = None,
+) -> np.ndarray | None:
     """Build contour levels for a non-flat 2D field."""
-    field_min = float(np.nanmin(field))
     field_max = float(np.nanmax(field))
-    if np.isnan(field_min) or np.isnan(field_max) or field_min == field_max:
+    if np.isnan(field_max):
         return None
 
-    return np.linspace(field_min, field_max, 5)
+    if minimum_level is None:
+        field_min = float(np.nanmin(field))
+        if np.isnan(field_min) or field_min == field_max:
+            return None
+        return np.linspace(field_min, field_max, 5)
+
+    if field_max <= minimum_level:
+        return None
+
+    return np.linspace(minimum_level, field_max, 5)
 
 
 def _as_time_vertical_plot_data(
