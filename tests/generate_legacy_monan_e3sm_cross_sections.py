@@ -12,6 +12,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from tests.fixtures import (
     OUTPUT_DIR,
+    build_legacy_e3sm_adapter,
+    build_legacy_monan_e3sm_adapter,
     build_legacy_monan_e3sm_cross_section_figure,
 )
 
@@ -42,14 +44,24 @@ def generate_legacy_monan_e3sm_cross_section_figures(
     final_output_dir.mkdir(parents=True, exist_ok=True)
 
     saved_paths: list[Path] = []
-    for time in _build_hourly_times(START_TIME, END_TIME):
-        figure = build_legacy_monan_e3sm_cross_section_figure(time=time)
-        output_path = final_output_dir / (
-            f"transect_{FIELD_FILE_STEM}_{_slugify_time(time)}.png"
-        )
-        figure.savefig(output_path, dpi=150, bbox_inches="tight")
-        plt.close(figure)
-        saved_paths.append(output_path)
+    monan_adapter = build_legacy_monan_e3sm_adapter()
+    e3sm_adapter = build_legacy_e3sm_adapter()
+    try:
+        for time in _build_hourly_times(START_TIME, END_TIME):
+            figure = build_legacy_monan_e3sm_cross_section_figure(
+                time=time,
+                monan_adapter=monan_adapter,
+                e3sm_adapter=e3sm_adapter,
+            )
+            output_path = final_output_dir / (
+                f"transect_{FIELD_FILE_STEM}_{_slugify_time(time)}.png"
+            )
+            figure.savefig(output_path, dpi=150, bbox_inches="tight")
+            plt.close(figure)
+            saved_paths.append(output_path)
+    finally:
+        monan_adapter.close()
+        e3sm_adapter.close()
 
     return saved_paths
 

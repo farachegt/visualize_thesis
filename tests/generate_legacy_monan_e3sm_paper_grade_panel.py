@@ -14,24 +14,23 @@ from tests.fixtures import (
     OUTPUT_DIR,
     build_legacy_e3sm_adapter,
     build_legacy_monan_e3sm_adapter,
-    build_legacy_monan_e3sm_side_by_side_figure,
+    build_legacy_monan_e3sm_paper_grade_figure,
 )
 
 START_TIME = np.datetime64("2014-02-24T00:00")
 END_TIME = np.datetime64("2014-02-27T00:00")
-FIELD_FILE_STEM = "hpbl"
 
 
-def generate_legacy_monan_e3sm_side_by_side_hpbl_figures(
+def generate_legacy_monan_e3sm_paper_grade_figures(
     output_dir: Path | None = None,
 ) -> list[Path]:
-    """Generate one legacy-style HPBL map figure per configured hour.
+    """Generate one legacy-style paper-grade figure per configured hour.
 
     Parameters
     ----------
     output_dir:
         Directory where the figures will be saved. When omitted, the figures
-        are written into `tests/output/legacy_monan_e3sm_side_by_side_hpbl`.
+        are written into `tests/output/legacy_monan_e3sm_paper_grade_panel`.
 
     Returns
     -------
@@ -39,7 +38,7 @@ def generate_legacy_monan_e3sm_side_by_side_hpbl_figures(
         Paths of the saved figures, in chronological order.
     """
     final_output_dir = output_dir or (
-        OUTPUT_DIR / "legacy_monan_e3sm_side_by_side_hpbl"
+        OUTPUT_DIR / "legacy_monan_e3sm_paper_grade_panel"
     )
     final_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,13 +47,13 @@ def generate_legacy_monan_e3sm_side_by_side_hpbl_figures(
     e3sm_adapter = build_legacy_e3sm_adapter()
     try:
         for time in _build_hourly_times(START_TIME, END_TIME):
-            figure = build_legacy_monan_e3sm_side_by_side_figure(
+            figure = build_legacy_monan_e3sm_paper_grade_figure(
                 time=time,
                 monan_adapter=monan_adapter,
                 e3sm_adapter=e3sm_adapter,
             )
             output_path = final_output_dir / (
-                f"{FIELD_FILE_STEM}_{_slugify_time(time)}.png"
+                f"paper_grade_{_slugify_time(time)}.png"
             )
             figure.savefig(output_path, dpi=150, bbox_inches="tight")
             plt.close(figure)
@@ -67,8 +66,8 @@ def generate_legacy_monan_e3sm_side_by_side_hpbl_figures(
 
 
 def main() -> None:
-    """Generate all legacy-style MONAN/E3SM HPBL map figures."""
-    for output_path in generate_legacy_monan_e3sm_side_by_side_hpbl_figures():
+    """Generate all legacy-style MONAN/E3SM paper-grade figures."""
+    for output_path in generate_legacy_monan_e3sm_paper_grade_figures():
         print(f"saved: {output_path}")
 
 

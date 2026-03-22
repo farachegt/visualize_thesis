@@ -89,6 +89,12 @@ Regras base:
 - preferir retorno explicito de valores a mudancas implicitas de estado;
 - evitar efeitos colaterais desnecessarios;
 - usar `pathlib` quando fizer sentido para caminhos.
+- em loops de geracao de figuras com a mesma fonte, reutilizar o mesmo
+  `DataAdapter` por fonte em vez de reabrir datasets a cada iteracao;
+- selecoes temporais distintas devem variar pela `request`, nao por nova
+  abertura do dataset;
+- scripts batch devem chamar `adapter.close()` ao final para liberar handles
+  NetCDF explicitamente.
 
 ## 4. Renderizacao e API
 

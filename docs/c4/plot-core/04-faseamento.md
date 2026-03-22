@@ -186,6 +186,8 @@ Arquivo foco:
 Responsabilidades:
 
 - abrir a fonte via `FileFormatReader`;
+- cachear o `Dataset` aberto para reutilizacao em multiplas requests da mesma
+  fonte;
 - aplicar `SourceSpecification`;
 - resolver `required_variable_names` como conjunto expandido de dependencias
   da chamada atual;
@@ -204,6 +206,9 @@ Metodos publicos do MVP:
 Resultado esperado:
 
 - ja ser possivel gerar `PlotData` reais a partir dos arquivos de teste.
+- scripts e recipes batch poderem reutilizar o mesmo `DataAdapter` por fonte
+  ao longo de loops temporais ou espaciais, fechando o cache explicitamente
+  ao final.
 
 ## Fase 6
 

@@ -11,6 +11,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from tests.fixtures import (
     OUTPUT_DIR,
+    build_legacy_e3sm_adapter,
+    build_legacy_monan_e3sm_adapter,
     build_legacy_monan_e3sm_hourly_mean_figure,
 )
 
@@ -54,20 +56,28 @@ def generate_legacy_monan_e3sm_hourly_mean_figures(
     final_output_dir.mkdir(parents=True, exist_ok=True)
 
     saved_paths: list[Path] = []
-    for region_name, (latitude, longitude) in REGION_COORDINATES.items():
-        figure = build_legacy_monan_e3sm_hourly_mean_figure(
-            region_name=region_name,
-            point_lat=latitude,
-            point_lon=longitude,
-            tke_vmin=0.0,
-            tke_vmax=REGION_TKE_VMAX[region_name],
-        )
-        output_path = final_output_dir / (
-            f"{_slugify_region_name(region_name)}.png"
-        )
-        figure.savefig(output_path, dpi=150, bbox_inches="tight")
-        plt.close(figure)
-        saved_paths.append(output_path)
+    monan_adapter = build_legacy_monan_e3sm_adapter()
+    e3sm_adapter = build_legacy_e3sm_adapter()
+    try:
+        for region_name, (latitude, longitude) in REGION_COORDINATES.items():
+            figure = build_legacy_monan_e3sm_hourly_mean_figure(
+                region_name=region_name,
+                point_lat=latitude,
+                point_lon=longitude,
+                tke_vmin=0.0,
+                tke_vmax=REGION_TKE_VMAX[region_name],
+                monan_adapter=monan_adapter,
+                e3sm_adapter=e3sm_adapter,
+            )
+            output_path = final_output_dir / (
+                f"{_slugify_region_name(region_name)}.png"
+            )
+            figure.savefig(output_path, dpi=150, bbox_inches="tight")
+            plt.close(figure)
+            saved_paths.append(output_path)
+    finally:
+        monan_adapter.close()
+        e3sm_adapter.close()
 
     return saved_paths
 

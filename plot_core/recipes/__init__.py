@@ -6,9 +6,14 @@ from .cross_sections import (
     plot_cross_section_panels,
 )
 from .maps import (
+    MapComparisonRowInput,
+    MapComparisonSourceInput,
     MapLayerInput,
     MapPanelInput,
+    PreparedMapLayerInput,
+    plot_map_comparison_rows,
     plot_map_panels,
+    plot_paper_grade_panel,
 )
 from .profiles import (
     PanelInput,
@@ -29,12 +34,17 @@ __all__ = [
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
+    "MapComparisonRowInput",
+    "MapComparisonSourceInput",
     "MapLayerInput",
     "MapPanelInput",
+    "PreparedMapLayerInput",
     "PanelInput",
     "plot_cross_section_panels",
     "plot_hourly_mean_panels",
+    "plot_map_comparison_rows",
     "plot_map_panels",
+    "plot_paper_grade_panel",
     "VerticalProfileLayerInput",
     "plot_vertical_profile_tke_hourly_mean",
     "plot_vertical_profiles_panel",

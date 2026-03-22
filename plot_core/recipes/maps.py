@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, Sequence, Tuple
+from typing import Any, Sequence, Tuple, Union
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -16,6 +16,7 @@ from ..rendering import (
     PlotLayer,
     PlotPanel,
     RenderSpecification,
+    SharedColorbarSpecification,
     SpecializedPlotter,
 )
 from ..requests import HorizontalFieldRequest
@@ -51,6 +52,30 @@ class MapLayerInput:
 
 
 @dataclass
+class PreparedMapLayerInput:
+    """Describe one precomputed map layer requested by a recipe.
+
+    Parameters
+    ----------
+    plot_data:
+        Horizontal field that is already prepared and ready for rendering.
+    render_specification:
+        Rendering instructions used to convert the field into a matplotlib
+        artist.
+    legend_label:
+        Optional legend label injected into the rendering kwargs when one is
+        not already defined there.
+    """
+
+    plot_data: HorizontalFieldPlotData
+    render_specification: RenderSpecification
+    legend_label: str | None = None
+
+
+MapLayerDefinition = Union[MapLayerInput, PreparedMapLayerInput]
+
+
+@dataclass
 class MapPanelInput:
     """Describe one map subplot to be built by the recipe.
 
@@ -83,11 +108,103 @@ class MapPanelInput:
         `GeoAxes.gridlines`.
     """
 
-    layers: Sequence[MapLayerInput]
+    layers: Sequence[MapLayerDefinition]
     axes_set_kwargs: dict[str, Any] = field(default_factory=dict)
     legend_kwargs: dict[str, Any] | None = None
     colorbar_specification: ColorbarSpecification | None = None
     axes_calls: list[dict[str, Any]] = field(default_factory=list)
+    extent: BBox | None = None
+    coastlines_kwargs: dict[str, Any] | None = field(
+        default_factory=dict
+    )
+    borders_kwargs: dict[str, Any] | None = field(default_factory=dict)
+    gridlines_kwargs: dict[str, Any] | None = None
+    gridliner_attrs: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MapComparisonSourceInput:
+    """Describe one source field participating in a map comparison row.
+
+    Parameters
+    ----------
+    adapter:
+        Data adapter responsible for producing the map field.
+    request:
+        Horizontal field request applied to this source.
+    variable_name:
+        Canonical variable name resolved by the adapter.
+    source_label:
+        Human-readable label used in panel titles.
+    """
+
+    adapter: DataAdapter
+    request: HorizontalFieldRequest
+    variable_name: str
+    source_label: str
+
+
+@dataclass
+class MapComparisonRowInput:
+    """Describe one comparison row in a publication-style map figure.
+
+    Parameters
+    ----------
+    left_source:
+        Source rendered in the first column.
+    right_source:
+        Source rendered in the second column.
+    field_label:
+        Human-readable variable label used in titles and colorbars.
+    absolute_render_specification:
+        Rendering specification used by both absolute-field panels. When
+        `vmin` and `vmax` are not provided, one shared limit pair is
+        computed from the two source fields.
+    difference_render_specification:
+        Rendering specification used by the difference panel. When `vmin`
+        and `vmax` are not provided, symmetric limits centred on zero are
+        derived from the difference field.
+    left_panel_title:
+        Optional title override for the first column.
+    right_panel_title:
+        Optional title override for the second column.
+    difference_panel_title:
+        Optional title override for the difference column.
+    absolute_colorbar_label:
+        Label applied to the shared absolute-field colorbar.
+    difference_colorbar_label:
+        Label applied to the difference colorbar.
+    absolute_colorbar_kwargs:
+        Extra kwargs forwarded to the shared absolute-field colorbar.
+    difference_colorbar_kwargs:
+        Extra kwargs forwarded to the difference colorbar.
+    extent:
+        Optional map extent in the order `(min_lon, max_lon, min_lat,
+        max_lat)`.
+    coastlines_kwargs:
+        Optional kwargs forwarded to `GeoAxes.coastlines`.
+    borders_kwargs:
+        Optional kwargs forwarded to `GeoAxes.add_feature` for borders.
+    gridlines_kwargs:
+        Optional kwargs forwarded to `GeoAxes.gridlines`.
+    gridliner_attrs:
+        Optional base attributes applied to each `Gridliner`.
+    """
+
+    left_source: MapComparisonSourceInput
+    right_source: MapComparisonSourceInput
+    field_label: str
+    absolute_render_specification: RenderSpecification
+    difference_render_specification: RenderSpecification
+    left_panel_title: str | None = None
+    right_panel_title: str | None = None
+    difference_panel_title: str | None = None
+    absolute_colorbar_label: str | None = None
+    difference_colorbar_label: str | None = None
+    absolute_colorbar_kwargs: dict[str, Any] = field(default_factory=dict)
+    difference_colorbar_kwargs: dict[str, Any] = field(
+        default_factory=dict
+    )
     extent: BBox | None = None
     coastlines_kwargs: dict[str, Any] | None = field(
         default_factory=dict
@@ -150,6 +267,228 @@ def plot_map_panels(
     )
 
 
+def plot_map_comparison_rows(
+    *,
+    rows: Sequence[MapComparisonRowInput],
+    figure_specification: FigureSpecification,
+    plotter: SpecializedPlotter | None = None,
+) -> Figure:
+    """Build a comparison figure with left, right and delta map columns.
+
+    Parameters
+    ----------
+    rows:
+        Ordered comparison rows. Each row produces three panels:
+        left source, right source and left-minus-right difference.
+    figure_specification:
+        Global figure layout and metadata.
+    plotter:
+        Optional plotter instance. When omitted, a fresh
+        `SpecializedPlotter` is created.
+
+    Returns
+    -------
+    Figure
+        Rendered matplotlib figure ready for `savefig` or `show`.
+
+    Raises
+    ------
+    ValueError
+        If no comparison row is provided or if one row compares
+        incompatible grids.
+    """
+    if not rows:
+        raise ValueError("At least one MapComparisonRowInput is required.")
+
+    comparison_panels: list[MapPanelInput] = []
+    shared_colorbars: list[SharedColorbarSpecification] = list(
+        figure_specification.shared_colorbar_specifications
+    )
+    for row_index, row_input in enumerate(rows):
+        row_panels, row_colorbars = _build_map_comparison_row(
+            row_input=row_input,
+            row_index=row_index,
+        )
+        comparison_panels.extend(row_panels)
+        shared_colorbars.extend(row_colorbars)
+
+    comparison_figure_specification = replace(
+        figure_specification,
+        shared_colorbar_specifications=shared_colorbars,
+    )
+    return plot_map_panels(
+        panels=comparison_panels,
+        figure_specification=comparison_figure_specification,
+        plotter=plotter,
+    )
+
+
+def plot_paper_grade_panel(
+    *,
+    monan_adapter: DataAdapter,
+    e3sm_adapter: DataAdapter,
+    date: np.datetime64,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        ("hpbl", "hpbl"),
+        ("sensible_heat_flux", "sensible_heat_flux"),
+    ),
+    labels: Sequence[str] = ("PBLH", "SHF/HFX"),
+    vmins: Sequence[float] = (0.0, -200.0),
+    vmaxs: Sequence[float] = (3000.0, 500.0),
+    cmaps_abs: Sequence[str] = ("turbo", "Spectral_r"),
+    cmap_diff: str = "RdBu_r",
+    diff_limits: Sequence[float | None] = (1500.0, 200.0),
+    plotter: SpecializedPlotter | None = None,
+) -> Figure:
+    """Build the legacy publication-style MONAN/E3SM comparison panel.
+
+    Parameters
+    ----------
+    monan_adapter:
+        Adapter representing the MONAN source.
+    e3sm_adapter:
+        Adapter representing the E3SM source.
+    date:
+        UTC instant represented by the panel.
+    variable_pairs:
+        Canonical variable pairs in `(monan_variable, e3sm_variable)` order,
+        one pair per row.
+    labels:
+        Human-readable row labels.
+    vmins:
+        Minimum absolute-field limits, one per row.
+    vmaxs:
+        Maximum absolute-field limits, one per row.
+    cmaps_abs:
+        Colormaps used by the absolute fields, one per row.
+    cmap_diff:
+        Colormap used by every difference panel.
+    diff_limits:
+        Optional symmetric limits used by each difference panel. When one
+        entry is `None`, that row derives its limit from the data.
+    plotter:
+        Optional plotter instance. When omitted, a fresh
+        `SpecializedPlotter` is created.
+
+    Returns
+    -------
+    Figure
+        Rendered matplotlib figure ready for `savefig` or `show`.
+
+    Raises
+    ------
+    ValueError
+        If the row-wise parameter sequences do not all have the same
+        length.
+    """
+    row_count = len(variable_pairs)
+    parameter_lengths = [
+        len(labels),
+        len(vmins),
+        len(vmaxs),
+        len(cmaps_abs),
+        len(diff_limits),
+    ]
+    if any(length != row_count for length in parameter_lengths):
+        raise ValueError(
+            "All row-wise parameters must match variable_pairs length."
+        )
+
+    request = HorizontalFieldRequest(
+        times=np.asarray([date], dtype="datetime64[ns]"),
+    )
+    row_inputs: list[MapComparisonRowInput] = []
+    for (
+        variable_pair,
+        field_label,
+        vmin,
+        vmax,
+        cmap_abs,
+        diff_limit,
+    ) in zip(
+        variable_pairs,
+        labels,
+        vmins,
+        vmaxs,
+        cmaps_abs,
+        diff_limits,
+    ):
+        monan_variable, e3sm_variable = variable_pair
+        difference_artist_kwargs = {"cmap": cmap_diff}
+        if diff_limit is not None:
+            difference_artist_kwargs["vmin"] = -float(diff_limit)
+            difference_artist_kwargs["vmax"] = float(diff_limit)
+
+        row_inputs.append(
+            MapComparisonRowInput(
+                left_source=MapComparisonSourceInput(
+                    adapter=monan_adapter,
+                    request=request,
+                    variable_name=monan_variable,
+                    source_label="MONAN",
+                ),
+                right_source=MapComparisonSourceInput(
+                    adapter=e3sm_adapter,
+                    request=request,
+                    variable_name=e3sm_variable,
+                    source_label="E3SM",
+                ),
+                field_label=field_label,
+                absolute_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs={
+                        "cmap": cmap_abs,
+                        "vmin": float(vmin),
+                        "vmax": float(vmax),
+                    },
+                ),
+                difference_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=difference_artist_kwargs,
+                ),
+                difference_panel_title=(
+                    f"Delta {field_label} = MONAN - E3SM"
+                ),
+                absolute_colorbar_label=field_label,
+                difference_colorbar_label=f"Delta {field_label}",
+                absolute_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                difference_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                coastlines_kwargs={"linewidth": 0.8},
+                borders_kwargs={"linewidth": 0.5},
+                gridlines_kwargs={
+                    "draw_labels": True,
+                    "linewidth": 0.6,
+                    "alpha": 0.3,
+                    "x_inline": False,
+                    "y_inline": False,
+                },
+            )
+        )
+
+    time_label = np.datetime_as_string(date, unit="m")
+    return plot_map_comparison_rows(
+        rows=row_inputs,
+        figure_specification=FigureSpecification(
+            nrows=row_count,
+            ncols=3,
+            suptitle=f"MONAN vs E3SM - {time_label}",
+            figure_kwargs={
+                "figsize": (18, max(4 * row_count, 6)),
+                "constrained_layout": True,
+            },
+        ),
+        plotter=plotter,
+    )
+
+
 def _build_map_plot_panel(
     panel_input: MapPanelInput,
 ) -> PlotPanel:
@@ -171,16 +510,22 @@ def _build_map_plot_panel(
 
 
 def _build_map_plot_layer(
-    layer_input: MapLayerInput,
+    layer_input: MapLayerDefinition,
 ) -> PlotLayer:
     """Convert one recipe layer input into a renderable `PlotLayer`."""
-    plot_data = layer_input.adapter.to_horizontal_field_plot_data(
-        variable_name=layer_input.variable_name,
-        request=layer_input.request,
-    )
+    if isinstance(layer_input, MapLayerInput):
+        plot_data = layer_input.adapter.to_horizontal_field_plot_data(
+            variable_name=layer_input.variable_name,
+            request=layer_input.request,
+        )
+        legend_label = layer_input.legend_label
+    else:
+        plot_data = layer_input.plot_data
+        legend_label = layer_input.legend_label
+
     render_specification = _build_map_render_specification(
         layer_input.render_specification,
-        layer_input.legend_label,
+        legend_label,
     )
     return PlotLayer(
         plot_data=plot_data,
@@ -262,6 +607,272 @@ def _build_map_axes_calls(
         )
 
     return axes_calls
+
+
+def _build_map_comparison_row(
+    *,
+    row_input: MapComparisonRowInput,
+    row_index: int,
+) -> tuple[list[MapPanelInput], list[SharedColorbarSpecification]]:
+    """Build the three panels and colorbars associated with one row."""
+    left_plot_data = _resolve_map_comparison_source_plot_data(
+        row_input.left_source
+    )
+    right_plot_data = _resolve_map_comparison_source_plot_data(
+        row_input.right_source
+    )
+    _validate_horizontal_field_compatibility(
+        left_plot_data,
+        right_plot_data,
+    )
+    difference_plot_data = _build_difference_plot_data(
+        left_plot_data,
+        right_plot_data,
+        label=(
+            row_input.difference_panel_title
+            or f"Delta {row_input.field_label}"
+        ),
+    )
+
+    absolute_render_specification = (
+        _build_absolute_comparison_render_specification(
+            row_input.absolute_render_specification,
+            left_plot_data.field,
+            right_plot_data.field,
+        )
+    )
+    difference_render_specification = (
+        _build_difference_render_specification(
+            row_input.difference_render_specification,
+            difference_plot_data.field,
+        )
+    )
+
+    base_panel_index = row_index * 3
+    panels = [
+        _build_map_comparison_panel(
+            plot_data=left_plot_data,
+            render_specification=absolute_render_specification,
+            title=(
+                row_input.left_panel_title
+                or f"{row_input.left_source.source_label} - "
+                f"{row_input.field_label}"
+            ),
+            row_input=row_input,
+            show_left_labels=True,
+        ),
+        _build_map_comparison_panel(
+            plot_data=right_plot_data,
+            render_specification=absolute_render_specification,
+            title=(
+                row_input.right_panel_title
+                or f"{row_input.right_source.source_label} - "
+                f"{row_input.field_label}"
+            ),
+            row_input=row_input,
+            show_left_labels=False,
+        ),
+        _build_map_comparison_panel(
+            plot_data=difference_plot_data,
+            render_specification=difference_render_specification,
+            title=(
+                row_input.difference_panel_title
+                or f"Delta {row_input.field_label} = "
+                f"{row_input.left_source.source_label} - "
+                f"{row_input.right_source.source_label}"
+            ),
+            row_input=row_input,
+            show_left_labels=False,
+        ),
+    ]
+
+    colorbars = [
+        SharedColorbarSpecification(
+            source_panel_index=base_panel_index,
+            source_layer_index=0,
+            target_panel_indices=[base_panel_index, base_panel_index + 1],
+            label=row_input.absolute_colorbar_label,
+            colorbar_kwargs=dict(row_input.absolute_colorbar_kwargs),
+        ),
+        SharedColorbarSpecification(
+            source_panel_index=base_panel_index + 2,
+            source_layer_index=0,
+            target_panel_indices=[base_panel_index + 2],
+            label=row_input.difference_colorbar_label,
+            colorbar_kwargs=dict(row_input.difference_colorbar_kwargs),
+        ),
+    ]
+    return panels, colorbars
+
+
+def _build_map_comparison_panel(
+    *,
+    plot_data: HorizontalFieldPlotData,
+    render_specification: RenderSpecification,
+    title: str,
+    row_input: MapComparisonRowInput,
+    show_left_labels: bool,
+) -> MapPanelInput:
+    """Build one panel of a map-comparison row."""
+    gridliner_attrs = dict(row_input.gridliner_attrs)
+    gridliner_attrs.setdefault("top_labels", False)
+    gridliner_attrs.setdefault("right_labels", False)
+    gridliner_attrs["left_labels"] = show_left_labels
+    return MapPanelInput(
+        layers=[
+            PreparedMapLayerInput(
+                plot_data=plot_data,
+                render_specification=render_specification,
+            )
+        ],
+        axes_set_kwargs={"title": title},
+        extent=row_input.extent,
+        coastlines_kwargs=_copy_optional_mapping(
+            row_input.coastlines_kwargs
+        ),
+        borders_kwargs=_copy_optional_mapping(row_input.borders_kwargs),
+        gridlines_kwargs=_copy_optional_mapping(
+            row_input.gridlines_kwargs
+        ),
+        gridliner_attrs=gridliner_attrs,
+    )
+
+
+def _resolve_map_comparison_source_plot_data(
+    source_input: MapComparisonSourceInput,
+) -> HorizontalFieldPlotData:
+    """Resolve one comparison source into `HorizontalFieldPlotData`."""
+    plot_data = source_input.adapter.to_horizontal_field_plot_data(
+        variable_name=source_input.variable_name,
+        request=source_input.request,
+    )
+    plot_data.label = source_input.source_label
+    return plot_data
+
+
+def _build_absolute_comparison_render_specification(
+    render_specification: RenderSpecification,
+    left_field: np.ndarray,
+    right_field: np.ndarray,
+) -> RenderSpecification:
+    """Return one absolute-field render specification shared by both sides."""
+    artist_kwargs = dict(render_specification.artist_kwargs)
+    if "vmin" not in artist_kwargs or "vmax" not in artist_kwargs:
+        shared_vmin, shared_vmax = _compute_shared_field_limits(
+            [left_field, right_field]
+        )
+        artist_kwargs.setdefault("vmin", shared_vmin)
+        artist_kwargs.setdefault("vmax", shared_vmax)
+
+    return RenderSpecification(
+        artist_method=render_specification.artist_method,
+        artist_kwargs=artist_kwargs,
+        artist_calls=_copy_artist_calls(render_specification.artist_calls),
+    )
+
+
+def _build_difference_render_specification(
+    render_specification: RenderSpecification,
+    difference_field: np.ndarray,
+) -> RenderSpecification:
+    """Return one render specification for the difference field."""
+    artist_kwargs = dict(render_specification.artist_kwargs)
+    if "vmin" not in artist_kwargs and "vmax" not in artist_kwargs:
+        diff_limit = _compute_difference_limit(difference_field)
+        artist_kwargs["vmin"] = -diff_limit
+        artist_kwargs["vmax"] = diff_limit
+    elif "vmin" not in artist_kwargs:
+        artist_kwargs["vmin"] = -abs(float(artist_kwargs["vmax"]))
+    elif "vmax" not in artist_kwargs:
+        artist_kwargs["vmax"] = abs(float(artist_kwargs["vmin"]))
+
+    return RenderSpecification(
+        artist_method=render_specification.artist_method,
+        artist_kwargs=artist_kwargs,
+        artist_calls=_copy_artist_calls(render_specification.artist_calls),
+    )
+
+
+def _compute_difference_limit(
+    difference_field: np.ndarray,
+) -> float:
+    """Return one finite symmetric limit for a difference field."""
+    values = np.asarray(difference_field, dtype=float)
+    valid_values = values[np.isfinite(values)]
+    if valid_values.size == 0:
+        return 1.0
+
+    diff_limit = float(np.nanmax(np.abs(valid_values)))
+    if diff_limit == 0.0:
+        return 1.0
+
+    return diff_limit
+
+
+def _build_difference_plot_data(
+    left_plot_data: HorizontalFieldPlotData,
+    right_plot_data: HorizontalFieldPlotData,
+    *,
+    label: str,
+) -> HorizontalFieldPlotData:
+    """Build the left-minus-right field used in comparison panels."""
+    _validate_horizontal_field_compatibility(
+        left_plot_data,
+        right_plot_data,
+    )
+    return HorizontalFieldPlotData(
+        label=label,
+        field=left_plot_data.field - right_plot_data.field,
+        longitude=np.asarray(left_plot_data.longitude),
+        latitude=np.asarray(left_plot_data.latitude),
+        units=_resolve_difference_units(
+            left_plot_data.units,
+            right_plot_data.units,
+        ),
+        time_label=left_plot_data.time_label or right_plot_data.time_label,
+        vertical_label=(
+            left_plot_data.vertical_label or right_plot_data.vertical_label
+        ),
+    )
+
+
+def _resolve_difference_units(
+    left_units: str | None,
+    right_units: str | None,
+) -> str | None:
+    """Return the units used by a difference field."""
+    if left_units == right_units:
+        return left_units
+    return left_units or right_units
+
+
+def _validate_horizontal_field_compatibility(
+    left_plot_data: HorizontalFieldPlotData,
+    right_plot_data: HorizontalFieldPlotData,
+) -> None:
+    """Validate that two map fields share the same grid geometry."""
+    if left_plot_data.field.shape != right_plot_data.field.shape:
+        raise ValueError(
+            "Map comparison requires both fields to share the same shape."
+        )
+
+    if not np.allclose(
+        np.asarray(left_plot_data.latitude, dtype=float),
+        np.asarray(right_plot_data.latitude, dtype=float),
+        equal_nan=True,
+    ):
+        raise ValueError(
+            "Map comparison requires matching latitude coordinates."
+        )
+
+    if not np.allclose(
+        np.asarray(left_plot_data.longitude, dtype=float),
+        np.asarray(right_plot_data.longitude, dtype=float),
+        equal_nan=True,
+    ):
+        raise ValueError(
+            "Map comparison requires matching longitude coordinates."
+        )
 
 
 def _apply_shared_field_limits(

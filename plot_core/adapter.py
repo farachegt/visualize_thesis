@@ -126,6 +126,23 @@ class DataAdapter:
 
         return self._dataset
 
+    def close(self) -> None:
+        """Close the cached dataset and clear the adapter cache.
+
+        This is mainly useful in scripts that generate many figures in a
+        loop and want to reuse one adapter instance without relying on
+        garbage collection to release NetCDF handles.
+        """
+        if self._dataset is None:
+            return
+
+        try:
+            self._dataset.close()
+        except RuntimeError:
+            pass
+        finally:
+            self._dataset = None
+
     def to_vertical_profile_plot_data(
         self,
         *,

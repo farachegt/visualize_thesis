@@ -58,6 +58,9 @@ Em termos praticos:
 - o crescimento funcional desejado deve acontecer por composicao de listas de
   entradas de camada e painel, e nao pela proliferacao de argumentos como
   `primary_`, `secondary_` ou equivalentes.
+- em geracao batch de figuras, o fluxo externo deve reutilizar o mesmo
+  `DataAdapter` por fonte e variar apenas as requests, evitando reabertura de
+  datasets a cada iteracao do loop.
 
 Exemplos esperados dessa migracao:
 

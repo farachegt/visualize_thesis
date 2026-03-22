@@ -12,9 +12,13 @@ from plot_core.recipes.cross_sections import (
     plot_cross_section_panels,
 )
 from plot_core.recipes.maps import (
+    MapComparisonRowInput,
+    MapComparisonSourceInput,
     MapLayerInput,
     MapPanelInput,
     plot_map_panels,
+    plot_map_comparison_rows,
+    plot_paper_grade_panel,
 )
 from plot_core.recipes.profiles import (
     PanelInput,
@@ -106,6 +110,17 @@ LEGACY_SIDE_BY_SIDE_COLORBAR_LABEL = (
 LEGACY_SIDE_BY_SIDE_CMAP = "turbo"
 LEGACY_SIDE_BY_SIDE_FIELD_VMIN = 0.0
 LEGACY_SIDE_BY_SIDE_FIELD_VMAX = 3000.0
+LEGACY_PAPER_GRADE_DATE = np.datetime64("2014-02-24T00:00")
+LEGACY_PAPER_GRADE_VARIABLE_PAIRS = (
+    ("hpbl", "hpbl"),
+    ("sensible_heat_flux", "sensible_heat_flux"),
+)
+LEGACY_PAPER_GRADE_LABELS = ("PBLH", "SHF/HFX")
+LEGACY_PAPER_GRADE_VMINS = (0.0, -200.0)
+LEGACY_PAPER_GRADE_VMAXS = (3000.0, 500.0)
+LEGACY_PAPER_GRADE_CMAPS_ABS = ("turbo", "Spectral_r")
+LEGACY_PAPER_GRADE_CMAP_DIFF = "RdBu_r"
+LEGACY_PAPER_GRADE_DIFF_LIMITS = (1500.0, 200.0)
 
 
 # ============================================================================
@@ -364,6 +379,8 @@ def build_legacy_monan_e3sm_hourly_mean_inputs(
     half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
     tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
     tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> tuple[list[HourlyMeanPanelInput], FigureSpecification, float]:
     """Build the full input set for the generic MONAN/E3SM recipe.
 
@@ -385,6 +402,10 @@ def build_legacy_monan_e3sm_hourly_mean_inputs(
         Minimum color value used by the TKE shading.
     tke_vmax:
         Maximum color value used by the TKE shading.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -402,6 +423,8 @@ def build_legacy_monan_e3sm_hourly_mean_inputs(
         half_box_deg=half_box_deg,
         tke_vmin=tke_vmin,
         tke_vmax=tke_vmax,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
     )
     _apply_common_hourly_mean_pressure_ylim(
         panels,
@@ -427,6 +450,8 @@ def build_legacy_monan_e3sm_hourly_mean_figure(
     half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
     tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
     tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
     """Execute the generic MONAN/E3SM hourly-mean recipe example.
 
@@ -448,6 +473,10 @@ def build_legacy_monan_e3sm_hourly_mean_figure(
         Minimum color value used by the TKE shading.
     tke_vmax:
         Maximum color value used by the TKE shading.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -468,6 +497,8 @@ def build_legacy_monan_e3sm_hourly_mean_figure(
         half_box_deg=half_box_deg,
         tke_vmin=tke_vmin,
         tke_vmax=tke_vmax,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
     )
     figure = plot_hourly_mean_panels(
         panels=panels,
@@ -495,6 +526,8 @@ def build_legacy_monan_e3sm_cross_section_inputs(
     colorbar_label: str = LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL,
     field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
     field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> tuple[list[CrossSectionPanelInput], FigureSpecification]:
     """Build the full input set for the legacy MONAN/E3SM transect plot.
 
@@ -523,6 +556,10 @@ def build_legacy_monan_e3sm_cross_section_inputs(
         Optional minimum color value used by the shaded field.
     field_vmax:
         Optional maximum color value used by the shaded field.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -541,6 +578,8 @@ def build_legacy_monan_e3sm_cross_section_inputs(
         main_variable_name=main_variable_name,
         field_vmin=field_vmin,
         field_vmax=field_vmax,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
     )
     figure_specification = (
         _build_legacy_monan_e3sm_cross_section_figure_specification(
@@ -570,6 +609,8 @@ def build_legacy_monan_e3sm_cross_section_figure(
     colorbar_label: str = LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL,
     field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
     field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
     """Execute the legacy MONAN/E3SM transect recipe example.
 
@@ -598,6 +639,10 @@ def build_legacy_monan_e3sm_cross_section_figure(
         Optional minimum color value used by the shaded field.
     field_vmax:
         Optional maximum color value used by the shaded field.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -618,6 +663,8 @@ def build_legacy_monan_e3sm_cross_section_figure(
             colorbar_label=colorbar_label,
             field_vmin=field_vmin,
             field_vmax=field_vmax,
+            monan_adapter=monan_adapter,
+            e3sm_adapter=e3sm_adapter,
         )
     )
     return plot_cross_section_panels(
@@ -639,6 +686,8 @@ def build_legacy_monan_e3sm_side_by_side_inputs(
     cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
     field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
     field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> tuple[list[MapPanelInput], FigureSpecification]:
     """Build the full input set for the legacy MONAN/E3SM map recipe.
 
@@ -658,6 +707,10 @@ def build_legacy_monan_e3sm_side_by_side_inputs(
         Optional minimum color value used by the shaded field.
     field_vmax:
         Optional maximum color value used by the shaded field.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -672,6 +725,8 @@ def build_legacy_monan_e3sm_side_by_side_inputs(
         cmap=cmap,
         field_vmin=field_vmin,
         field_vmax=field_vmax,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
     )
     figure_specification = (
         _build_legacy_monan_e3sm_side_by_side_figure_specification(
@@ -692,6 +747,8 @@ def build_legacy_monan_e3sm_side_by_side_figure(
     cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
     field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
     field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
     """Execute the legacy MONAN/E3SM side-by-side map recipe example.
 
@@ -711,6 +768,10 @@ def build_legacy_monan_e3sm_side_by_side_figure(
         Optional minimum color value used by the shaded field.
     field_vmax:
         Optional maximum color value used by the shaded field.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
 
     Returns
     -------
@@ -726,12 +787,158 @@ def build_legacy_monan_e3sm_side_by_side_figure(
             cmap=cmap,
             field_vmin=field_vmin,
             field_vmax=field_vmax,
+            monan_adapter=monan_adapter,
+            e3sm_adapter=e3sm_adapter,
         )
     )
     return plot_map_panels(
         panels=panels,
         figure_specification=figure_specification,
         share_main_field_limits=(field_vmin is None or field_vmax is None),
+    )
+
+
+def build_legacy_monan_e3sm_paper_grade_inputs(
+    *,
+    time: np.datetime64 = LEGACY_PAPER_GRADE_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_PAPER_GRADE_VARIABLE_PAIRS
+    ),
+    labels: Sequence[str] = LEGACY_PAPER_GRADE_LABELS,
+    vmins: Sequence[float] = LEGACY_PAPER_GRADE_VMINS,
+    vmaxs: Sequence[float] = LEGACY_PAPER_GRADE_VMAXS,
+    cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
+    cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> tuple[list[MapComparisonRowInput], FigureSpecification]:
+    """Build the full input set for the legacy paper-grade map recipe.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the panel.
+    variable_pairs:
+        Canonical variable pairs in `(monan_variable, e3sm_variable)` order,
+        one pair per row.
+    labels:
+        Human-readable row labels.
+    vmins:
+        Minimum absolute-field limits, one per row.
+    vmaxs:
+        Maximum absolute-field limits, one per row.
+    cmaps_abs:
+        Colormaps used by the absolute fields, one per row.
+    cmap_diff:
+        Colormap used by every difference panel.
+    diff_limits:
+        Optional symmetric limits used by each difference panel.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    tuple[list[MapComparisonRowInput], FigureSpecification]
+        Tuple containing:
+        - the comparison rows consumed by `plot_map_comparison_rows(...)`;
+        - the matching `FigureSpecification`.
+
+    Raises
+    ------
+    ValueError
+        If the row-wise parameter sequences do not all have the same
+        length.
+    """
+    rows = _build_legacy_monan_e3sm_paper_grade_rows(
+        time=time,
+        variable_pairs=variable_pairs,
+        labels=labels,
+        vmins=vmins,
+        vmaxs=vmaxs,
+        cmaps_abs=cmaps_abs,
+        cmap_diff=cmap_diff,
+        diff_limits=diff_limits,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_paper_grade_figure_specification(
+            time=time,
+            row_count=len(rows),
+        )
+    )
+    return rows, figure_specification
+
+
+def build_legacy_monan_e3sm_paper_grade_figure(
+    *,
+    time: np.datetime64 = LEGACY_PAPER_GRADE_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_PAPER_GRADE_VARIABLE_PAIRS
+    ),
+    labels: Sequence[str] = LEGACY_PAPER_GRADE_LABELS,
+    vmins: Sequence[float] = LEGACY_PAPER_GRADE_VMINS,
+    vmaxs: Sequence[float] = LEGACY_PAPER_GRADE_VMAXS,
+    cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
+    cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM paper-grade recipe example.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the panel.
+    variable_pairs:
+        Canonical variable pairs in `(monan_variable, e3sm_variable)` order,
+        one pair per row.
+    labels:
+        Human-readable row labels.
+    vmins:
+        Minimum absolute-field limits, one per row.
+    vmaxs:
+        Maximum absolute-field limits, one per row.
+    cmaps_abs:
+        Colormaps used by the absolute fields, one per row.
+    cmap_diff:
+        Colormap used by every difference panel.
+    diff_limits:
+        Optional symmetric limits used by each difference panel.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the legacy `plot_paper_grade_panel(...)`
+        wrapper.
+
+    Raises
+    ------
+    ValueError
+        If the row-wise parameter sequences do not all have the same
+        length.
+    """
+    return plot_paper_grade_panel(
+        monan_adapter=(
+            monan_adapter or build_legacy_monan_e3sm_adapter()
+        ),
+        e3sm_adapter=e3sm_adapter or build_legacy_e3sm_adapter(),
+        date=time,
+        variable_pairs=variable_pairs,
+        labels=labels,
+        vmins=vmins,
+        vmaxs=vmaxs,
+        cmaps_abs=cmaps_abs,
+        cmap_diff=cmap_diff,
+        diff_limits=diff_limits,
     )
 
 
@@ -1026,10 +1233,15 @@ def _build_legacy_monan_e3sm_hourly_mean_panels(
     half_box_deg: float = LEGACY_HOURLY_MEAN_HALF_BOX_DEG,
     tke_vmin: float = LEGACY_HOURLY_MEAN_TKE_VMIN,
     tke_vmax: float = LEGACY_HOURLY_MEAN_TKE_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> list[HourlyMeanPanelInput]:
     """Build the generic hourly-mean panels for the MONAN/E3SM recipe."""
-    monan_adapter = build_legacy_monan_e3sm_adapter()
-    e3sm_adapter = build_legacy_e3sm_adapter()
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
     time_vertical_request = _build_legacy_monan_e3sm_time_vertical_request(
         point_lat=point_lat,
         point_lon=point_lon,
@@ -1262,10 +1474,15 @@ def _build_legacy_monan_e3sm_cross_section_panels(
     main_variable_name: str = LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME,
     field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
     field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> list[CrossSectionPanelInput]:
     """Build the legacy MONAN/E3SM transect panels."""
-    monan_adapter = build_legacy_monan_e3sm_adapter()
-    e3sm_adapter = build_legacy_e3sm_adapter()
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
     request = _build_legacy_monan_e3sm_cross_section_request(
         time=time,
         start_lat=start_lat,
@@ -1419,10 +1636,15 @@ def _build_legacy_monan_e3sm_side_by_side_panels(
     cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
     field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
     field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> list[MapPanelInput]:
     """Build the legacy MONAN/E3SM side-by-side map panels."""
-    monan_adapter = build_legacy_monan_e3sm_adapter()
-    e3sm_adapter = build_legacy_e3sm_adapter()
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
     request = _build_legacy_monan_e3sm_side_by_side_request(time=time)
     return [
         _build_legacy_side_by_side_panel(
@@ -1475,6 +1697,138 @@ def _build_legacy_monan_e3sm_side_by_side_figure_specification(
                 },
             )
         ],
+    )
+
+
+def _build_legacy_monan_e3sm_paper_grade_rows(
+    *,
+    time: np.datetime64 = LEGACY_PAPER_GRADE_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_PAPER_GRADE_VARIABLE_PAIRS
+    ),
+    labels: Sequence[str] = LEGACY_PAPER_GRADE_LABELS,
+    vmins: Sequence[float] = LEGACY_PAPER_GRADE_VMINS,
+    vmaxs: Sequence[float] = LEGACY_PAPER_GRADE_VMAXS,
+    cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
+    cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> list[MapComparisonRowInput]:
+    """Build the legacy MONAN/E3SM paper-grade comparison rows."""
+    row_count = len(variable_pairs)
+    parameter_lengths = [
+        len(labels),
+        len(vmins),
+        len(vmaxs),
+        len(cmaps_abs),
+        len(diff_limits),
+    ]
+    if any(length != row_count for length in parameter_lengths):
+        raise ValueError(
+            "Legacy paper-grade rows require consistent row-wise lengths."
+        )
+
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
+    request = _build_legacy_monan_e3sm_side_by_side_request(time=time)
+    rows: list[MapComparisonRowInput] = []
+    for (
+        variable_pair,
+        label,
+        vmin,
+        vmax,
+        cmap_abs,
+        diff_limit,
+    ) in zip(
+        variable_pairs,
+        labels,
+        vmins,
+        vmaxs,
+        cmaps_abs,
+        diff_limits,
+    ):
+        monan_variable, e3sm_variable = variable_pair
+        difference_artist_kwargs = {"cmap": cmap_diff}
+        if diff_limit is not None:
+            difference_artist_kwargs["vmin"] = -float(diff_limit)
+            difference_artist_kwargs["vmax"] = float(diff_limit)
+
+        rows.append(
+            MapComparisonRowInput(
+                left_source=MapComparisonSourceInput(
+                    adapter=monan_adapter,
+                    request=request,
+                    variable_name=monan_variable,
+                    source_label="MONAN",
+                ),
+                right_source=MapComparisonSourceInput(
+                    adapter=e3sm_adapter,
+                    request=request,
+                    variable_name=e3sm_variable,
+                    source_label="E3SM",
+                ),
+                field_label=label,
+                absolute_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs={
+                        "cmap": cmap_abs,
+                        "vmin": float(vmin),
+                        "vmax": float(vmax),
+                    },
+                ),
+                difference_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=difference_artist_kwargs,
+                ),
+                difference_panel_title=(
+                    f"Delta {label} = MONAN - E3SM"
+                ),
+                absolute_colorbar_label=label,
+                difference_colorbar_label=f"Delta {label}",
+                absolute_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                difference_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                coastlines_kwargs={"linewidth": 0.8},
+                borders_kwargs={"linewidth": 0.5},
+                gridlines_kwargs={
+                    "draw_labels": True,
+                    "linewidth": 0.6,
+                    "alpha": 0.3,
+                    "x_inline": False,
+                    "y_inline": False,
+                },
+            )
+        )
+
+    return rows
+
+
+def _build_legacy_monan_e3sm_paper_grade_figure_specification(
+    *,
+    time: np.datetime64 = LEGACY_PAPER_GRADE_DATE,
+    row_count: int = len(LEGACY_PAPER_GRADE_VARIABLE_PAIRS),
+) -> FigureSpecification:
+    """Build the figure specification for the legacy paper-grade panel."""
+    time_label = np.datetime_as_string(time, unit="m")
+    return FigureSpecification(
+        nrows=row_count,
+        ncols=3,
+        suptitle=f"MONAN vs E3SM - {time_label}",
+        figure_kwargs={
+            "figsize": (18, max(4 * row_count, 6)),
+            "constrained_layout": True,
+        },
     )
 
 
