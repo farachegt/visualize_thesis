@@ -11,6 +11,12 @@ from plot_core.recipes.cross_sections import (
     CrossSectionPanelInput,
     plot_cross_section_panels,
 )
+from plot_core.recipes.diurnal import (
+    DiurnalAmplitudeRowInput,
+    DiurnalAmplitudeSourceInput,
+    plot_diurnal_amplitude_rows,
+    plot_diurnal_cycle_amplitude_pblh,
+)
 from plot_core.recipes.maps import (
     MapComparisonRowInput,
     MapComparisonSourceInput,
@@ -121,6 +127,16 @@ LEGACY_PAPER_GRADE_VMAXS = (3000.0, 500.0)
 LEGACY_PAPER_GRADE_CMAPS_ABS = ("turbo", "Spectral_r")
 LEGACY_PAPER_GRADE_CMAP_DIFF = "RdBu_r"
 LEGACY_PAPER_GRADE_DIFF_LIMITS = (1500.0, 200.0)
+LEGACY_DIURNAL_AMPLITUDE_START_DATE = np.datetime64("2014-02-24")
+LEGACY_DIURNAL_AMPLITUDE_N_DAYS = 3
+LEGACY_DIURNAL_AMPLITUDE_MONAN_VAR = "hpbl"
+LEGACY_DIURNAL_AMPLITUDE_E3SM_VAR = "hpbl"
+LEGACY_DIURNAL_AMPLITUDE_FIELD_LABEL = "Amplitude PBLH"
+LEGACY_DIURNAL_AMPLITUDE_CMAP_ABS = "turbo"
+LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF = "RdBu_r"
+LEGACY_DIURNAL_AMPLITUDE_VMIN = 0.0
+LEGACY_DIURNAL_AMPLITUDE_VMAX: float | None = None
+LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT: float | None = None
 
 
 # ============================================================================
@@ -939,6 +955,136 @@ def build_legacy_monan_e3sm_paper_grade_figure(
         cmaps_abs=cmaps_abs,
         cmap_diff=cmap_diff,
         diff_limits=diff_limits,
+    )
+
+
+def build_legacy_monan_e3sm_diurnal_amplitude_inputs(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_AMPLITUDE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_AMPLITUDE_E3SM_VAR,
+    field_label: str = LEGACY_DIURNAL_AMPLITUDE_FIELD_LABEL,
+    cmap_abs: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF,
+    vmin: float = LEGACY_DIURNAL_AMPLITUDE_VMIN,
+    vmax: float | None = LEGACY_DIURNAL_AMPLITUDE_VMAX,
+    diff_limit: float | None = LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> tuple[list[DiurnalAmplitudeRowInput], FigureSpecification]:
+    """Build the full input set for the legacy diurnal-amplitude recipe.
+
+    Parameters
+    ----------
+    day_start:
+        First instant of the day represented by the figure.
+    monan_var:
+        Canonical variable name used by the MONAN source.
+    e3sm_var:
+        Canonical variable name used by the E3SM source.
+    field_label:
+        Human-readable label used in panel titles and colorbars.
+    cmap_abs:
+        Colormap used by the absolute fields.
+    cmap_diff:
+        Colormap used by the difference field.
+    vmin:
+        Minimum color value used by the absolute fields.
+    vmax:
+        Optional maximum color value used by the absolute fields.
+    diff_limit:
+        Optional symmetric difference limit.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    tuple[list[DiurnalAmplitudeRowInput], FigureSpecification]
+        Tuple containing:
+        - the comparison rows consumed by
+          `plot_diurnal_amplitude_rows(...)`;
+        - the matching `FigureSpecification`.
+    """
+    rows = _build_legacy_monan_e3sm_diurnal_amplitude_rows(
+        day_start=day_start,
+        monan_var=monan_var,
+        e3sm_var=e3sm_var,
+        field_label=field_label,
+        cmap_abs=cmap_abs,
+        cmap_diff=cmap_diff,
+        vmin=vmin,
+        vmax=vmax,
+        diff_limit=diff_limit,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_diurnal_amplitude_figure_specification(
+            day_start=day_start,
+        )
+    )
+    return rows, figure_specification
+
+
+def build_legacy_monan_e3sm_diurnal_amplitude_figure(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_AMPLITUDE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_AMPLITUDE_E3SM_VAR,
+    cmap_abs: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF,
+    vmin: float = LEGACY_DIURNAL_AMPLITUDE_VMIN,
+    vmax: float | None = LEGACY_DIURNAL_AMPLITUDE_VMAX,
+    diff_limit: float | None = LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM diurnal-amplitude recipe example.
+
+    Parameters
+    ----------
+    day_start:
+        First instant of the day represented by the figure.
+    monan_var:
+        Canonical variable name used by the MONAN source.
+    e3sm_var:
+        Canonical variable name used by the E3SM source.
+    cmap_abs:
+        Colormap used by the absolute fields.
+    cmap_diff:
+        Colormap used by the difference field.
+    vmin:
+        Minimum color value used by the absolute fields.
+    vmax:
+        Optional maximum color value used by the absolute fields.
+    diff_limit:
+        Optional symmetric difference limit.
+    monan_adapter:
+        Optional pre-built MONAN adapter reused across multiple calls.
+    e3sm_adapter:
+        Optional pre-built E3SM adapter reused across multiple calls.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the legacy
+        `plot_diurnal_cycle_amplitude_pblh(...)` wrapper.
+    """
+    return plot_diurnal_cycle_amplitude_pblh(
+        monan_adapter=(
+            monan_adapter or build_legacy_monan_e3sm_adapter()
+        ),
+        e3sm_adapter=e3sm_adapter or build_legacy_e3sm_adapter(),
+        day_start=day_start,
+        monan_var=monan_var,
+        e3sm_var=e3sm_var,
+        cmap_abs=cmap_abs,
+        cmap_diff=cmap_diff,
+        vmin=vmin,
+        vmax=vmax,
+        diff_limit=diff_limit,
     )
 
 
@@ -1829,6 +1975,99 @@ def _build_legacy_monan_e3sm_paper_grade_figure_specification(
             "figsize": (18, max(4 * row_count, 6)),
             "constrained_layout": True,
         },
+    )
+
+
+def _build_legacy_monan_e3sm_diurnal_amplitude_rows(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    monan_var: str = LEGACY_DIURNAL_AMPLITUDE_MONAN_VAR,
+    e3sm_var: str = LEGACY_DIURNAL_AMPLITUDE_E3SM_VAR,
+    field_label: str = LEGACY_DIURNAL_AMPLITUDE_FIELD_LABEL,
+    cmap_abs: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF,
+    vmin: float = LEGACY_DIURNAL_AMPLITUDE_VMIN,
+    vmax: float | None = LEGACY_DIURNAL_AMPLITUDE_VMAX,
+    diff_limit: float | None = LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> list[DiurnalAmplitudeRowInput]:
+    """Build the legacy MONAN/E3SM diurnal-amplitude comparison rows."""
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
+    absolute_artist_kwargs = {"cmap": cmap_abs, "vmin": float(vmin)}
+    if vmax is not None:
+        absolute_artist_kwargs["vmax"] = float(vmax)
+
+    difference_artist_kwargs = {"cmap": cmap_diff}
+    if diff_limit is not None:
+        difference_artist_kwargs["vmin"] = -float(diff_limit)
+        difference_artist_kwargs["vmax"] = float(diff_limit)
+
+    return [
+        DiurnalAmplitudeRowInput(
+            left_source=DiurnalAmplitudeSourceInput(
+                adapter=monan_adapter,
+                variable_name=monan_var,
+                source_label="MONAN",
+            ),
+            right_source=DiurnalAmplitudeSourceInput(
+                adapter=e3sm_adapter,
+                variable_name=e3sm_var,
+                source_label="E3SM",
+            ),
+            day_start=day_start,
+            field_label=field_label,
+            absolute_render_specification=RenderSpecification(
+                artist_method="pcolormesh",
+                artist_kwargs=absolute_artist_kwargs,
+            ),
+            difference_render_specification=RenderSpecification(
+                artist_method="pcolormesh",
+                artist_kwargs=difference_artist_kwargs,
+            ),
+            left_panel_title="MONAN - Diurnal Amplitude PBLH",
+            right_panel_title="E3SM - Diurnal Amplitude PBLH",
+            difference_panel_title="Delta Amplitude = MONAN - E3SM",
+            absolute_colorbar_label="Amplitude PBLH",
+            difference_colorbar_label="Delta Amplitude",
+            absolute_colorbar_kwargs={
+                "orientation": "horizontal",
+                "fraction": 0.045,
+                "pad": 0.04,
+            },
+            difference_colorbar_kwargs={
+                "orientation": "horizontal",
+                "fraction": 0.045,
+                "pad": 0.04,
+            },
+            coastlines_kwargs={"linewidth": 0.8},
+            borders_kwargs={"linewidth": 0.5},
+            gridlines_kwargs={
+                "draw_labels": True,
+                "linewidth": 0.6,
+                "alpha": 0.3,
+                "x_inline": False,
+                "y_inline": False,
+            },
+        )
+    ]
+
+
+def _build_legacy_monan_e3sm_diurnal_amplitude_figure_specification(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+) -> FigureSpecification:
+    """Build the figure specification for the legacy diurnal amplitude."""
+    day_label = np.datetime_as_string(day_start, unit="D")
+    return FigureSpecification(
+        nrows=1,
+        ncols=3,
+        suptitle=f"Diurnal-Cycle Amplitude of PBLH - {day_label}",
+        figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
     )
 
 

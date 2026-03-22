@@ -5,6 +5,12 @@ from .cross_sections import (
     CrossSectionPanelInput,
     plot_cross_section_panels,
 )
+from .diurnal import (
+    DiurnalAmplitudeRowInput,
+    DiurnalAmplitudeSourceInput,
+    plot_diurnal_amplitude_rows,
+    plot_diurnal_cycle_amplitude_pblh,
+)
 from .maps import (
     MapComparisonRowInput,
     MapComparisonSourceInput,
@@ -31,6 +37,8 @@ from .time_vertical import (
 __all__ = [
     "CrossSectionLayerInput",
     "CrossSectionPanelInput",
+    "DiurnalAmplitudeRowInput",
+    "DiurnalAmplitudeSourceInput",
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
@@ -41,6 +49,8 @@ __all__ = [
     "PreparedMapLayerInput",
     "PanelInput",
     "plot_cross_section_panels",
+    "plot_diurnal_amplitude_rows",
+    "plot_diurnal_cycle_amplitude_pblh",
     "plot_hourly_mean_panels",
     "plot_map_comparison_rows",
     "plot_map_panels",

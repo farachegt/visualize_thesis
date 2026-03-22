@@ -40,6 +40,8 @@ from .requests import (
 from .recipes import (
     build_legacy_monan_e3sm_cross_section_figure,
     build_legacy_monan_e3sm_cross_section_inputs,
+    build_legacy_monan_e3sm_diurnal_amplitude_figure,
+    build_legacy_monan_e3sm_diurnal_amplitude_inputs,
     build_legacy_monan_e3sm_hourly_mean_figure,
     build_legacy_monan_e3sm_hourly_mean_inputs,
     build_legacy_monan_e3sm_paper_grade_figure,
@@ -83,6 +85,8 @@ __all__ = [
     "build_legacy_chile_coast_vertical_profile_request",
     "build_legacy_monan_e3sm_cross_section_figure",
     "build_legacy_monan_e3sm_cross_section_inputs",
+    "build_legacy_monan_e3sm_diurnal_amplitude_figure",
+    "build_legacy_monan_e3sm_diurnal_amplitude_inputs",
     "build_legacy_monan_e3sm_hourly_mean_figure",
     "build_legacy_monan_e3sm_hourly_mean_inputs",
     "build_legacy_monan_e3sm_paper_grade_figure",

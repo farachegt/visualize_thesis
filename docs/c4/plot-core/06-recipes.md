@@ -51,3 +51,7 @@ Em geracao batch de figuras:
 - [Map Panels](./recipes/05-map-panels.md)
 - [Map Comparison Rows](./recipes/06-map-comparison-rows.md)
 - [Paper Grade Panel](./recipes/07-paper-grade-panel.md)
+- [Diurnal Amplitude Rows](./recipes/08-diurnal-amplitude-rows.md)
+- [Diurnal Cycle Amplitude PBLH](
+  ./recipes/09-diurnal-cycle-amplitude-pblh.md
+  )
