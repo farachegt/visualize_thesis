@@ -124,19 +124,7 @@ class MapPanelInput:
 
 @dataclass
 class MapComparisonSourceInput:
-    """Describe one source field participating in a map comparison row.
-
-    Parameters
-    ----------
-    adapter:
-        Data adapter responsible for producing the map field.
-    request:
-        Horizontal field request applied to this source.
-    variable_name:
-        Canonical variable name resolved by the adapter.
-    source_label:
-        Human-readable label used in panel titles.
-    """
+    """Describe one source field participating in a map comparison row."""
 
     adapter: DataAdapter
     request: HorizontalFieldRequest
@@ -290,12 +278,6 @@ def plot_map_comparison_rows(
     -------
     Figure
         Rendered matplotlib figure ready for `savefig` or `show`.
-
-    Raises
-    ------
-    ValueError
-        If no comparison row is provided or if one row compares
-        incompatible grids.
     """
     if not rows:
         raise ValueError("At least one MapComparisonRowInput is required.")
@@ -374,12 +356,6 @@ def plot_paper_grade_panel(
     -------
     Figure
         Rendered matplotlib figure ready for `savefig` or `show`.
-
-    Raises
-    ------
-    ValueError
-        If the row-wise parameter sequences do not all have the same
-        length.
     """
     row_count = len(variable_pairs)
     parameter_lengths = [

@@ -210,8 +210,8 @@ def plot_diurnal_cycle_amplitude_pblh(
     cmap_abs: str = "turbo",
     cmap_diff: str = "RdBu_r",
     vmin: float = 0.0,
-    vmax: float | None = None,
-    diff_limit: float | None = None,
+    vmax: float | None = 2500.0,
+    diff_limit: float | None = 1500.0,
     plotter: SpecializedPlotter | None = None,
 ) -> Figure:
     """Build the legacy daily amplitude figure using the new core.
