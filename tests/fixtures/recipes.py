@@ -87,8 +87,9 @@ LEGACY_CROSS_SECTION_END_LON = -73.0
 LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME = "theta"
 LEGACY_CROSS_SECTION_MAIN_FIELD_LABEL = "Potential Temperature"
 LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL = "Potential Temperature [K]"
-LEGACY_CROSS_SECTION_FIELD_VMIN = None
-LEGACY_CROSS_SECTION_FIELD_VMAX = None
+LEGACY_CROSS_SECTION_FIELD_VMIN = 290.0
+LEGACY_CROSS_SECTION_FIELD_VMAX = 350.0
+LEGACY_CROSS_SECTION_PRESSURE_TOP_HPA = 600.0
 LEGACY_CROSS_SECTION_QC_CONTOUR_MIN = 1e-5
 
 
@@ -525,10 +526,6 @@ def build_legacy_monan_e3sm_cross_section_inputs(
         main_variable_name=main_variable_name,
         field_vmin=field_vmin,
         field_vmax=field_vmax,
-    )
-    _apply_common_cross_section_pressure_ylim(
-        panels,
-        panel_indices=[0, 1],
     )
     figure_specification = (
         _build_legacy_monan_e3sm_cross_section_figure_specification(
@@ -1261,8 +1258,11 @@ def _build_legacy_cross_section_panel(
             "title": label,
             "xlabel": "Coordinates along transect",
             "ylabel": "Pressure [hPa]",
-            "ylim": (1000.0, 700.0),
-            "yticks": _build_pressure_yticks(1000.0, 700.0),
+            "ylim": (1000.0, LEGACY_CROSS_SECTION_PRESSURE_TOP_HPA),
+            "yticks": _build_pressure_yticks(
+                1000.0,
+                LEGACY_CROSS_SECTION_PRESSURE_TOP_HPA,
+            ),
         },
         grid_kwargs={"visible": True, "alpha": 0.25},
         transect_axis_mode="distance_km",
