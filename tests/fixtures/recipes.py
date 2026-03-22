@@ -76,6 +76,7 @@ LEGACY_HOURLY_MEAN_HALF_BOX_DEG = 0.5
 LEGACY_HOURLY_MEAN_TKE_VMIN = 0.0
 LEGACY_HOURLY_MEAN_TKE_VMAX = 2.0
 LEGACY_HOURLY_MEAN_QC_CONTOUR_MIN = 1e-5
+LEGACY_HOURLY_MEAN_PRESSURE_TOP_HPA = 500.0
 LEGACY_CROSS_SECTION_START_LAT = -10.0
 LEGACY_CROSS_SECTION_START_LON = -70.0
 LEGACY_CROSS_SECTION_END_LAT = 2.0
@@ -684,6 +685,13 @@ def _apply_common_hourly_mean_pressure_ylim(
     if shared_pressure_top >= shared_pressure_bottom:
         return
 
+    shared_pressure_top = max(
+        shared_pressure_top,
+        LEGACY_HOURLY_MEAN_PRESSURE_TOP_HPA,
+    )
+    if shared_pressure_top >= shared_pressure_bottom:
+        return
+
     shared_ylim = (shared_pressure_bottom, shared_pressure_top)
     for panel_index in panel_indices:
         if panel_index >= len(panels):
@@ -1017,8 +1025,11 @@ def _build_legacy_hourly_mean_upper_panel(
             "xlabel": "Local hour",
             "ylabel": "pressure [hPa]",
             "xlim": (0, 23),
-            "ylim": (1000, 500),
-            "yticks": _build_pressure_yticks(1000.0, 500.0),
+            "ylim": (1000, LEGACY_HOURLY_MEAN_PRESSURE_TOP_HPA),
+            "yticks": _build_pressure_yticks(
+                1000.0,
+                LEGACY_HOURLY_MEAN_PRESSURE_TOP_HPA,
+            ),
         },
         grid_kwargs={"visible": True, "alpha": 0.3},
         legend_kwargs={"loc": "upper right"},
