@@ -89,6 +89,9 @@ LEGACY_PROFILE_X_UNITS = (
 )
 LEGACY_PROFILE_PRIMARY_LABEL = "MONAN - SHOC scheme"
 LEGACY_PROFILE_SECONDARY_LABEL = "MONAN - MYNN scheme"
+LEGACY_MONAN_E3SM_PROFILE_LABEL = "MONAN"
+LEGACY_E3SM_PROFILE_LABEL = "E3SM"
+LEGACY_MONAN_E3SM_PROFILE_TIME = np.datetime64("2014-02-24T00:00:00")
 LEGACY_HOURLY_MEAN_REGION_NAME = "African Desert"
 LEGACY_HOURLY_MEAN_POINT_LAT = 20.0
 LEGACY_HOURLY_MEAN_POINT_LON = 0.0
@@ -403,44 +406,42 @@ def build_legacy_main_vertical_profile_recipe_panels() -> list[PanelInput]:
 
 def build_legacy_vertical_profiles_panel_at_point_figure(
     *,
-    time_value: np.datetime64 | None = None,
-    primary_adapter: DataAdapter | None = None,
-    secondary_adapter: DataAdapter | None = None,
+    time_value: np.datetime64 = LEGACY_MONAN_E3SM_PROFILE_TIME,
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
-    """Execute the legacy point-profile wrapper using real SHOC and MYNN.
+    """Execute the legacy point-profile wrapper using MONAN and E3SM.
 
     Parameters
     ----------
     time_value:
-        Optional requested time. When omitted, the default Chile-coast legacy
-        time from the request fixture is used.
-    primary_adapter:
-        Optional adapter for the primary source. When omitted, the legacy
-        SHOC MONAN adapter is created.
-    secondary_adapter:
-        Optional adapter for the secondary source. When omitted, the legacy
-        MYNN MONAN adapter is created.
+        Requested time. The default matches the other MONAN/E3SM legacy
+        fixtures already used in the project.
+    monan_adapter:
+        Optional adapter for the MONAN source. When omitted, the legacy
+        MONAN adapter used in the MONAN/E3SM recipes is created.
+    e3sm_adapter:
+        Optional adapter for the E3SM source. When omitted, the legacy E3SM
+        adapter is created.
 
     Returns
     -------
     Figure
         Figure produced by `plot_vertical_profiles_panel_at_point(...)`.
     """
-    shoc_adapter = primary_adapter or build_legacy_shoc_monan_adapter()
-    mynn_adapter = secondary_adapter or build_legacy_mynn_monan_adapter()
+    resolved_monan_adapter = (
+        monan_adapter or build_legacy_monan_e3sm_adapter()
+    )
+    resolved_e3sm_adapter = e3sm_adapter or build_legacy_e3sm_adapter()
     request = build_legacy_chile_coast_vertical_profile_request(
-        **(
-            {"time_value": time_value}
-            if time_value is not None
-            else {}
-        )
+        time_value=time_value,
     )
     return plot_vertical_profiles_panel_at_point(
         sources=[
             VerticalProfileSourceInput(
-                adapter=shoc_adapter,
+                adapter=resolved_monan_adapter,
                 variable_names=LEGACY_PROFILE_VARIABLE_NAMES,
-                legend_label=LEGACY_PROFILE_PRIMARY_LABEL,
+                legend_label=LEGACY_MONAN_E3SM_PROFILE_LABEL,
                 render_specification=RenderSpecification(
                     artist_method="plot",
                     artist_kwargs={
@@ -450,9 +451,9 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
                 ),
             ),
             VerticalProfileSourceInput(
-                adapter=mynn_adapter,
+                adapter=resolved_e3sm_adapter,
                 variable_names=LEGACY_PROFILE_VARIABLE_NAMES,
-                legend_label=LEGACY_PROFILE_SECONDARY_LABEL,
+                legend_label=LEGACY_E3SM_PROFILE_LABEL,
                 render_specification=RenderSpecification(
                     artist_method="plot",
                     artist_kwargs={
