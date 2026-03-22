@@ -429,11 +429,17 @@ def build_legacy_monan_e3sm_hourly_mean_figure(
         tke_vmin=tke_vmin,
         tke_vmax=tke_vmax,
     )
-    return plot_hourly_mean_panels(
+    figure = plot_hourly_mean_panels(
         panels=panels,
         figure_specification=figure_specification,
         reference_longitude=reference_longitude,
     )
+    _synchronize_panel_y_limits(
+        figure=figure,
+        panel_count=len(panels),
+        panel_indices=[2, 3],
+    )
+    return figure
 
 
 # ============================================================================
@@ -453,6 +459,29 @@ def _build_legacy_monan_e3sm_hourly_mean_bbox(
     min_lon = max(-180.0, point_lon - half_box_deg)
     max_lon = min(180.0, point_lon + half_box_deg)
     return (min_lon, max_lon, min_lat, max_lat)
+
+
+def _synchronize_panel_y_limits(
+    *,
+    figure: Figure,
+    panel_count: int,
+    panel_indices: list[int],
+) -> None:
+    """Apply one shared y-axis range to the selected subplot panels."""
+    main_axes = figure.axes[:panel_count]
+    selected_axes = [
+        main_axes[panel_index]
+        for panel_index in panel_indices
+        if 0 <= panel_index < len(main_axes)
+    ]
+    if len(selected_axes) < 2:
+        return
+
+    y_limits = [axis.get_ylim() for axis in selected_axes]
+    shared_ymin = min(limit[0] for limit in y_limits)
+    shared_ymax = max(limit[1] for limit in y_limits)
+    for axis in selected_axes:
+        axis.set_ylim(shared_ymin, shared_ymax)
 
 
 def _build_legacy_monan_e3sm_hourly_mean_times(
