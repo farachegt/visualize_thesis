@@ -77,15 +77,18 @@ LEGACY_HOURLY_MEAN_TKE_VMIN = 0.0
 LEGACY_HOURLY_MEAN_TKE_VMAX = 2.0
 LEGACY_HOURLY_MEAN_QC_CONTOUR_MIN = 1e-5
 LEGACY_HOURLY_MEAN_PRESSURE_TOP_HPA = 500.0
-LEGACY_CROSS_SECTION_START_LAT = -10.0
-LEGACY_CROSS_SECTION_START_LON = -70.0
-LEGACY_CROSS_SECTION_END_LAT = 2.0
-LEGACY_CROSS_SECTION_END_LON = -50.0
 LEGACY_CROSS_SECTION_START_DATE = np.datetime64("2014-02-24T00:00")
 LEGACY_CROSS_SECTION_END_DATE = np.datetime64("2014-02-27T00:00")
 LEGACY_CROSS_SECTION_SPACING_KM = 30.0
-LEGACY_CROSS_SECTION_TKE_VMIN = 0.0
-LEGACY_CROSS_SECTION_TKE_VMAX = 2.0
+LEGACY_CROSS_SECTION_START_LAT = -19.0
+LEGACY_CROSS_SECTION_START_LON = -78.0
+LEGACY_CROSS_SECTION_END_LAT = -29.0
+LEGACY_CROSS_SECTION_END_LON = -73.0
+LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME = "theta"
+LEGACY_CROSS_SECTION_MAIN_FIELD_LABEL = "Potential Temperature"
+LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL = "Potential Temperature [K]"
+LEGACY_CROSS_SECTION_FIELD_VMIN = None
+LEGACY_CROSS_SECTION_FIELD_VMAX = None
 LEGACY_CROSS_SECTION_QC_CONTOUR_MIN = 1e-5
 
 
@@ -471,8 +474,11 @@ def build_legacy_monan_e3sm_cross_section_inputs(
     end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
     end_lon: float = LEGACY_CROSS_SECTION_END_LON,
     spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
-    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
-    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+    main_variable_name: str = LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME,
+    main_field_label: str = LEGACY_CROSS_SECTION_MAIN_FIELD_LABEL,
+    colorbar_label: str = LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL,
+    field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
 ) -> tuple[list[CrossSectionPanelInput], FigureSpecification]:
     """Build the full input set for the legacy MONAN/E3SM transect plot.
 
@@ -491,10 +497,16 @@ def build_legacy_monan_e3sm_cross_section_inputs(
     spacing_km:
         Approximate spacing, in kilometres, between sampled transect
         points.
-    tke_vmin:
-        Optional minimum color value used by the TKE shading.
-    tke_vmax:
-        Optional maximum color value used by the TKE shading.
+    main_variable_name:
+        Canonical variable name used as the shaded field.
+    main_field_label:
+        Human-readable label used in the figure suptitle.
+    colorbar_label:
+        Label applied to the shared colorbar.
+    field_vmin:
+        Optional minimum color value used by the shaded field.
+    field_vmax:
+        Optional maximum color value used by the shaded field.
 
     Returns
     -------
@@ -510,8 +522,9 @@ def build_legacy_monan_e3sm_cross_section_inputs(
         end_lat=end_lat,
         end_lon=end_lon,
         spacing_km=spacing_km,
-        tke_vmin=tke_vmin,
-        tke_vmax=tke_vmax,
+        main_variable_name=main_variable_name,
+        field_vmin=field_vmin,
+        field_vmax=field_vmax,
     )
     _apply_common_cross_section_pressure_ylim(
         panels,
@@ -524,6 +537,9 @@ def build_legacy_monan_e3sm_cross_section_inputs(
             start_lon=start_lon,
             end_lat=end_lat,
             end_lon=end_lon,
+            main_variable_name=main_variable_name,
+            main_field_label=main_field_label,
+            colorbar_label=colorbar_label,
         )
     )
     return panels, figure_specification
@@ -537,8 +553,11 @@ def build_legacy_monan_e3sm_cross_section_figure(
     end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
     end_lon: float = LEGACY_CROSS_SECTION_END_LON,
     spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
-    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
-    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+    main_variable_name: str = LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME,
+    main_field_label: str = LEGACY_CROSS_SECTION_MAIN_FIELD_LABEL,
+    colorbar_label: str = LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL,
+    field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
 ) -> Figure:
     """Execute the legacy MONAN/E3SM transect recipe example.
 
@@ -557,10 +576,16 @@ def build_legacy_monan_e3sm_cross_section_figure(
     spacing_km:
         Approximate spacing, in kilometres, between sampled transect
         points.
-    tke_vmin:
-        Optional minimum color value used by the TKE shading.
-    tke_vmax:
-        Optional maximum color value used by the TKE shading.
+    main_variable_name:
+        Canonical variable name used as the shaded field.
+    main_field_label:
+        Human-readable label used in the figure suptitle.
+    colorbar_label:
+        Label applied to the shared colorbar.
+    field_vmin:
+        Optional minimum color value used by the shaded field.
+    field_vmax:
+        Optional maximum color value used by the shaded field.
 
     Returns
     -------
@@ -576,15 +601,18 @@ def build_legacy_monan_e3sm_cross_section_figure(
             end_lat=end_lat,
             end_lon=end_lon,
             spacing_km=spacing_km,
-            tke_vmin=tke_vmin,
-            tke_vmax=tke_vmax,
+            main_variable_name=main_variable_name,
+            main_field_label=main_field_label,
+            colorbar_label=colorbar_label,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
         )
     )
     return plot_cross_section_panels(
         panels=panels,
         figure_specification=figure_specification,
         share_main_field_limits=(
-            tke_vmin is None or tke_vmax is None
+            field_vmin is None or field_vmax is None
         ),
         synchronize_y_limits=True,
     )
@@ -1104,8 +1132,9 @@ def _build_legacy_monan_e3sm_cross_section_panels(
     end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
     end_lon: float = LEGACY_CROSS_SECTION_END_LON,
     spacing_km: float = LEGACY_CROSS_SECTION_SPACING_KM,
-    tke_vmin: float | None = LEGACY_CROSS_SECTION_TKE_VMIN,
-    tke_vmax: float | None = LEGACY_CROSS_SECTION_TKE_VMAX,
+    main_variable_name: str = LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME,
+    field_vmin: float | None = LEGACY_CROSS_SECTION_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_CROSS_SECTION_FIELD_VMAX,
 ) -> list[CrossSectionPanelInput]:
     """Build the legacy MONAN/E3SM transect panels."""
     monan_adapter = build_legacy_monan_e3sm_adapter()
@@ -1123,15 +1152,17 @@ def _build_legacy_monan_e3sm_cross_section_panels(
             adapter=monan_adapter,
             label="MONAN",
             request=request,
-            tke_vmin=tke_vmin,
-            tke_vmax=tke_vmax,
+            main_variable_name=main_variable_name,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
         ),
         _build_legacy_cross_section_panel(
             adapter=e3sm_adapter,
             label="E3SM",
             request=request,
-            tke_vmin=tke_vmin,
-            tke_vmax=tke_vmax,
+            main_variable_name=main_variable_name,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
         ),
     ]
 
@@ -1143,11 +1174,15 @@ def _build_legacy_monan_e3sm_cross_section_figure_specification(
     start_lon: float = LEGACY_CROSS_SECTION_START_LON,
     end_lat: float = LEGACY_CROSS_SECTION_END_LAT,
     end_lon: float = LEGACY_CROSS_SECTION_END_LON,
+    main_variable_name: str = LEGACY_CROSS_SECTION_MAIN_VARIABLE_NAME,
+    main_field_label: str = LEGACY_CROSS_SECTION_MAIN_FIELD_LABEL,
+    colorbar_label: str = LEGACY_CROSS_SECTION_MAIN_COLORBAR_LABEL,
 ) -> FigureSpecification:
     """Build the figure specification for the legacy transect recipe."""
     time_label = np.datetime_as_string(time, unit="m")
     suptitle = (
-        f"Transect tke_pbl | {time_label} | "
+        f"Transect {main_field_label} ({main_variable_name}) | "
+        f"{time_label} | "
         f"({_format_latlon_label(start_lat, start_lon)}) -> "
         f"({_format_latlon_label(end_lat, end_lon)})"
     )
@@ -1161,7 +1196,7 @@ def _build_legacy_monan_e3sm_cross_section_figure_specification(
                 source_panel_index=0,
                 source_layer_index=0,
                 target_panel_indices=[0, 1],
-                label="Turbulent Kinetic Energy [m²/s²]",
+                label=colorbar_label,
                 colorbar_kwargs={"orientation": "horizontal", "pad": 0.14},
             )
         ],
@@ -1173,25 +1208,26 @@ def _build_legacy_cross_section_panel(
     adapter: DataAdapter,
     label: str,
     request: VerticalCrossSectionRequest,
-    tke_vmin: float | None,
-    tke_vmax: float | None,
+    main_variable_name: str,
+    field_vmin: float | None,
+    field_vmax: float | None,
 ) -> CrossSectionPanelInput:
     """Build one legacy cross-section panel for MONAN or E3SM."""
-    tke_artist_kwargs = {"cmap": "viridis", "shading": "auto"}
-    if tke_vmin is not None:
-        tke_artist_kwargs["vmin"] = tke_vmin
-    if tke_vmax is not None:
-        tke_artist_kwargs["vmax"] = tke_vmax
+    field_artist_kwargs = {"cmap": "viridis", "shading": "auto"}
+    if field_vmin is not None:
+        field_artist_kwargs["vmin"] = field_vmin
+    if field_vmax is not None:
+        field_artist_kwargs["vmax"] = field_vmax
 
     return CrossSectionPanelInput(
         layers=[
             CrossSectionLayerInput(
                 adapter=adapter,
                 request=request,
-                variable_name="tke_pbl",
+                variable_name=main_variable_name,
                 render_specification=RenderSpecification(
                     artist_method="pcolormesh",
-                    artist_kwargs=tke_artist_kwargs,
+                    artist_kwargs=field_artist_kwargs,
                 ),
                 convert_pressure_to_hpa=True,
             ),

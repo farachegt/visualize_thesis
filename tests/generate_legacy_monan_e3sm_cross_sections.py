@@ -17,6 +17,7 @@ from tests.fixtures import (
 
 START_TIME = np.datetime64("2014-02-24T00:00")
 END_TIME = np.datetime64("2014-02-27T00:00")
+FIELD_FILE_STEM = "theta"
 
 
 def generate_legacy_monan_e3sm_cross_section_figures(
@@ -44,7 +45,7 @@ def generate_legacy_monan_e3sm_cross_section_figures(
     for time in _build_hourly_times(START_TIME, END_TIME):
         figure = build_legacy_monan_e3sm_cross_section_figure(time=time)
         output_path = final_output_dir / (
-            f"transect_tke_pbl_{_slugify_time(time)}.png"
+            f"transect_{FIELD_FILE_STEM}_{_slugify_time(time)}.png"
         )
         figure.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close(figure)
