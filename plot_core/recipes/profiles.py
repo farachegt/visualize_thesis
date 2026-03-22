@@ -337,6 +337,7 @@ def plot_vertical_profiles_panel_at_point(
             cloud_hatches=resolved_cloud_hatches,
             request=shared_request,
             panel_xlim=axes_set_kwargs.get("xlim"),
+            panel_ylim=axes_set_kwargs.get("ylim"),
             show_legend_labels=(panel_index == 0),
         )
 
@@ -557,6 +558,7 @@ def _build_cloud_hatch_axes_calls(
     cloud_hatches: Sequence[VerticalProfileCloudHatchInput],
     request: VerticalProfileRequest,
     panel_xlim: Any,
+    panel_ylim: Any,
     show_legend_labels: bool,
 ) -> list[dict[str, Any]]:
     """Build `fill_betweenx(...)` calls used for cloud hatching."""
@@ -568,6 +570,11 @@ def _build_cloud_hatch_axes_calls(
     xlim = tuple(float(value) for value in panel_xlim)
     if len(xlim) != 2:
         return []
+    ylim: tuple[float, float] | None = None
+    if panel_ylim is not None:
+        ylim = tuple(float(value) for value in panel_ylim)
+        if len(ylim) != 2:
+            return []
 
     axes_calls: list[dict[str, Any]] = []
     for cloud_hatch in cloud_hatches:
@@ -575,11 +582,20 @@ def _build_cloud_hatch_axes_calls(
             variable_name=cloud_hatch.variable_name,
             request=request,
         )
+        vertical_values = np.asarray(plot_data.vertical_values, dtype=float)
         cloud_mask = np.asarray(
             np.isfinite(plot_data.values)
             & (plot_data.values > cloud_hatch.threshold),
             dtype=bool,
         )
+        if ylim is not None:
+            vertical_min = min(ylim)
+            vertical_max = max(ylim)
+            cloud_mask &= (
+                np.isfinite(vertical_values)
+                & (vertical_values >= vertical_min)
+                & (vertical_values <= vertical_max)
+            )
         if not np.any(cloud_mask):
             continue
 
@@ -599,7 +615,7 @@ def _build_cloud_hatch_axes_calls(
             {
                 "method": "fill_betweenx",
                 "args": [
-                    np.asarray(plot_data.vertical_values),
+                    vertical_values,
                     xlim[0],
                     xlim[1],
                 ],
