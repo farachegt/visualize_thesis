@@ -16,6 +16,7 @@ CANONICAL_VARIABLE_NAMES = {
     "sensible_heat_flux",
     "rainnc",
     "rainc",
+    "precipitation",
     "rthblten",
     "rublten",
     "rvblten",

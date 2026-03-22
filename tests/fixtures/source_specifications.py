@@ -263,5 +263,9 @@ def _build_legacy_monan_source_specification(
                 source_name="rainc",
                 input_units="mm",
             ),
+            "precipitation": VariableSpecification(
+                derivation_kind="precipitation_from_rainc_rainnc",
+                target_units="mm",
+            ),
         },
     )

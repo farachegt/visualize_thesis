@@ -470,8 +470,7 @@ def plot_precipitation_monan(
     *,
     monan_adapter: DataAdapter,
     date: np.datetime64,
-    rainnc_var: str = "rainnc",
-    rainc_var: str = "rainc",
+    precipitation_var: str = "precipitation",
     levels: Sequence[float] | None = None,
     extra_layers: Sequence[MapLayerDefinition] | None = None,
     plotter: SpecializedPlotter | None = None,
@@ -486,10 +485,9 @@ def plot_precipitation_monan(
         UTC instant represented by the precipitation map. This should not be
         the first cumulative instant because the hourly field is computed as
         a difference against the previous hour.
-    rainnc_var:
-        Canonical name of the non-convective cumulative precipitation field.
-    rainc_var:
-        Canonical name of the convective cumulative precipitation field.
+    precipitation_var:
+        Canonical name of the accumulated precipitation field. In the legacy
+        MONAN fixture, this is derived semantically from `rainc + rainnc`.
     levels:
         Optional precipitation bins in millimetres. When omitted, the legacy
         level list is used.
@@ -515,28 +513,17 @@ def plot_precipitation_monan(
         times=np.asarray([previous_date], dtype="datetime64[ns]"),
     )
 
-    current_rainnc = monan_adapter.to_horizontal_field_plot_data(
-        variable_name=rainnc_var,
+    current_precipitation = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=precipitation_var,
         request=current_request,
     )
-    previous_rainnc = monan_adapter.to_horizontal_field_plot_data(
-        variable_name=rainnc_var,
+    previous_precipitation = monan_adapter.to_horizontal_field_plot_data(
+        variable_name=precipitation_var,
         request=previous_request,
     )
-    current_rainc = monan_adapter.to_horizontal_field_plot_data(
-        variable_name=rainc_var,
-        request=current_request,
-    )
-    previous_rainc = monan_adapter.to_horizontal_field_plot_data(
-        variable_name=rainc_var,
-        request=previous_request,
-    )
-
     precipitation_plot_data = _build_precipitation_plot_data(
-        current_rainnc=current_rainnc,
-        previous_rainnc=previous_rainnc,
-        current_rainc=current_rainc,
-        previous_rainc=previous_rainc,
+        current_precipitation=current_precipitation,
+        previous_precipitation=previous_precipitation,
         label="MONAN",
         time_label=np.datetime_as_string(date, unit="m"),
     )
@@ -940,38 +927,26 @@ def _build_difference_plot_data(
 
 def _build_precipitation_plot_data(
     *,
-    current_rainnc: HorizontalFieldPlotData,
-    previous_rainnc: HorizontalFieldPlotData,
-    current_rainc: HorizontalFieldPlotData,
-    previous_rainc: HorizontalFieldPlotData,
+    current_precipitation: HorizontalFieldPlotData,
+    previous_precipitation: HorizontalFieldPlotData,
     label: str,
     time_label: str,
 ) -> HorizontalFieldPlotData:
-    """Build one hourly precipitation field from cumulative rain products."""
+    """Build one hourly precipitation field from accumulated precipitation."""
     _validate_horizontal_field_compatibility(
-        current_rainnc,
-        previous_rainnc,
-    )
-    _validate_horizontal_field_compatibility(
-        current_rainc,
-        previous_rainc,
-    )
-    _validate_horizontal_field_compatibility(
-        current_rainnc,
-        current_rainc,
+        current_precipitation,
+        previous_precipitation,
     )
     precipitation_field = (
-        current_rainnc.field
-        - previous_rainnc.field
-        + current_rainc.field
-        - previous_rainc.field
+        current_precipitation.field
+        - previous_precipitation.field
     )
     return HorizontalFieldPlotData(
         label=label,
         field=precipitation_field,
-        longitude=np.asarray(current_rainnc.longitude),
-        latitude=np.asarray(current_rainnc.latitude),
-        units="mm",
+        longitude=np.asarray(current_precipitation.longitude),
+        latitude=np.asarray(current_precipitation.latitude),
+        units=current_precipitation.units or "mm",
         time_label=time_label,
     )
 

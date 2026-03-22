@@ -2,9 +2,9 @@
 
 ## Objetivo
 
-Montar um mapa horario de precipitacao do `MONAN`, derivando a chuva do
-intervalo atual a partir da diferenca entre os acumulados `rainnc` e
-`rainc` no horario atual e no horario anterior.
+Montar um mapa horario de precipitacao do `MONAN`, derivando primeiro a
+variavel acumulada `precipitation = rainc + rainnc` e deacumulando apenas
+essa variavel entre o horario atual e o horario anterior.
 
 ## Imagem de referencia
 
@@ -33,7 +33,7 @@ flowchart LR
     B --> D[plot_precipitation_monan]
     C --> D
     D --> E[current and previous hour requests]
-    E --> F[HorizontalFieldPlotData for rainnc and rainc]
+    E --> F[HorizontalFieldPlotData for precipitation]
     F --> G[hourly precipitation field]
     G --> H[PreparedMapLayerInput]
     H --> I[MapPanelInput]
@@ -55,14 +55,10 @@ flowchart LR
     G[SourceSpecification] --> C
     H[FileFormatReader] --> C
     I[GeometryHandler] --> C
-    C --> J[to_horizontal_field_plot_data rainnc current]
-    C --> K[to_horizontal_field_plot_data rainnc previous]
-    C --> L[to_horizontal_field_plot_data rainc current]
-    C --> M[to_horizontal_field_plot_data rainc previous]
+    C --> J[to_horizontal_field_plot_data precipitation current]
+    C --> K[to_horizontal_field_plot_data precipitation previous]
     J --> N[HorizontalFieldPlotData]
     K --> N
-    L --> N
-    M --> N
     N --> O[hourly precipitation difference]
     O --> P[PreparedMapLayerInput]
     D --> P

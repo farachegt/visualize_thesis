@@ -106,6 +106,35 @@ def derive_qt_from_qc_qv(
     )
 
 
+def derive_precipitation_from_rainc_rainnc(
+    rainc: ArrayLike,
+    rainnc: ArrayLike,
+) -> ArrayLike:
+    """Derive total accumulated precipitation from convective components.
+
+    Parameters
+    ----------
+    rainc:
+        Convective accumulated precipitation.
+    rainnc:
+        Non-convective accumulated precipitation.
+
+    Returns
+    -------
+    xr.DataArray | np.ndarray
+        Total accumulated precipitation with the same structural type as the
+        input when possible.
+    """
+    precipitation_values = _to_numpy(rainc) + _to_numpy(rainnc)
+    units_text = _extract_units(rainc) or _extract_units(rainnc)
+    return _wrap_result(
+        template=rainc,
+        values=precipitation_values,
+        units_text=units_text,
+        long_name="Total accumulated precipitation",
+    )
+
+
 def derive_rh_from_qv_temperature_pressure(
     pressure: ArrayLike,
     temperature: ArrayLike,
@@ -245,6 +274,11 @@ DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
     "qt_from_qc_qv": {
         "dependencies": ("qc", "qv"),
         "function": derive_qt_from_qc_qv,
+        "accepted_options": (),
+    },
+    "precipitation_from_rainc_rainnc": {
+        "dependencies": ("rainc", "rainnc"),
+        "function": derive_precipitation_from_rainc_rainnc,
         "accepted_options": (),
     },
     "rh_from_qv_temperature_pressure": {
