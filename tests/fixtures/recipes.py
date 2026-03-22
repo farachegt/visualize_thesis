@@ -93,6 +93,12 @@ LEGACY_PROFILE_SECONDARY_LABEL = "MONAN - MYNN scheme"
 LEGACY_MONAN_E3SM_PROFILE_LABEL = "MONAN"
 LEGACY_E3SM_PROFILE_LABEL = "E3SM"
 LEGACY_MONAN_E3SM_PROFILE_TIME = np.datetime64("2014-02-24T00:00:00")
+LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA = 1000.0
+LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA = 500.0
+LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM = (250.0, 320.0)
+LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM = (0.0, 1.0)
+LEGACY_MONAN_E3SM_PROFILE_QT_XLIM = (0.0, 0.018)
+LEGACY_MONAN_E3SM_PROFILE_WIND_SPEED_XLIM = (0.0, 15.0)
 LEGACY_HOURLY_MEAN_REGION_NAME = "African Desert"
 LEGACY_HOURLY_MEAN_POINT_LAT = 20.0
 LEGACY_HOURLY_MEAN_POINT_LON = 0.0
@@ -473,6 +479,7 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
         x_units=LEGACY_PROFILE_X_UNITS,
         vertical_axis=request.vertical_axis,
         vertical_axis_label="Pressure [hPa]",
+        panel_axes_set_kwargs=_build_legacy_profile_panel_axes_set_kwargs(),
         figure_specification=(
             build_legacy_vertical_profile_figure_specification()
         ),
@@ -1358,6 +1365,42 @@ def _build_legacy_monan_e3sm_hourly_mean_bbox(
     min_lon = max(-180.0, point_lon - half_box_deg)
     max_lon = min(180.0, point_lon + half_box_deg)
     return (min_lon, max_lon, min_lat, max_lat)
+
+
+def _build_legacy_profile_panel_axes_set_kwargs(
+) -> list[dict[str, object]]:
+    """Return the legacy per-panel axis limits for MONAN/E3SM profiles."""
+    pressure_limits = (
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA,
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA,
+    )
+    pressure_ticks = np.arange(
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA,
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA + 1.0,
+        100.0,
+    )
+    return [
+        {
+            "xlim": LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM,
+            "ylim": pressure_limits,
+            "yticks": pressure_ticks,
+        },
+        {
+            "xlim": LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM,
+            "ylim": pressure_limits,
+            "yticks": pressure_ticks,
+        },
+        {
+            "xlim": LEGACY_MONAN_E3SM_PROFILE_QT_XLIM,
+            "ylim": pressure_limits,
+            "yticks": pressure_ticks,
+        },
+        {
+            "xlim": LEGACY_MONAN_E3SM_PROFILE_WIND_SPEED_XLIM,
+            "ylim": pressure_limits,
+            "yticks": pressure_ticks,
+        },
+    ]
 
 
 def _build_legacy_monan_e3sm_side_by_side_request(

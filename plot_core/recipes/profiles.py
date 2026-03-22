@@ -149,6 +149,7 @@ def plot_vertical_profiles_panel_at_point(
     vertical_axis: str = "pressure",
     vertical_axis_label: str | None = None,
     time_reduce: TimeReduce | None = None,
+    panel_axes_set_kwargs: Sequence[dict[str, Any] | None] | None = None,
     panel_extra_layers: Sequence[
         Sequence[VerticalProfileLayerInput]
     ] | None = None,
@@ -183,6 +184,11 @@ def plot_vertical_profiles_panel_at_point(
     time_reduce:
         Optional temporal reducer applied when `time` contains multiple
         instants.
+    panel_axes_set_kwargs:
+        Optional per-panel `Axes.set(...)` overrides merged after the wrapper
+        creates the default labels. This is the main hook for constraining
+        ranges such as `xlim`, `ylim` and `yticks` without rebuilding the
+        panels manually.
     panel_extra_layers:
         Optional additional profile layers appended panel by panel after the
         source layers. This is the main extension point for adding compatible
@@ -227,6 +233,10 @@ def plot_vertical_profiles_panel_at_point(
         vertical_axis=vertical_axis,
         point_lat=float(point_lat),
         point_lon=float(point_lon),
+    )
+    resolved_panel_axes_set_kwargs = _normalize_panel_axes_set_kwargs(
+        panel_axes_set_kwargs,
+        panel_count,
     )
     resolved_panel_extra_layers = _normalize_panel_extra_layers(
         panel_extra_layers,
@@ -278,6 +288,9 @@ def plot_vertical_profiles_panel_at_point(
                 vertical_axis_label
                 or _build_profile_ylabel(vertical_axis)
             )
+        axes_set_kwargs.update(
+            resolved_panel_axes_set_kwargs[panel_index]
+        )
 
         panels.append(
             PanelInput(
@@ -456,6 +469,27 @@ def _normalize_panel_extra_layers(
     return [
         list(extra_layers)
         for extra_layers in panel_extra_layers
+    ]
+
+
+def _normalize_panel_axes_set_kwargs(
+    panel_axes_set_kwargs: Sequence[dict[str, Any] | None] | None,
+    panel_count: int,
+) -> list[dict[str, Any]]:
+    """Return one mutable axes-set mapping per panel."""
+    if panel_axes_set_kwargs is None:
+        return [{} for _ in range(panel_count)]
+
+    if len(panel_axes_set_kwargs) != panel_count:
+        raise ValueError(
+            "panel_axes_set_kwargs must match the number of output panels."
+        )
+
+    return [
+        {}
+        if axes_set_kwargs is None
+        else dict(axes_set_kwargs)
+        for axes_set_kwargs in panel_axes_set_kwargs
     ]
 
 
