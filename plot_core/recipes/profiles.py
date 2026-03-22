@@ -68,6 +68,40 @@ class VerticalProfileSourceInput:
 
 
 @dataclass
+class VerticalProfileCloudHatchInput:
+    """Describe one cloud-layer hatch overlay for profile panels.
+
+    Parameters
+    ----------
+    adapter:
+        Data adapter responsible for producing the cloud profile.
+    variable_name:
+        Canonical variable used to infer the cloudy levels, typically `qc`.
+    threshold:
+        Minimum value used to mark one level as cloudy.
+    hatch:
+        Matplotlib hatch pattern applied to the cloudy levels.
+    edgecolor:
+        Edge color used by the hatched patch.
+    alpha:
+        Patch alpha used by the hatched patch.
+    linewidth:
+        Patch linewidth. Legacy-style cloud hatching usually uses zero.
+    legend_label:
+        Optional legend entry shown on the first panel.
+    """
+
+    adapter: DataAdapter
+    variable_name: str = "qc"
+    threshold: float = 1e-5
+    hatch: str = "///"
+    edgecolor: str = "0.5"
+    alpha: float = 0.8
+    linewidth: float = 0.0
+    legend_label: str | None = None
+
+
+@dataclass
 class PanelInput:
     """Describe one vertical-profile subplot to be built by the recipe.
 
@@ -150,6 +184,7 @@ def plot_vertical_profiles_panel_at_point(
     vertical_axis_label: str | None = None,
     time_reduce: TimeReduce | None = None,
     panel_axes_set_kwargs: Sequence[dict[str, Any] | None] | None = None,
+    cloud_hatches: Sequence[VerticalProfileCloudHatchInput] | None = None,
     panel_extra_layers: Sequence[
         Sequence[VerticalProfileLayerInput]
     ] | None = None,
@@ -189,6 +224,12 @@ def plot_vertical_profiles_panel_at_point(
         creates the default labels. This is the main hook for constraining
         ranges such as `xlim`, `ylim` and `yticks` without rebuilding the
         panels manually.
+    cloud_hatches:
+        Optional cloud-mask overlays resolved from profile variables and
+        rendered as hatched `fill_betweenx(...)` patches across every panel.
+        This is the main extension point for reproducing the cloud-layer
+        shading of the legacy implementation while still using adapters and
+        requests from the new core.
     panel_extra_layers:
         Optional additional profile layers appended panel by panel after the
         source layers. This is the main extension point for adding compatible
@@ -242,6 +283,7 @@ def plot_vertical_profiles_panel_at_point(
         panel_extra_layers,
         panel_count,
     )
+    resolved_cloud_hatches = _normalize_cloud_hatches(cloud_hatches)
     final_figure_specification = figure_specification or (
         _build_default_profile_point_figure_specification(
             panel_count=panel_count,
@@ -291,6 +333,12 @@ def plot_vertical_profiles_panel_at_point(
         axes_set_kwargs.update(
             resolved_panel_axes_set_kwargs[panel_index]
         )
+        axes_calls = _build_cloud_hatch_axes_calls(
+            cloud_hatches=resolved_cloud_hatches,
+            request=shared_request,
+            panel_xlim=axes_set_kwargs.get("xlim"),
+            show_legend_labels=(panel_index == 0),
+        )
 
         panels.append(
             PanelInput(
@@ -300,6 +348,7 @@ def plot_vertical_profiles_panel_at_point(
                 legend_kwargs=(
                     {"loc": "best"} if panel_index == 0 else None
                 ),
+                axes_calls=axes_calls,
             )
         )
 
@@ -472,6 +521,16 @@ def _normalize_panel_extra_layers(
     ]
 
 
+def _normalize_cloud_hatches(
+    cloud_hatches: Sequence[VerticalProfileCloudHatchInput] | None,
+) -> list[VerticalProfileCloudHatchInput]:
+    """Return a mutable cloud-hatch list."""
+    if cloud_hatches is None:
+        return []
+
+    return list(cloud_hatches)
+
+
 def _normalize_panel_axes_set_kwargs(
     panel_axes_set_kwargs: Sequence[dict[str, Any] | None] | None,
     panel_count: int,
@@ -491,6 +550,64 @@ def _normalize_panel_axes_set_kwargs(
         else dict(axes_set_kwargs)
         for axes_set_kwargs in panel_axes_set_kwargs
     ]
+
+
+def _build_cloud_hatch_axes_calls(
+    *,
+    cloud_hatches: Sequence[VerticalProfileCloudHatchInput],
+    request: VerticalProfileRequest,
+    panel_xlim: Any,
+    show_legend_labels: bool,
+) -> list[dict[str, Any]]:
+    """Build `fill_betweenx(...)` calls used for cloud hatching."""
+    if not cloud_hatches:
+        return []
+    if panel_xlim is None:
+        return []
+
+    xlim = tuple(float(value) for value in panel_xlim)
+    if len(xlim) != 2:
+        return []
+
+    axes_calls: list[dict[str, Any]] = []
+    for cloud_hatch in cloud_hatches:
+        plot_data = cloud_hatch.adapter.to_vertical_profile_plot_data(
+            variable_name=cloud_hatch.variable_name,
+            request=request,
+        )
+        cloud_mask = np.asarray(
+            np.isfinite(plot_data.values)
+            & (plot_data.values > cloud_hatch.threshold),
+            dtype=bool,
+        )
+        if not np.any(cloud_mask):
+            continue
+
+        fill_between_kwargs: dict[str, Any] = {
+            "where": cloud_mask,
+            "facecolor": "none",
+            "hatch": cloud_hatch.hatch,
+            "edgecolor": cloud_hatch.edgecolor,
+            "linewidth": cloud_hatch.linewidth,
+            "alpha": cloud_hatch.alpha,
+            "zorder": 0.1,
+        }
+        if show_legend_labels and cloud_hatch.legend_label is not None:
+            fill_between_kwargs["label"] = cloud_hatch.legend_label
+
+        axes_calls.append(
+            {
+                "method": "fill_betweenx",
+                "args": [
+                    np.asarray(plot_data.vertical_values),
+                    xlim[0],
+                    xlim[1],
+                ],
+                "kwargs": fill_between_kwargs,
+            }
+        )
+
+    return axes_calls
 
 
 def _build_default_profile_point_figure_specification(

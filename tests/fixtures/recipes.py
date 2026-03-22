@@ -29,10 +29,10 @@ from plot_core.recipes.maps import (
     plot_map_panels,
     plot_map_comparison_rows,
     plot_paper_grade_panel,
-    plot_precipitation_monan,
 )
 from plot_core.recipes.profiles import (
     PanelInput,
+    VerticalProfileCloudHatchInput,
     VerticalProfileLayerInput,
     VerticalProfileSourceInput,
     plot_vertical_profiles_panel_at_point,
@@ -95,8 +95,8 @@ LEGACY_E3SM_PROFILE_LABEL = "E3SM"
 LEGACY_MONAN_E3SM_PROFILE_TIME = np.datetime64("2014-02-24T00:00:00")
 LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA = 1000.0
 LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA = 500.0
-LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM = (250.0, 320.0)
-LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM = (0.0, 1.0)
+LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM = (290.0, 320.0)
+LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM = (-0.01, 0.6)
 LEGACY_MONAN_E3SM_PROFILE_QT_XLIM = (0.0, 0.018)
 LEGACY_MONAN_E3SM_PROFILE_WIND_SPEED_XLIM = (0.0, 15.0)
 LEGACY_HOURLY_MEAN_REGION_NAME = "African Desert"
@@ -480,6 +480,22 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
         vertical_axis=request.vertical_axis,
         vertical_axis_label="Pressure [hPa]",
         panel_axes_set_kwargs=_build_legacy_profile_panel_axes_set_kwargs(),
+        cloud_hatches=[
+            VerticalProfileCloudHatchInput(
+                adapter=resolved_monan_adapter,
+                variable_name="qc",
+                hatch="///",
+                edgecolor="0.5",
+                legend_label="Cloud layer (MONAN, qc > 1e-5)",
+            ),
+            VerticalProfileCloudHatchInput(
+                adapter=resolved_e3sm_adapter,
+                variable_name="qc",
+                hatch="\\\\\\",
+                edgecolor="0.3",
+                legend_label="Cloud layer (E3SM, qc > 1e-5)",
+            ),
+        ],
         figure_specification=(
             build_legacy_vertical_profile_figure_specification()
         ),
@@ -1369,7 +1385,7 @@ def _build_legacy_monan_e3sm_hourly_mean_bbox(
 
 def _build_legacy_profile_panel_axes_set_kwargs(
 ) -> list[dict[str, object]]:
-    """Return the legacy per-panel axis limits for MONAN/E3SM profiles."""
+    """Return per-panel axis limits for the legacy MONAN/E3SM profiles."""
     pressure_limits = (
         LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA,
         LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA,
@@ -1387,6 +1403,7 @@ def _build_legacy_profile_panel_axes_set_kwargs(
         },
         {
             "xlim": LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM,
+            "xticks": np.arange(0.0, 0.61, 0.1),
             "ylim": pressure_limits,
             "yticks": pressure_ticks,
         },

@@ -446,9 +446,6 @@ class SpecializedPlotter:
             else:
                 axis.grid(visible, **grid_kwargs)
 
-        if panel.legend_kwargs is not None:
-            axis.legend(**panel.legend_kwargs)
-
         for axis_call in panel.axes_calls:
             method_name = axis_call["method"]
             method_args = axis_call.get("args", ())
@@ -464,6 +461,9 @@ class SpecializedPlotter:
             result = axis_method(*method_args, **method_kwargs)
             for attribute_name, attribute_value in result_setattrs.items():
                 setattr(result, attribute_name, attribute_value)
+
+        if panel.legend_kwargs is not None:
+            axis.legend(**panel.legend_kwargs)
 
     def _apply_artist_configuration(
         self,

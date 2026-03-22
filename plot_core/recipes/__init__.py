@@ -28,6 +28,7 @@ from .maps import (
 )
 from .profiles import (
     PanelInput,
+    VerticalProfileCloudHatchInput,
     VerticalProfileSourceInput,
     VerticalProfileLayerInput,
     plot_vertical_profiles_panel_at_point,
@@ -57,6 +58,7 @@ __all__ = [
     "MapPanelInput",
     "PreparedMapLayerInput",
     "PanelInput",
+    "VerticalProfileCloudHatchInput",
     "VerticalProfileSourceInput",
     "plot_cross_section_panels",
     "plot_diurnal_amplitude_rows",
