@@ -33,5 +33,5 @@ O material da implementacao anterior foi preservado separadamente em:
 
 - esta documentacao cobre apenas a arquitetura oficial atual de
   `visualize_thesis`;
-- wrappers de compatibilidade na raiz e em `tests/` nao sao a superficie
-  recomendada para extensao futura.
+- a compatibilidade temporaria da raiz e de `tests/` foi removida na fase 3;
+- extensoes futuras devem acontecer apenas na superficie oficial acima.

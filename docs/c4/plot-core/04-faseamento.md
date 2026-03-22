@@ -246,17 +246,19 @@ Resultado esperado:
 
 ## Fase 7
 
-Refatorar os scripts antigos para recipes apoiados no core.
+Traduzir os fluxos antigos para recipes apoiados no core.
 
 Prioridade sugerida:
 
-1. `plot_profiles.py`
-2. `plot_diurnal.py`
-3. `plot_maps.py`
+1. `legacy/code/plot_profiles.py`
+2. `legacy/code/plot_diurnal.py`
+3. `legacy/code/plot_maps.py`
 
 Resultado esperado desta fase:
 
-- os scripts antigos deixam de manipular diretamente:
+- os fluxos legados deixam de ser a superficie oficial do projeto;
+- os recipes reconstruidos passam a cobrir os mesmos casos de uso, sem
+  manipular diretamente:
   - `xarray`
   - `matplotlib`
   - selecao espacial e temporal
@@ -277,6 +279,20 @@ Resultado esperado desta fase:
     lista de paineis;
   - a API publica dos recipes nao deve voltar a crescer por duplicacao de
     parametros por fonte, por camada ou por variavel.
+
+## Fase 8
+
+Remover compatibilidade temporaria restante apos a promocao da nova
+arquitetura.
+
+Resultado esperado desta fase:
+
+- `plot_core/`, `plot_core/scenarios/` e `scripts/recipes/` tornam-se a
+  unica superficie oficial do projeto;
+- wrappers temporarios da raiz e de `tests/` deixam de existir;
+- `tests/` volta a concentrar apenas dados de apoio e testes reais;
+- `legacy/` passa a ser a unica referencia do codigo e da documentacao
+  anteriores.
 
 ## Diretriz geral de migracao
 

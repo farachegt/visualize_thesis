@@ -11,5 +11,5 @@ Este diretorio preserva a implementacao anterior ao `plot_core`.
 
 ## Compatibilidade
 
-Arquivos na raiz do projeto com os mesmos nomes continuam existindo apenas
-como wrappers temporarios para nao quebrar imports e execucoes antigas.
+Os wrappers temporarios da raiz foram removidos na fase 3 da reorganizacao.
+Execucoes ou leituras historicas devem usar diretamente este diretorio.

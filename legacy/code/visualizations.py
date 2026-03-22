@@ -1,21 +1,38 @@
 import numpy as np
 import pandas as pd
 
-from io_utils import open_e3sm_data, open_monan_data
-from plot_diurnal import (
-    plot_diurnal_cycle_amplitude_pblh,
-    plot_diurnal_peak_phase_pblh,
-)
-from plot_maps import (
-    plot_paper_grade_panel,
-    plot_precipitation_monan,
-    plot_side_by_side,
-)
-from plot_profiles import (
-    plot_cross_section_transect,
-    plot_vertical_profile_tke_hourly_mean,
-    plot_vertical_profiles_panel_at_point,
-)
+try:
+    from .io_utils import open_e3sm_data, open_monan_data
+    from .plot_diurnal import (
+        plot_diurnal_cycle_amplitude_pblh,
+        plot_diurnal_peak_phase_pblh,
+    )
+    from .plot_maps import (
+        plot_paper_grade_panel,
+        plot_precipitation_monan,
+        plot_side_by_side,
+    )
+    from .plot_profiles import (
+        plot_cross_section_transect,
+        plot_vertical_profile_tke_hourly_mean,
+        plot_vertical_profiles_panel_at_point,
+    )
+except ImportError:  # pragma: no cover - legacy direct execution fallback
+    from io_utils import open_e3sm_data, open_monan_data
+    from plot_diurnal import (
+        plot_diurnal_cycle_amplitude_pblh,
+        plot_diurnal_peak_phase_pblh,
+    )
+    from plot_maps import (
+        plot_paper_grade_panel,
+        plot_precipitation_monan,
+        plot_side_by_side,
+    )
+    from plot_profiles import (
+        plot_cross_section_transect,
+        plot_vertical_profile_tke_hourly_mean,
+        plot_vertical_profiles_panel_at_point,
+    )
 
 
 def main() -> None:
