@@ -11,6 +11,11 @@ from plot_core.recipes.cross_sections import (
     CrossSectionPanelInput,
     plot_cross_section_panels,
 )
+from plot_core.recipes.maps import (
+    MapLayerInput,
+    MapPanelInput,
+    plot_map_panels,
+)
 from plot_core.recipes.profiles import (
     PanelInput,
     VerticalProfileLayerInput,
@@ -27,6 +32,7 @@ from plot_core.rendering import (
     SharedColorbarSpecification,
 )
 from plot_core.requests import (
+    HorizontalFieldRequest,
     TimeSeriesRequest,
     TimeVerticalSectionRequest,
     VerticalCrossSectionRequest,
@@ -91,6 +97,15 @@ LEGACY_CROSS_SECTION_FIELD_VMIN = 290.0
 LEGACY_CROSS_SECTION_FIELD_VMAX = 350.0
 LEGACY_CROSS_SECTION_PRESSURE_TOP_HPA = 600.0
 LEGACY_CROSS_SECTION_QC_CONTOUR_MIN = 1e-5
+LEGACY_SIDE_BY_SIDE_DATE = np.datetime64("2014-02-24T00:00")
+LEGACY_SIDE_BY_SIDE_VARIABLE_NAME = "hpbl"
+LEGACY_SIDE_BY_SIDE_FIELD_LABEL = "PBLH"
+LEGACY_SIDE_BY_SIDE_COLORBAR_LABEL = (
+    "Planetary Boundary Layer Height [m]"
+)
+LEGACY_SIDE_BY_SIDE_CMAP = "turbo"
+LEGACY_SIDE_BY_SIDE_FIELD_VMIN = 0.0
+LEGACY_SIDE_BY_SIDE_FIELD_VMAX = 3000.0
 
 
 # ============================================================================
@@ -615,6 +630,111 @@ def build_legacy_monan_e3sm_cross_section_figure(
     )
 
 
+def build_legacy_monan_e3sm_side_by_side_inputs(
+    *,
+    time: np.datetime64 = LEGACY_SIDE_BY_SIDE_DATE,
+    variable_name: str = LEGACY_SIDE_BY_SIDE_VARIABLE_NAME,
+    field_label: str = LEGACY_SIDE_BY_SIDE_FIELD_LABEL,
+    colorbar_label: str = LEGACY_SIDE_BY_SIDE_COLORBAR_LABEL,
+    cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
+    field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+) -> tuple[list[MapPanelInput], FigureSpecification]:
+    """Build the full input set for the legacy MONAN/E3SM map recipe.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the side-by-side comparison.
+    variable_name:
+        Canonical variable name used as the shaded field.
+    field_label:
+        Human-readable label used in panel titles.
+    colorbar_label:
+        Label applied to the shared colorbar.
+    cmap:
+        Colormap used by the absolute fields.
+    field_vmin:
+        Optional minimum color value used by the shaded field.
+    field_vmax:
+        Optional maximum color value used by the shaded field.
+
+    Returns
+    -------
+    tuple[list[MapPanelInput], FigureSpecification]
+        Tuple containing:
+        - the panel list consumed by `plot_map_panels(...)`;
+        - the matching `FigureSpecification`.
+    """
+    panels = _build_legacy_monan_e3sm_side_by_side_panels(
+        time=time,
+        variable_name=variable_name,
+        cmap=cmap,
+        field_vmin=field_vmin,
+        field_vmax=field_vmax,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_side_by_side_figure_specification(
+            time=time,
+            field_label=field_label,
+            colorbar_label=colorbar_label,
+        )
+    )
+    return panels, figure_specification
+
+
+def build_legacy_monan_e3sm_side_by_side_figure(
+    *,
+    time: np.datetime64 = LEGACY_SIDE_BY_SIDE_DATE,
+    variable_name: str = LEGACY_SIDE_BY_SIDE_VARIABLE_NAME,
+    field_label: str = LEGACY_SIDE_BY_SIDE_FIELD_LABEL,
+    colorbar_label: str = LEGACY_SIDE_BY_SIDE_COLORBAR_LABEL,
+    cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
+    field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM side-by-side map recipe example.
+
+    Parameters
+    ----------
+    time:
+        UTC instant represented by the side-by-side comparison.
+    variable_name:
+        Canonical variable name used as the shaded field.
+    field_label:
+        Human-readable label used in panel titles.
+    colorbar_label:
+        Label applied to the shared colorbar.
+    cmap:
+        Colormap used by the absolute fields.
+    field_vmin:
+        Optional minimum color value used by the shaded field.
+    field_vmax:
+        Optional maximum color value used by the shaded field.
+
+    Returns
+    -------
+    Figure
+        Figure produced by the generic `plot_map_panels(...)` recipe.
+    """
+    panels, figure_specification = (
+        build_legacy_monan_e3sm_side_by_side_inputs(
+            time=time,
+            variable_name=variable_name,
+            field_label=field_label,
+            colorbar_label=colorbar_label,
+            cmap=cmap,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
+        )
+    )
+    return plot_map_panels(
+        panels=panels,
+        figure_specification=figure_specification,
+        share_main_field_limits=(field_vmin is None or field_vmax is None),
+    )
+
+
 # ============================================================================
 # Private fixture helpers
 # ============================================================================
@@ -632,6 +752,16 @@ def _build_legacy_monan_e3sm_hourly_mean_bbox(
     min_lon = max(-180.0, point_lon - half_box_deg)
     max_lon = min(180.0, point_lon + half_box_deg)
     return (min_lon, max_lon, min_lat, max_lat)
+
+
+def _build_legacy_monan_e3sm_side_by_side_request(
+    *,
+    time: np.datetime64 = LEGACY_SIDE_BY_SIDE_DATE,
+) -> HorizontalFieldRequest:
+    """Build the legacy horizontal-field request for MONAN/E3SM maps."""
+    return HorizontalFieldRequest(
+        times=np.asarray([time], dtype="datetime64[ns]"),
+    )
 
 
 def _synchronize_panel_y_limits(
@@ -1279,4 +1409,124 @@ def _format_latlon_label(lat: float, lon: float) -> str:
     return (
         f"{abs(lat):.2f}°{lat_hemi}, "
         f"{abs(normalized_lon):.2f}°{lon_hemi}"
+    )
+
+
+def _build_legacy_monan_e3sm_side_by_side_panels(
+    *,
+    time: np.datetime64 = LEGACY_SIDE_BY_SIDE_DATE,
+    variable_name: str = LEGACY_SIDE_BY_SIDE_VARIABLE_NAME,
+    cmap: str = LEGACY_SIDE_BY_SIDE_CMAP,
+    field_vmin: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMIN,
+    field_vmax: float | None = LEGACY_SIDE_BY_SIDE_FIELD_VMAX,
+) -> list[MapPanelInput]:
+    """Build the legacy MONAN/E3SM side-by-side map panels."""
+    monan_adapter = build_legacy_monan_e3sm_adapter()
+    e3sm_adapter = build_legacy_e3sm_adapter()
+    request = _build_legacy_monan_e3sm_side_by_side_request(time=time)
+    return [
+        _build_legacy_side_by_side_panel(
+            adapter=monan_adapter,
+            label="MONAN",
+            request=request,
+            variable_name=variable_name,
+            cmap=cmap,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
+            show_left_labels=True,
+        ),
+        _build_legacy_side_by_side_panel(
+            adapter=e3sm_adapter,
+            label="E3SM",
+            request=request,
+            variable_name=variable_name,
+            cmap=cmap,
+            field_vmin=field_vmin,
+            field_vmax=field_vmax,
+            show_left_labels=False,
+        ),
+    ]
+
+
+def _build_legacy_monan_e3sm_side_by_side_figure_specification(
+    *,
+    time: np.datetime64 = LEGACY_SIDE_BY_SIDE_DATE,
+    field_label: str = LEGACY_SIDE_BY_SIDE_FIELD_LABEL,
+    colorbar_label: str = LEGACY_SIDE_BY_SIDE_COLORBAR_LABEL,
+) -> FigureSpecification:
+    """Build the figure specification for the legacy side-by-side map."""
+    time_label = np.datetime_as_string(time, unit="m")
+    suptitle = f"{field_label} side-by-side | {time_label}"
+    return FigureSpecification(
+        nrows=1,
+        ncols=2,
+        suptitle=suptitle,
+        figure_kwargs={"figsize": (16, 6), "constrained_layout": True},
+        shared_colorbar_specifications=[
+            SharedColorbarSpecification(
+                source_panel_index=0,
+                source_layer_index=0,
+                target_panel_indices=[0, 1],
+                label=colorbar_label,
+                colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.05,
+                    "pad": 0.05,
+                },
+            )
+        ],
+    )
+
+
+def _build_legacy_side_by_side_panel(
+    *,
+    adapter: DataAdapter,
+    label: str,
+    request: HorizontalFieldRequest,
+    variable_name: str,
+    cmap: str,
+    field_vmin: float | None,
+    field_vmax: float | None,
+    show_left_labels: bool,
+) -> MapPanelInput:
+    """Build one legacy side-by-side map panel for MONAN or E3SM."""
+    artist_kwargs = {"cmap": cmap}
+    if field_vmin is not None:
+        artist_kwargs["vmin"] = field_vmin
+    if field_vmax is not None:
+        artist_kwargs["vmax"] = field_vmax
+
+    return MapPanelInput(
+        layers=[
+            MapLayerInput(
+                adapter=adapter,
+                request=request,
+                variable_name=variable_name,
+                render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=artist_kwargs,
+                ),
+            )
+        ],
+        axes_set_kwargs={
+            "title": (
+                f"{label} - {variable_name.upper()} "
+                f"{np.datetime_as_string(request.times[0], unit='m')}"
+            )
+        },
+        coastlines_kwargs={"linewidth": 0.8},
+        borders_kwargs={"linewidth": 0.5},
+        gridlines_kwargs={
+            "draw_labels": True,
+            "linewidth": 0.6,
+            "alpha": 0.3,
+            "linestyle": "--",
+            "x_inline": False,
+            "y_inline": False,
+        },
+        gridliner_attrs={
+            "top_labels": False,
+            "right_labels": False,
+            "left_labels": show_left_labels,
+        },
     )

@@ -152,7 +152,7 @@ class SpecializedPlotter:
             figure_specification.nrows,
             figure_specification.ncols,
             **figure_specification.figure_kwargs,
-            **figure_specification.subplot_kwargs,
+            subplot_kw=dict(figure_specification.subplot_kwargs),
         )
         flat_axes = self._flatten_axes(axes)
 
@@ -453,6 +453,7 @@ class SpecializedPlotter:
             method_name = axis_call["method"]
             method_args = axis_call.get("args", ())
             method_kwargs = axis_call.get("kwargs", {})
+            result_setattrs = axis_call.get("result_setattrs", {})
 
             if not hasattr(axis, method_name):
                 raise AttributeError(
@@ -460,7 +461,9 @@ class SpecializedPlotter:
                 )
 
             axis_method = getattr(axis, method_name)
-            axis_method(*method_args, **method_kwargs)
+            result = axis_method(*method_args, **method_kwargs)
+            for attribute_name, attribute_value in result_setattrs.items():
+                setattr(result, attribute_name, attribute_value)
 
     def _apply_artist_configuration(
         self,

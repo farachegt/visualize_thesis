@@ -5,6 +5,11 @@ from .cross_sections import (
     CrossSectionPanelInput,
     plot_cross_section_panels,
 )
+from .maps import (
+    MapLayerInput,
+    MapPanelInput,
+    plot_map_panels,
+)
 from .profiles import (
     PanelInput,
     VerticalProfileLayerInput,
@@ -24,9 +29,12 @@ __all__ = [
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
+    "MapLayerInput",
+    "MapPanelInput",
     "PanelInput",
     "plot_cross_section_panels",
     "plot_hourly_mean_panels",
+    "plot_map_panels",
     "VerticalProfileLayerInput",
     "plot_vertical_profile_tke_hourly_mean",
     "plot_vertical_profiles_panel",
