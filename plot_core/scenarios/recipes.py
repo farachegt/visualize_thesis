@@ -94,7 +94,7 @@ LEGACY_MONAN_E3SM_PROFILE_LABEL = "MONAN"
 LEGACY_E3SM_PROFILE_LABEL = "E3SM"
 LEGACY_MONAN_E3SM_PROFILE_TIME = np.datetime64("2014-02-24T00:00:00")
 LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA = 1000.0
-LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA = 500.0
+LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA = 700.0
 LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM = (290.0, 320.0)
 LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM = (-0.01, 0.6)
 LEGACY_MONAN_E3SM_PROFILE_QT_XLIM = (0.0, 0.018)
@@ -137,7 +137,15 @@ LEGACY_PAPER_GRADE_VARIABLE_PAIRS = (
     ("hpbl", "hpbl"),
     ("sensible_heat_flux", "sensible_heat_flux"),
 )
-LEGACY_PAPER_GRADE_LABELS = ("PBLH", "SHF/HFX")
+LEGACY_PAPER_GRADE_LABELS = ("PBL Height", "Sensible Heat Flux")
+LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS = (
+    "PBL Height [m]",
+    "SHF [W/m^2]",
+)
+LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS = (
+    "Delta PBLH",
+    "Delta SHF/HFX",
+)
 LEGACY_PAPER_GRADE_VMINS = (0.0, -200.0)
 LEGACY_PAPER_GRADE_VMAXS = (3000.0, 500.0)
 LEGACY_PAPER_GRADE_CMAPS_ABS = ("turbo", "Spectral_r")
@@ -972,6 +980,12 @@ def build_legacy_monan_e3sm_paper_grade_inputs(
     cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
     cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
     diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> tuple[list[MapComparisonRowInput], FigureSpecification]:
@@ -996,6 +1010,10 @@ def build_legacy_monan_e3sm_paper_grade_inputs(
         Colormap used by every difference panel.
     diff_limits:
         Optional symmetric limits used by each difference panel.
+    absolute_colorbar_labels:
+        Labels used by the absolute-field colorbars, one per row.
+    difference_colorbar_labels:
+        Labels used by the difference colorbars, one per row.
     monan_adapter:
         Optional pre-built MONAN adapter reused across multiple calls.
     e3sm_adapter:
@@ -1023,6 +1041,8 @@ def build_legacy_monan_e3sm_paper_grade_inputs(
         cmaps_abs=cmaps_abs,
         cmap_diff=cmap_diff,
         diff_limits=diff_limits,
+        absolute_colorbar_labels=absolute_colorbar_labels,
+        difference_colorbar_labels=difference_colorbar_labels,
         monan_adapter=monan_adapter,
         e3sm_adapter=e3sm_adapter,
     )
@@ -1047,6 +1067,12 @@ def build_legacy_monan_e3sm_paper_grade_figure(
     cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
     cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
     diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
@@ -1071,6 +1097,10 @@ def build_legacy_monan_e3sm_paper_grade_figure(
         Colormap used by every difference panel.
     diff_limits:
         Optional symmetric limits used by each difference panel.
+    absolute_colorbar_labels:
+        Labels used by the absolute-field colorbars, one per row.
+    difference_colorbar_labels:
+        Labels used by the difference colorbars, one per row.
     monan_adapter:
         Optional pre-built MONAN adapter reused across multiple calls.
     e3sm_adapter:
@@ -1101,6 +1131,8 @@ def build_legacy_monan_e3sm_paper_grade_figure(
         cmaps_abs=cmaps_abs,
         cmap_diff=cmap_diff,
         diff_limits=diff_limits,
+        absolute_colorbar_labels=absolute_colorbar_labels,
+        difference_colorbar_labels=difference_colorbar_labels,
     )
 
 
@@ -1759,7 +1791,7 @@ def _build_legacy_monan_e3sm_hourly_mean_figure_specification(
         "TKE Vertical Profile Hourly Mean - "
         f"{region_name} "
         f"({abs(point_lat):.2f}°{latitude_hemisphere}, "
-        f"{abs(point_lon):.2f}°{longitude_hemisphere}, UTC+0)"
+        f"{abs(point_lon):.2f}°{longitude_hemisphere})"
     )
     return FigureSpecification(
         nrows=2,
@@ -2171,6 +2203,12 @@ def _build_legacy_monan_e3sm_paper_grade_rows(
     cmaps_abs: Sequence[str] = LEGACY_PAPER_GRADE_CMAPS_ABS,
     cmap_diff: str = LEGACY_PAPER_GRADE_CMAP_DIFF,
     diff_limits: Sequence[float | None] = LEGACY_PAPER_GRADE_DIFF_LIMITS,
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> list[MapComparisonRowInput]:
@@ -2182,6 +2220,8 @@ def _build_legacy_monan_e3sm_paper_grade_rows(
         len(vmaxs),
         len(cmaps_abs),
         len(diff_limits),
+        len(absolute_colorbar_labels),
+        len(difference_colorbar_labels),
     ]
     if any(length != row_count for length in parameter_lengths):
         raise ValueError(
@@ -2202,6 +2242,8 @@ def _build_legacy_monan_e3sm_paper_grade_rows(
         vmax,
         cmap_abs,
         diff_limit,
+        absolute_colorbar_label,
+        difference_colorbar_label,
     ) in zip(
         variable_pairs,
         labels,
@@ -2209,6 +2251,8 @@ def _build_legacy_monan_e3sm_paper_grade_rows(
         vmaxs,
         cmaps_abs,
         diff_limits,
+        absolute_colorbar_labels,
+        difference_colorbar_labels,
     ):
         monan_variable, e3sm_variable = variable_pair
         difference_artist_kwargs = {"cmap": cmap_diff}
@@ -2243,11 +2287,8 @@ def _build_legacy_monan_e3sm_paper_grade_rows(
                     artist_method="pcolormesh",
                     artist_kwargs=difference_artist_kwargs,
                 ),
-                difference_panel_title=(
-                    f"Delta {label} = MONAN - E3SM"
-                ),
-                absolute_colorbar_label=label,
-                difference_colorbar_label=f"Delta {label}",
+                absolute_colorbar_label=absolute_colorbar_label,
+                difference_colorbar_label=difference_colorbar_label,
                 absolute_colorbar_kwargs={
                     "orientation": "horizontal",
                     "fraction": 0.045,
@@ -2344,7 +2385,7 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_rows(
             ),
             left_panel_title="MONAN - Diurnal Amplitude PBLH",
             right_panel_title="E3SM - Diurnal Amplitude PBLH",
-            difference_panel_title="Delta Amplitude = MONAN - E3SM",
+            difference_panel_title="Delta Amplitude (MONAN - E3SM)",
             absolute_colorbar_label="Amplitude PBLH",
             difference_colorbar_label="Delta Amplitude",
             absolute_colorbar_kwargs={

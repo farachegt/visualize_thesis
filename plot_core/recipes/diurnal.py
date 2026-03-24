@@ -405,7 +405,9 @@ def plot_diurnal_cycle_amplitude_pblh(
                 ),
                 left_panel_title="MONAN - Diurnal Amplitude PBLH",
                 right_panel_title="E3SM - Diurnal Amplitude PBLH",
-                difference_panel_title="Delta Amplitude = MONAN - E3SM",
+                difference_panel_title=(
+                    "Delta Amplitude (MONAN - E3SM)"
+                ),
                 absolute_colorbar_label="Amplitude PBLH",
                 difference_colorbar_label="Delta Amplitude",
                 absolute_colorbar_kwargs={

@@ -315,12 +315,25 @@ def plot_paper_grade_panel(
         ("hpbl", "hpbl"),
         ("sensible_heat_flux", "sensible_heat_flux"),
     ),
-    labels: Sequence[str] = ("PBLH", "SHF/HFX"),
+    labels: Sequence[str] = ("PBL Height", "Sensible Heat Flux"),
     vmins: Sequence[float] = (0.0, -200.0),
     vmaxs: Sequence[float] = (3000.0, 500.0),
     cmaps_abs: Sequence[str] = ("turbo", "Spectral_r"),
     cmap_diff: str = "RdBu_r",
     diff_limits: Sequence[float | None] = (1500.0, 200.0),
+    absolute_colorbar_labels: Sequence[str] = (
+        "PBL Height [m]",
+        "SHF [W/m^2]",
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        "Delta PBLH",
+        "Delta SHF/HFX",
+    ),
+    column_headers: Sequence[str] = (
+        "MONAN",
+        "E3SM",
+        "Delta (MONAN - E3SM)",
+    ),
     plotter: SpecializedPlotter | None = None,
 ) -> Figure:
     """Build the legacy publication-style MONAN/E3SM comparison panel.
@@ -349,6 +362,12 @@ def plot_paper_grade_panel(
     diff_limits:
         Optional symmetric limits used by each difference panel. When one
         entry is `None`, that row derives its limit from the data.
+    absolute_colorbar_labels:
+        Labels used by the absolute-field colorbars, one per row.
+    difference_colorbar_labels:
+        Labels used by the difference colorbars, one per row.
+    column_headers:
+        Figure-level headers applied above the three columns.
     plotter:
         Optional plotter instance. When omitted, a fresh
         `SpecializedPlotter` is created.
@@ -365,10 +384,16 @@ def plot_paper_grade_panel(
         len(vmaxs),
         len(cmaps_abs),
         len(diff_limits),
+        len(absolute_colorbar_labels),
+        len(difference_colorbar_labels),
     ]
     if any(length != row_count for length in parameter_lengths):
         raise ValueError(
             "All row-wise parameters must match variable_pairs length."
+        )
+    if len(column_headers) != 3:
+        raise ValueError(
+            "column_headers must contain exactly three entries."
         )
 
     request = HorizontalFieldRequest(
@@ -382,6 +407,8 @@ def plot_paper_grade_panel(
         vmax,
         cmap_abs,
         diff_limit,
+        absolute_colorbar_label,
+        difference_colorbar_label,
     ) in zip(
         variable_pairs,
         labels,
@@ -389,6 +416,8 @@ def plot_paper_grade_panel(
         vmaxs,
         cmaps_abs,
         diff_limits,
+        absolute_colorbar_labels,
+        difference_colorbar_labels,
     ):
         monan_variable, e3sm_variable = variable_pair
         difference_artist_kwargs = {"cmap": cmap_diff}
@@ -423,11 +452,8 @@ def plot_paper_grade_panel(
                     artist_method="pcolormesh",
                     artist_kwargs=difference_artist_kwargs,
                 ),
-                difference_panel_title=(
-                    f"Delta {field_label} = MONAN - E3SM"
-                ),
-                absolute_colorbar_label=field_label,
-                difference_colorbar_label=f"Delta {field_label}",
+                absolute_colorbar_label=absolute_colorbar_label,
+                difference_colorbar_label=difference_colorbar_label,
                 absolute_colorbar_kwargs={
                     "orientation": "horizontal",
                     "fraction": 0.045,
@@ -451,7 +477,7 @@ def plot_paper_grade_panel(
         )
 
     time_label = np.datetime_as_string(date, unit="m")
-    return plot_map_comparison_rows(
+    figure = plot_map_comparison_rows(
         rows=row_inputs,
         figure_specification=FigureSpecification(
             nrows=row_count,
@@ -464,6 +490,12 @@ def plot_paper_grade_panel(
         ),
         plotter=plotter,
     )
+    _apply_paper_grade_matrix_labels(
+        figure=figure,
+        row_labels=labels,
+        column_headers=column_headers,
+    )
+    return figure
 
 
 def plot_precipitation_monan(
@@ -837,6 +869,54 @@ def _resolve_map_comparison_source_plot_data(
     )
     plot_data.label = source_input.source_label
     return plot_data
+
+
+def _apply_paper_grade_matrix_labels(
+    *,
+    figure: Figure,
+    row_labels: Sequence[str],
+    column_headers: Sequence[str],
+) -> None:
+    """Replace per-panel titles with figure-level matrix headers and labels."""
+    row_count = len(row_labels)
+    panel_count = row_count * 3
+    panel_axes = figure.axes[:panel_count]
+    if len(panel_axes) < panel_count:
+        return
+
+    figure.canvas.draw()
+
+    for axis in panel_axes:
+        axis.set_title("")
+
+    top_row_axes = panel_axes[:3]
+    header_y = max(axis.get_position().y1 for axis in top_row_axes) + 0.01
+    for header, axis in zip(column_headers, top_row_axes):
+        position = axis.get_position()
+        header_x = 0.5 * (position.x0 + position.x1)
+        figure.text(
+            header_x,
+            header_y,
+            header,
+            ha="center",
+            va="bottom",
+            fontsize=14,
+        )
+
+    for row_index, row_label in enumerate(row_labels):
+        row_axis = panel_axes[row_index * 3]
+        position = row_axis.get_position()
+        label_y = 0.5 * (position.y0 + position.y1)
+        label_x = max(position.x0 - 0.03, 0.01)
+        figure.text(
+            label_x,
+            label_y,
+            row_label,
+            ha="right",
+            va="center",
+            rotation=90,
+            fontsize=13,
+        )
 
 
 def _build_absolute_comparison_render_specification(
