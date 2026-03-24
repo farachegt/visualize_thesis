@@ -435,7 +435,10 @@ def plot_diurnal_cycle_amplitude_pblh(
             nrows=1,
             ncols=3,
             suptitle=f"Diurnal-Cycle Amplitude of PBLH - {day_label}",
-            figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
+            figure_kwargs={
+                "figsize": (18, 4.8),
+                "constrained_layout": True,
+            },
         ),
         plotter=plotter,
     )
@@ -609,7 +612,10 @@ def plot_diurnal_peak_phase_pblh(
             nrows=1,
             ncols=3,
             suptitle=f"Diurnal Peak Phase of PBLH - {day_label}",
-            figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
+            figure_kwargs={
+                "figsize": (18, 4.8),
+                "constrained_layout": True,
+            },
         ),
         plotter=plotter,
     )

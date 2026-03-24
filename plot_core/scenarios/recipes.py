@@ -1423,9 +1423,9 @@ def _build_legacy_profile_panel_axes_set_kwargs(
         LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA,
     )
     pressure_ticks = np.arange(
-        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA,
-        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA + 1.0,
-        100.0,
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_BOTTOM_HPA,
+        LEGACY_MONAN_E3SM_PROFILE_PRESSURE_TOP_HPA - 1.0,
+        -50.0,
     )
     return [
         {
@@ -2421,7 +2421,7 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_figure_specification(
         nrows=1,
         ncols=3,
         suptitle=f"Diurnal-Cycle Amplitude of PBLH - {day_label}",
-        figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
+        figure_kwargs={"figsize": (18, 4.8), "constrained_layout": True},
     )
 
 
@@ -2515,7 +2515,7 @@ def _build_legacy_monan_e3sm_diurnal_peak_phase_figure_specification(
         nrows=1,
         ncols=3,
         suptitle=f"Diurnal Peak Phase of PBLH - {day_label}",
-        figure_kwargs={"figsize": (18, 6), "constrained_layout": True},
+        figure_kwargs={"figsize": (18, 4.8), "constrained_layout": True},
     )
 
 
