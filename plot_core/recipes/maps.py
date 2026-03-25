@@ -484,7 +484,7 @@ def plot_paper_grade_panel(
             ncols=3,
             suptitle=f"MONAN vs E3SM - {time_label}",
             figure_kwargs={
-                "figsize": (20, max(4.5 * row_count, 9.0)),
+                "figsize": (22, max(4.5 * row_count, 9.0)),
                 "constrained_layout": True,
             },
         ),
@@ -915,7 +915,7 @@ def _apply_paper_grade_matrix_labels(
         row_axis = panel_axes[row_index * 3]
         position = row_axis.get_position()
         label_y = 0.5 * (position.y0 + position.y1)
-        label_x = max(left_column_x0 - 0.075, 0.015)
+        label_x = max(left_column_x0 - 0.105, 0.005)
         figure.text(
             label_x,
             label_y,

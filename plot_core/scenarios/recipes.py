@@ -2326,7 +2326,7 @@ def _build_legacy_monan_e3sm_paper_grade_figure_specification(
         ncols=3,
         suptitle=f"MONAN vs E3SM - {time_label}",
         figure_kwargs={
-            "figsize": (20, max(4.5 * row_count, 9.0)),
+            "figsize": (22, max(4.5 * row_count, 9.0)),
             "constrained_layout": True,
         },
     )
