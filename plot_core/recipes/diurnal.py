@@ -583,7 +583,7 @@ def plot_diurnal_peak_phase_pblh(
                 left_panel_title="Peak Hour MONAN",
                 right_panel_title="Peak Hour E3SM",
                 difference_panel_title="Phase Difference (MONAN - E3SM)",
-                absolute_colorbar_label="Peak Hour (local model hour)",
+                absolute_colorbar_label="Peak hour (UTC) [hour]",
                 difference_colorbar_label="Phase Difference",
                 absolute_colorbar_kwargs={
                     "orientation": "horizontal",
