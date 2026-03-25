@@ -143,8 +143,8 @@ LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS = (
     "SHF [W/m^2]",
 )
 LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS = (
-    "Delta PBLH",
-    "Delta SHF/HFX",
+    "Delta PBLH [m]",
+    "Delta SHF/HFX [W/m^2]",
 )
 LEGACY_PAPER_GRADE_VMINS = (0.0, -200.0)
 LEGACY_PAPER_GRADE_VMAXS = (3000.0, 500.0)
@@ -2326,7 +2326,7 @@ def _build_legacy_monan_e3sm_paper_grade_figure_specification(
         ncols=3,
         suptitle=f"MONAN vs E3SM - {time_label}",
         figure_kwargs={
-            "figsize": (18, max(4 * row_count, 6)),
+            "figsize": (20, max(4.5 * row_count, 9.0)),
             "constrained_layout": True,
         },
     )
