@@ -889,8 +889,15 @@ def _apply_paper_grade_matrix_labels(
     for axis in panel_axes:
         axis.set_title("")
 
+    suptitle = getattr(figure, "_suptitle", None)
+    suptitle_y = 0.99
+    if suptitle is not None:
+        suptitle.set_y(suptitle_y)
+        suptitle_y = suptitle.get_position()[1]
+
     top_row_axes = panel_axes[:3]
-    header_y = max(axis.get_position().y1 for axis in top_row_axes) + 0.01
+    header_y = max(axis.get_position().y1 for axis in top_row_axes) + 0.003
+    header_y = min(header_y, suptitle_y - 0.04)
     for header, axis in zip(column_headers, top_row_axes):
         position = axis.get_position()
         header_x = 0.5 * (position.x0 + position.x1)
@@ -903,11 +910,12 @@ def _apply_paper_grade_matrix_labels(
             fontsize=14,
         )
 
+    left_column_x0 = min(axis.get_position().x0 for axis in panel_axes[::3])
     for row_index, row_label in enumerate(row_labels):
         row_axis = panel_axes[row_index * 3]
         position = row_axis.get_position()
         label_y = 0.5 * (position.y0 + position.y1)
-        label_x = max(position.x0 - 0.03, 0.01)
+        label_x = max(left_column_x0 - 0.075, 0.015)
         figure.text(
             label_x,
             label_y,
