@@ -327,7 +327,7 @@ def plot_paper_grade_panel(
     ),
     difference_colorbar_labels: Sequence[str] = (
         "Delta PBLH [m]",
-        "Delta SHF/HFX [W/m^2]",
+        "Delta SHF [W/m^2]",
     ),
     column_headers: Sequence[str] = (
         "MONAN",
@@ -482,9 +482,9 @@ def plot_paper_grade_panel(
         figure_specification=FigureSpecification(
             nrows=row_count,
             ncols=3,
-            suptitle=f"MONAN vs E3SM - {time_label}",
+            suptitle=f"Simulation 2014-02-24T00:00 - Hindcast {time_label}",
             figure_kwargs={
-                "figsize": (22, max(4.5 * row_count, 9.0)),
+                "figsize": (22, max(5.0 * row_count, 9.0)),
                 "constrained_layout": True,
             },
         ),
