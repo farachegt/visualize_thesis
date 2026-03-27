@@ -78,12 +78,23 @@ O que deve entrar aqui:
 - `DataAdapter`s reais;
 - `Request`s reais;
 - builders oficiais que montam figuras, paineis ou inputs para recipes.
+- convencoes reais de coordenadas, como `longitude_convention`, quando a
+  grade da fonte nao usar a mesma representacao de todos os datasets.
 
 Em outras palavras:
 
 - `plot_core/recipes/` define "como o tipo de plot funciona";
 - `plot_core/scenarios/` define "como o projeto usa esse recipe no mundo
   real".
+
+Regra importante para longitude:
+
+- o request pode continuar falando em longitude geofisica do ponto, da
+  `bbox` ou do transecto;
+- a `SourceSpecification` deve declarar a convencao do dataset sempre que
+  ela for conhecida;
+- a camada geometrica e quem normaliza esses valores para a grade real da
+  fonte antes do `sel(...)`.
 
 ### 3. `scripts/recipes/`
 
@@ -261,6 +272,13 @@ Exemplos:
 - `adapter.to_time_series_plot_data(...)`
 - `adapter.to_time_vertical_section_plot_data(...)`
 
+Tambem nao deve:
+
+- converter longitude manualmente no script;
+- assumir dentro do recipe que toda fonte usa `-180..180` ou `0..360`.
+
+Essas decisoes pertencem ao contrato da fonte e a camada geometrica.
+
 Responsabilidades separadas:
 
 - `FileFormatReader`
@@ -310,6 +328,15 @@ Exemplos de builders:
 - `build_legacy_e3sm_adapter()`
 - `build_legacy_monan_e3sm_hourly_mean_inputs()`
 - `build_legacy_monan_precipitation_figure()`
+
+Para fontes gridded, defina tambem:
+
+- `longitude_convention`, quando a convencao do dataset for conhecida;
+- coordenadas oficiais de pontos, `bbox` e transectos no formato que fizer
+  mais sentido para o dominio do projeto.
+
+O core deve absorver a diferenca entre `-180..180` e `0..360` durante a
+normalizacao geometrica.
 
 ## Passo 8. Crie o script oficial em `scripts/recipes/`
 

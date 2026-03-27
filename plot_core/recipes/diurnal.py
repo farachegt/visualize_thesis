@@ -406,10 +406,10 @@ def plot_diurnal_cycle_amplitude_pblh(
                 left_panel_title="MONAN - Diurnal Amplitude PBLH",
                 right_panel_title="E3SM - Diurnal Amplitude PBLH",
                 difference_panel_title=(
-                    "Delta Amplitude (MONAN - E3SM)"
+                    "Δ Amplitude PBLH (MONAN - E3SM)"
                 ),
                 absolute_colorbar_label="Amplitude PBLH",
-                difference_colorbar_label="Delta Amplitude",
+                difference_colorbar_label="Δ Amplitude PBLH [m]",
                 absolute_colorbar_kwargs={
                     "orientation": "horizontal",
                     "fraction": 0.045,
@@ -582,9 +582,9 @@ def plot_diurnal_peak_phase_pblh(
                 ),
                 left_panel_title="Peak Hour MONAN",
                 right_panel_title="Peak Hour E3SM",
-                difference_panel_title="Phase Difference (MONAN - E3SM)",
+                difference_panel_title="Δ Phase (MONAN - E3SM)",
                 absolute_colorbar_label="Peak hour (UTC)",
-                difference_colorbar_label="Phase Difference",
+                difference_colorbar_label="Δ Phase",
                 absolute_colorbar_kwargs={
                     "orientation": "horizontal",
                     "fraction": 0.045,

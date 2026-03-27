@@ -100,6 +100,10 @@ Regras base:
   abertura do dataset;
 - scripts batch devem chamar `adapter.close()` ao final para liberar handles
   NetCDF explicitamente.
+- em fontes com grade georreferenciada, declarar `longitude_convention` na
+  `SourceSpecification` sempre que a convencao real for conhecida;
+- a normalizacao de longitude para a grade do dataset deve acontecer na
+  camada geometrica, cobrindo selecao de ponto, `bbox` e transectos.
 
 ## 4. Renderizacao e API
 
@@ -125,6 +129,8 @@ Regras base:
   de apoio ao desenvolvimento e aos testes do MVP;
 - `SourceSpecification`s concretos desses dados devem ficar em
   `plot_core/scenarios/`;
+- cenarios oficiais devem declarar explicitamente a convencao de longitude
+  das fontes quando ela for conhecida, em vez de depender so da inferencia;
 - o core nao deve depender desses cenarios para funcionar.
 
 ## Regras gerais de estilo Python

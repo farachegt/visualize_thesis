@@ -18,6 +18,7 @@ def build_legacy_e3sm_source_specification() -> SourceSpecification:
         vertical_name="lev",
         latitude_name="latitude",
         longitude_name="longitude",
+        longitude_convention="-180_180",
         variables={
             "qc": VariableSpecification(
                 source_name="qc",
@@ -209,6 +210,7 @@ def _build_legacy_monan_source_specification(
         vertical_name="level",
         latitude_name="latitude",
         longitude_name="longitude",
+        longitude_convention="-180_180",
         variables={
             "qc": VariableSpecification(
                 source_name="qc",

@@ -98,6 +98,7 @@ Campos sugeridos:
 - `label`
 - `latitude_name`
 - `longitude_name`
+- `longitude_convention`, opcional
 - `time_name`
 - `vertical_name`
 - `site_latitude`, opcional
@@ -122,11 +123,25 @@ Leitura correta dos metadados de sitio:
 - esses campos sao especialmente uteis para o caso de `CSVFileFormatReader`
   com `geometry_type="fixed_point"`.
 
+Convencao de longitude:
+
+- `longitude_convention` pode ser usada para declarar se a fonte trabalha
+  em `-180_180` ou `0_360`;
+- quando esse campo estiver presente, a camada geometrica deve normalizar os
+  valores de longitude dos requests para a convencao do dataset antes de
+  fazer selecoes;
+- isso vale para selecao de ponto, `bbox` e transectos;
+- quando a convencao nao for declarada, o core pode tentar inferi-la pela
+  propria grade, mas essa inferencia deve ser tratada como fallback;
+- nos cenarios oficiais, declarar explicitamente a convencao conhecida e o
+  comportamento recomendado.
+
 Exemplo conceitual:
 
 ```python
 SourceSpecification(
     label="MONAN_SHOC",
+    longitude_convention="-180_180",
     variables={
         "theta": VariableSpecification(source_name="theta"),
         "qv": VariableSpecification(source_name="QV"),
@@ -358,6 +373,11 @@ Regras gerais:
   - `max`;
 - campos de selecao espacial devem ser obrigatorios apenas quando fizerem
   sentido para a geometria da fonte;
+- requests podem receber longitudes em qualquer convencao compativel com o
+  dominio geofisico, desde que a `SourceSpecification` declare a convencao
+  da fonte ou a grade permita inferi-la com seguranca;
+- a normalizacao para a grade do dataset pertence a camada geometrica, nao
+  ao script nem ao recipe.
 - combinacoes contraditorias entre request e geometria devem falhar com erro
   explicito.
 

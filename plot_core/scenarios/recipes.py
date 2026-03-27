@@ -505,7 +505,11 @@ def build_legacy_vertical_profiles_panel_at_point_figure(
             ),
         ],
         figure_specification=(
-            build_legacy_vertical_profile_figure_specification()
+            _build_legacy_vertical_profiles_panel_at_point_figure_specification(
+                time_value=time_value,
+                point_lat=float(request.point_lat),
+                point_lon=float(request.point_lon),
+            )
         ),
     )
 
@@ -536,6 +540,31 @@ def build_legacy_monan_precipitation_figure(
     return plot_precipitation_monan(
         monan_adapter=resolved_monan_adapter,
         date=date,
+    )
+
+
+def _build_legacy_vertical_profiles_panel_at_point_figure_specification(
+    *,
+    time_value: np.datetime64,
+    point_lat: float,
+    point_lon: float,
+) -> FigureSpecification:
+    """Build the official figure specification for the point-profile plot."""
+    simulation_label = np.datetime_as_string(
+        LEGACY_MONAN_E3SM_PROFILE_TIME,
+        unit="m",
+    )
+    hindcast_label = np.datetime_as_string(time_value, unit="m")
+    point_label = _format_latlon_label(point_lat, point_lon)
+    return FigureSpecification(
+        nrows=2,
+        ncols=2,
+        suptitle=(
+            f"Simulation {simulation_label} - "
+            f"Hindcast {hindcast_label} "
+            f"({point_label})"
+        ),
+        figure_kwargs={"figsize": (10.8, 10), "constrained_layout": True},
     )
 
 
@@ -2385,9 +2414,9 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_rows(
             ),
             left_panel_title="MONAN - Diurnal Amplitude PBLH",
             right_panel_title="E3SM - Diurnal Amplitude PBLH",
-            difference_panel_title="Delta Amplitude (MONAN - E3SM)",
+            difference_panel_title="Δ Amplitude PBLH (MONAN - E3SM)",
             absolute_colorbar_label="Amplitude PBLH",
-            difference_colorbar_label="Delta Amplitude",
+            difference_colorbar_label="Δ Amplitude PBLH [m]",
             absolute_colorbar_kwargs={
                 "orientation": "horizontal",
                 "fraction": 0.045,
@@ -2477,9 +2506,9 @@ def _build_legacy_monan_e3sm_diurnal_peak_phase_rows(
             ),
             left_panel_title="Peak Hour MONAN",
             right_panel_title="Peak Hour E3SM",
-            difference_panel_title="Phase Difference (MONAN - E3SM)",
+            difference_panel_title="Δ Phase (MONAN - E3SM)",
             absolute_colorbar_label="Peak hour (UTC)",
-            difference_colorbar_label="Phase Difference",
+            difference_colorbar_label="Δ Phase",
             absolute_colorbar_kwargs={
                 "orientation": "horizontal",
                 "fraction": 0.045,

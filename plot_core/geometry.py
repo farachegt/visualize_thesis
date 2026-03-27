@@ -850,8 +850,17 @@ class GriddedGeometryHandler(GeometryHandler):
                 "latitude and longitude coordinates."
             )
 
+        normalized_point_lon = self._normalize_longitude_to_dataset(
+            point_lon,
+            longitude_data.values,
+            source_specification,
+        )
+
         return dataset.sel(
-            {latitude_name: point_lat, longitude_name: point_lon},
+            {
+                latitude_name: point_lat,
+                longitude_name: normalized_point_lon,
+            },
             method="nearest",
         )
 
@@ -889,6 +898,16 @@ class GriddedGeometryHandler(GeometryHandler):
             )
 
         min_lon, max_lon, min_lat, max_lat = bbox
+        min_lon = self._normalize_longitude_to_dataset(
+            min_lon,
+            longitude_values,
+            source_specification,
+        )
+        max_lon = self._normalize_longitude_to_dataset(
+            max_lon,
+            longitude_values,
+            source_specification,
+        )
         latitude_slice = self._ordered_slice(
             latitude_values,
             min_lat,
@@ -902,6 +921,48 @@ class GriddedGeometryHandler(GeometryHandler):
         return dataset.sel(
             {latitude_name: latitude_slice, longitude_name: longitude_slice}
         )
+
+    def _normalize_longitude_to_dataset(
+        self,
+        longitude: float,
+        longitude_values: np.ndarray,
+        source_specification: SourceSpecification,
+    ) -> float:
+        """Normalize one longitude to the convention used by the dataset."""
+        convention = self._resolve_longitude_convention(
+            longitude_values,
+            source_specification,
+        )
+        if convention == "0_360":
+            return float(longitude % 360.0)
+        if convention == "-180_180":
+            normalized = ((float(longitude) + 180.0) % 360.0) - 180.0
+            if normalized == -180.0 and float(longitude) > 0.0:
+                return 180.0
+
+            return float(normalized)
+
+        return float(longitude)
+
+    def _resolve_longitude_convention(
+        self,
+        longitude_values: np.ndarray,
+        source_specification: SourceSpecification,
+    ) -> str | None:
+        """Return the longitude convention declared or implied by a grid."""
+        if source_specification.longitude_convention is not None:
+            return source_specification.longitude_convention
+
+        finite_values = np.asarray(longitude_values, dtype=float)
+        finite_values = finite_values[np.isfinite(finite_values)]
+        if finite_values.size == 0:
+            return None
+        if np.nanmax(finite_values) > 180.0:
+            return "0_360"
+        if np.nanmin(finite_values) < 0.0:
+            return "-180_180"
+
+        return None
 
     def _average_horizontal_domain(
         self,
@@ -962,13 +1023,36 @@ class GriddedGeometryHandler(GeometryHandler):
         request: VerticalCrossSectionRequest,
     ) -> xr.Dataset:
         """Sample a nearest-neighbour transect across the grid."""
+        longitude_name = self._resolve_axis_name(
+            dataset,
+            source_specification,
+            "longitude",
+        )
+        if longitude_name is None:
+            raise ValueError(
+                "Longitude is required for transect sampling."
+            )
+
+        dataset = self._ensure_coordinate(dataset, longitude_name)
+        longitude_values = np.asarray(dataset[longitude_name].values)
+        start_lon = self._normalize_longitude_to_dataset(
+            request.start_lon,
+            longitude_values,
+            source_specification,
+        )
+        end_lon = self._normalize_longitude_to_dataset(
+            request.end_lon,
+            longitude_values,
+            source_specification,
+        )
+
         sample_count = request.n_points
         if sample_count is None:
             total_distance = self._haversine_distance_km(
                 request.start_lat,
-                request.start_lon,
+                start_lon,
                 request.end_lat,
-                request.end_lon,
+                end_lon,
             )
             sample_count = int(total_distance / request.spacing_km) + 1
 
@@ -979,8 +1063,8 @@ class GriddedGeometryHandler(GeometryHandler):
             sample_count,
         )
         transect_longitudes = np.linspace(
-            request.start_lon,
-            request.end_lon,
+            start_lon,
+            end_lon,
             sample_count,
         )
 

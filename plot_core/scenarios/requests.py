@@ -9,8 +9,8 @@ from plot_core.requests import (
     VerticalProfileRequest,
 )
 
-LEGACY_CHILE_COAST_LATITUDE = -33.0
-LEGACY_CHILE_COAST_LONGITUDE = 288.0
+LEGACY_CHILE_COAST_LATITUDE = -26.0
+LEGACY_CHILE_COAST_LONGITUDE = -73.0
 LEGACY_CHILE_COAST_TIME = np.datetime64("2014-09-03T00:00:00")
 
 
@@ -127,9 +127,9 @@ def build_legacy_chile_coast_vertical_profile_request(
 ) -> VerticalProfileRequest:
     """Build the legacy MONAN profile request over the Chilean coast.
 
-    The selected point is approximately offshore from central Chile at
-    `33°S, 72°W`. The longitude is expressed as `288.0` to match the common
-    `0-360` convention used by structured global model grids.
+    The selected point is approximately offshore from northern Chile at
+    `26°S, 73°W`. The longitude is expressed as `-73.0`, matching the
+    `-180..180` convention used by the legacy MONAN and E3SM subsets.
 
     Parameters
     ----------

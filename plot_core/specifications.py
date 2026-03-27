@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
+
+LongitudeConvention = Literal["-180_180", "0_360"]
 
 
 @dataclass
@@ -18,6 +20,7 @@ class SourceSpecification:
     label: str
     latitude_name: str | None = None
     longitude_name: str | None = None
+    longitude_convention: LongitudeConvention | None = None
     time_name: str | None = None
     vertical_name: str | None = None
     site_latitude: float | None = None
