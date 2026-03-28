@@ -15,6 +15,11 @@ from .diurnal import (
     plot_diurnal_peak_phase_pblh,
     plot_diurnal_peak_phase_rows,
 )
+from .diurnal_matrix import (
+    DiurnalAmplitudeMatrixRowInput,
+    DiurnalAmplitudeMatrixSourceInput,
+    plot_diurnal_amplitude_matrix_rows,
+)
 from .maps import (
     MapComparisonRowInput,
     MapComparisonSourceInput,
@@ -47,6 +52,8 @@ __all__ = [
     "CrossSectionPanelInput",
     "DiurnalAmplitudeRowInput",
     "DiurnalAmplitudeSourceInput",
+    "DiurnalAmplitudeMatrixRowInput",
+    "DiurnalAmplitudeMatrixSourceInput",
     "DiurnalPeakPhaseRowInput",
     "DiurnalPeakPhaseSourceInput",
     "HourlyMeanLayerInput",
@@ -62,6 +69,7 @@ __all__ = [
     "VerticalProfileSourceInput",
     "plot_cross_section_panels",
     "plot_diurnal_amplitude_rows",
+    "plot_diurnal_amplitude_matrix_rows",
     "plot_diurnal_cycle_amplitude_pblh",
     "plot_diurnal_peak_phase_pblh",
     "plot_diurnal_peak_phase_rows",

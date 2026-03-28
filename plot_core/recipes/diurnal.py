@@ -4,10 +4,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Sequence, Tuple, Union
 
 import numpy as np
-import xarray as xr
 from matplotlib.figure import Figure
 
-from ..adapter import DataAdapter
 from ..plot_data import HorizontalFieldPlotData
 from ..rendering import (
     FigureSpecification,
@@ -15,7 +13,19 @@ from ..rendering import (
     SharedColorbarSpecification,
     SpecializedPlotter,
 )
-from ..requests import HorizontalFieldRequest
+from ._shared.comparison_matrix import (
+    build_absolute_render_specification as _build_absolute_render_specification,
+    build_difference_plot_data as _build_difference_plot_data,
+    build_difference_render_specification as _build_difference_render_specification,
+    format_units_label as _format_units_label,
+    validate_horizontal_field_compatibility as _validate_horizontal_field_compatibility,
+)
+from ._shared.diurnal_reductions import (
+    DiurnalSourceInput,
+    build_phase_difference_plot_data as _build_phase_difference_plot_data,
+    resolve_diurnal_amplitude_plot_data as _resolve_diurnal_amplitude_plot_data,
+    resolve_diurnal_peak_phase_plot_data as _resolve_diurnal_peak_phase_plot_data,
+)
 from .maps import (
     MapLayerInput,
     MapPanelInput,
@@ -28,7 +38,7 @@ MapLayerDefinition = Union[MapLayerInput, PreparedMapLayerInput]
 
 
 @dataclass
-class DiurnalAmplitudeSourceInput:
+class DiurnalAmplitudeSourceInput(DiurnalSourceInput):
     """Describe one source field participating in a diurnal-amplitude row.
 
     Parameters
@@ -44,12 +54,7 @@ class DiurnalAmplitudeSourceInput:
     vertical_selection:
         Optional vertical selection forwarded to the amplitude request.
     """
-
-    adapter: DataAdapter
-    variable_name: str
-    source_label: str
-    bbox: BBox | None = None
-    vertical_selection: Any | None = None
+    pass
 
 
 @dataclass
@@ -145,7 +150,7 @@ class DiurnalAmplitudeRowInput:
 
 
 @dataclass
-class DiurnalPeakPhaseSourceInput:
+class DiurnalPeakPhaseSourceInput(DiurnalSourceInput):
     """Describe one source field participating in a diurnal peak-phase row.
 
     Parameters
@@ -161,12 +166,7 @@ class DiurnalPeakPhaseSourceInput:
     vertical_selection:
         Optional vertical selection forwarded to the phase request.
     """
-
-    adapter: DataAdapter
-    variable_name: str
-    source_label: str
-    bbox: BBox | None = None
-    vertical_selection: Any | None = None
+    pass
 
 
 @dataclass
@@ -881,426 +881,6 @@ def _build_diurnal_map_panel(
         ),
         gridliner_attrs=gridliner_attrs,
     )
-
-
-def _resolve_diurnal_amplitude_plot_data(
-    source_input: DiurnalAmplitudeSourceInput,
-    day_start: np.datetime64,
-    day_duration: np.timedelta64,
-) -> HorizontalFieldPlotData:
-    """Resolve one source into a daily amplitude map field."""
-    max_plot_data = source_input.adapter.to_horizontal_field_plot_data(
-        variable_name=source_input.variable_name,
-        request=_build_diurnal_horizontal_request(
-            day_start=day_start,
-            day_duration=day_duration,
-            time_reduce="max",
-            bbox=source_input.bbox,
-            vertical_selection=source_input.vertical_selection,
-        ),
-    )
-    min_plot_data = source_input.adapter.to_horizontal_field_plot_data(
-        variable_name=source_input.variable_name,
-        request=_build_diurnal_horizontal_request(
-            day_start=day_start,
-            day_duration=day_duration,
-            time_reduce="min",
-            bbox=source_input.bbox,
-            vertical_selection=source_input.vertical_selection,
-        ),
-    )
-    _validate_horizontal_field_compatibility(
-        max_plot_data,
-        min_plot_data,
-    )
-    return HorizontalFieldPlotData(
-        label=source_input.source_label,
-        field=max_plot_data.field - min_plot_data.field,
-        longitude=np.asarray(max_plot_data.longitude),
-        latitude=np.asarray(max_plot_data.latitude),
-        units=_resolve_difference_units(
-            max_plot_data.units,
-            min_plot_data.units,
-        ),
-        time_label=np.datetime_as_string(day_start, unit="D"),
-        vertical_label=(
-            max_plot_data.vertical_label or min_plot_data.vertical_label
-        ),
-    )
-
-
-def _resolve_diurnal_peak_phase_plot_data(
-    source_input: DiurnalPeakPhaseSourceInput,
-    day_start: np.datetime64,
-    day_duration: np.timedelta64,
-) -> HorizontalFieldPlotData:
-    """Resolve one source into a daily peak-phase map field."""
-    peak_phase_field = _resolve_diurnal_peak_phase_field(
-        source_input,
-        day_start,
-        day_duration,
-    )
-    dataset = source_input.adapter.open_data()
-    latitude_name = source_input.adapter._resolve_axis_name(
-        dataset,
-        "latitude",
-    )
-    longitude_name = source_input.adapter._resolve_axis_name(
-        dataset,
-        "longitude",
-    )
-    if latitude_name is None or longitude_name is None:
-        raise ValueError(
-            "Diurnal peak-phase rows require latitude and longitude axes."
-        )
-
-    if (
-        latitude_name in peak_phase_field.dims
-        and longitude_name in peak_phase_field.dims
-    ):
-        peak_phase_field = peak_phase_field.transpose(
-            latitude_name,
-            longitude_name,
-        )
-
-    return HorizontalFieldPlotData(
-        label=source_input.source_label,
-        field=np.asarray(peak_phase_field.values, dtype=float),
-        longitude=np.asarray(peak_phase_field[longitude_name].values),
-        latitude=np.asarray(peak_phase_field[latitude_name].values),
-        units="hour",
-        time_label=np.datetime_as_string(day_start, unit="D"),
-        vertical_label=source_input.adapter._format_vertical_label(
-            source_input.vertical_selection
-        ),
-    )
-
-
-def _resolve_diurnal_peak_phase_field(
-    source_input: DiurnalPeakPhaseSourceInput,
-    day_start: np.datetime64,
-    day_duration: np.timedelta64,
-) -> xr.DataArray:
-    """Resolve one source into a daily peak-hour `DataArray`."""
-    dataset = source_input.adapter.open_data()
-    resolved_variables: dict[str, xr.DataArray] = {}
-    field = source_input.adapter._resolve_variable(
-        dataset,
-        source_input.variable_name,
-        resolved_variables,
-    )
-    field = _apply_optional_bbox_to_data_array(
-        field,
-        source_input.adapter,
-        source_input.bbox,
-    )
-    field = _apply_optional_vertical_selection_to_data_array(
-        field,
-        source_input.adapter,
-        source_input.vertical_selection,
-    )
-    time_name = source_input.adapter._resolve_axis_name(dataset, "time")
-    if time_name is None or time_name not in field.dims:
-        raise ValueError(
-            "Diurnal peak-phase rows require a time axis in the resolved "
-            "field."
-        )
-
-    daily_field = _select_day_samples(
-        field,
-        time_name,
-        day_start,
-        day_duration,
-        source_input.adapter,
-    )
-    if daily_field.sizes.get(time_name, 0) == 0:
-        raise ValueError(
-            "The requested day produced no time samples for "
-            f"{source_input.variable_name!r}."
-        )
-
-    valid_mask = daily_field.notnull().any(time_name)
-    peak_time = daily_field.fillna(-np.inf).idxmax(time_name)
-    peak_hour = peak_time.dt.hour.astype(float)
-    return peak_hour.where(valid_mask)
-
-
-def _build_phase_difference_plot_data(
-    left_plot_data: HorizontalFieldPlotData,
-    right_plot_data: HorizontalFieldPlotData,
-    *,
-    label: str,
-) -> HorizontalFieldPlotData:
-    """Build the wrapped phase difference field used in comparison panels."""
-    _validate_horizontal_field_compatibility(
-        left_plot_data,
-        right_plot_data,
-    )
-    difference_field = (
-        (
-            left_plot_data.field
-            - right_plot_data.field
-            + 12.0
-        )
-        % 24.0
-    ) - 12.0
-    return HorizontalFieldPlotData(
-        label=label,
-        field=difference_field,
-        longitude=np.asarray(left_plot_data.longitude),
-        latitude=np.asarray(left_plot_data.latitude),
-        units="hour",
-        time_label=left_plot_data.time_label or right_plot_data.time_label,
-        vertical_label=(
-            left_plot_data.vertical_label or right_plot_data.vertical_label
-        ),
-    )
-
-
-def _build_diurnal_horizontal_request(
-    *,
-    day_start: np.datetime64,
-    day_duration: np.timedelta64,
-    time_reduce: str,
-    bbox: BBox | None,
-    vertical_selection: Any | None,
-) -> HorizontalFieldRequest:
-    """Build one reduced horizontal-field request for a diurnal product."""
-    day_end = day_start + day_duration
-    return HorizontalFieldRequest(
-        times=np.asarray([day_start, day_end], dtype="datetime64[ns]"),
-        time_reduce=time_reduce,  # type: ignore[arg-type]
-        bbox=bbox,
-        vertical_selection=vertical_selection,
-    )
-
-
-def _select_day_samples(
-    field: xr.DataArray,
-    time_name: str,
-    day_start: np.datetime64,
-    day_duration: np.timedelta64,
-    adapter: DataAdapter,
-) -> xr.DataArray:
-    """Select only the samples that belong to one daily window."""
-    day_label = np.datetime_as_string(day_start, unit="D")
-    selected = field.where(
-        field[time_name].dt.strftime("%Y-%m-%d") == day_label,
-        drop=True,
-    )
-    if selected.sizes.get(time_name, 0) > 0:
-        return selected
-
-    geometry_handler = adapter._get_geometry_handler()
-    start_target = geometry_handler._coerce_time_target(
-        np.asarray(field[time_name].values),
-        np.datetime64(day_start, "ns"),
-    )
-    end_target = geometry_handler._coerce_time_target(
-        np.asarray(field[time_name].values),
-        np.datetime64(day_start + day_duration, "ns"),
-    )
-    return field.sel({time_name: slice(start_target, end_target)})
-
-
-def _apply_optional_bbox_to_data_array(
-    field: xr.DataArray,
-    adapter: DataAdapter,
-    bbox: BBox | None,
-) -> xr.DataArray:
-    """Apply optional bbox selection to a resolved data array."""
-    if bbox is None:
-        return field
-
-    dataset = field.to_dataset(name="__value__")
-    prepared = adapter._get_geometry_handler()._select_bbox(
-        dataset,
-        adapter.source_specification,
-        bbox,
-    )
-    return prepared["__value__"]
-
-
-def _apply_optional_vertical_selection_to_data_array(
-    field: xr.DataArray,
-    adapter: DataAdapter,
-    vertical_selection: Any | None,
-) -> xr.DataArray:
-    """Apply optional vertical selection to a resolved data array."""
-    if vertical_selection is None:
-        return field
-
-    dataset = field.to_dataset(name="__value__")
-    prepared = adapter._get_geometry_handler()._apply_vertical_selection(
-        dataset,
-        adapter.source_specification,
-        vertical_selection,
-    )
-    return prepared["__value__"]
-
-
-def _build_absolute_render_specification(
-    render_specification: RenderSpecification,
-    left_field: np.ndarray,
-    right_field: np.ndarray,
-) -> RenderSpecification:
-    """Return one absolute-field render specification shared by both sides."""
-    artist_kwargs = dict(render_specification.artist_kwargs)
-    if "vmin" not in artist_kwargs or "vmax" not in artist_kwargs:
-        shared_vmin, shared_vmax = _compute_shared_field_limits(
-            [left_field, right_field]
-        )
-        artist_kwargs.setdefault("vmin", shared_vmin)
-        artist_kwargs.setdefault("vmax", shared_vmax)
-
-    return RenderSpecification(
-        artist_method=render_specification.artist_method,
-        artist_kwargs=artist_kwargs,
-        artist_calls=_copy_artist_calls(render_specification.artist_calls),
-    )
-
-
-def _build_difference_render_specification(
-    render_specification: RenderSpecification,
-    difference_field: np.ndarray,
-) -> RenderSpecification:
-    """Return one render specification for the difference field."""
-    artist_kwargs = dict(render_specification.artist_kwargs)
-    if "vmin" not in artist_kwargs and "vmax" not in artist_kwargs:
-        diff_limit = _compute_difference_limit(difference_field)
-        artist_kwargs["vmin"] = -diff_limit
-        artist_kwargs["vmax"] = diff_limit
-    elif "vmin" not in artist_kwargs:
-        artist_kwargs["vmin"] = -abs(float(artist_kwargs["vmax"]))
-    elif "vmax" not in artist_kwargs:
-        artist_kwargs["vmax"] = abs(float(artist_kwargs["vmin"]))
-
-    return RenderSpecification(
-        artist_method=render_specification.artist_method,
-        artist_kwargs=artist_kwargs,
-        artist_calls=_copy_artist_calls(render_specification.artist_calls),
-    )
-
-
-def _compute_shared_field_limits(
-    fields: Sequence[np.ndarray],
-) -> tuple[float, float]:
-    """Return shared finite limits for absolute fields."""
-    valid_values = [
-        np.asarray(field, dtype=float)[np.isfinite(field)]
-        for field in fields
-    ]
-    valid_values = [values for values in valid_values if values.size > 0]
-    if not valid_values:
-        return 0.0, 1.0
-
-    shared_vmin = min(float(np.nanmin(values)) for values in valid_values)
-    shared_vmax = max(float(np.nanmax(values)) for values in valid_values)
-    if shared_vmin == shared_vmax:
-        shared_vmax = shared_vmin + 1.0
-
-    return shared_vmin, shared_vmax
-
-
-def _compute_difference_limit(
-    difference_field: np.ndarray,
-) -> float:
-    """Return one finite symmetric limit for a difference field."""
-    values = np.asarray(difference_field, dtype=float)
-    valid_values = values[np.isfinite(values)]
-    if valid_values.size == 0:
-        return 1.0
-
-    diff_limit = float(np.nanmax(np.abs(valid_values)))
-    if diff_limit == 0.0:
-        return 1.0
-
-    return diff_limit
-
-
-def _build_difference_plot_data(
-    left_plot_data: HorizontalFieldPlotData,
-    right_plot_data: HorizontalFieldPlotData,
-    *,
-    label: str,
-) -> HorizontalFieldPlotData:
-    """Build the left-minus-right field used in comparison panels."""
-    _validate_horizontal_field_compatibility(
-        left_plot_data,
-        right_plot_data,
-    )
-    return HorizontalFieldPlotData(
-        label=label,
-        field=left_plot_data.field - right_plot_data.field,
-        longitude=np.asarray(left_plot_data.longitude),
-        latitude=np.asarray(left_plot_data.latitude),
-        units=_resolve_difference_units(
-            left_plot_data.units,
-            right_plot_data.units,
-        ),
-        time_label=left_plot_data.time_label or right_plot_data.time_label,
-        vertical_label=(
-            left_plot_data.vertical_label or right_plot_data.vertical_label
-        ),
-    )
-
-
-def _resolve_difference_units(
-    left_units: str | None,
-    right_units: str | None,
-) -> str | None:
-    """Return the units used by a difference field."""
-    if left_units == right_units:
-        return left_units
-    return left_units or right_units
-
-
-def _format_units_label(
-    label: str,
-    units: str | None,
-) -> str:
-    """Return a label optionally enriched with physical units."""
-    if units is None or units == "":
-        return label
-
-    return f"{label} [{units}]"
-
-
-def _validate_horizontal_field_compatibility(
-    left_plot_data: HorizontalFieldPlotData,
-    right_plot_data: HorizontalFieldPlotData,
-) -> None:
-    """Validate that two map fields share the same grid geometry."""
-    if left_plot_data.field.shape != right_plot_data.field.shape:
-        raise ValueError(
-            "Diurnal map comparison requires both fields to share the same "
-            "shape."
-        )
-
-    if not np.allclose(
-        np.asarray(left_plot_data.latitude, dtype=float),
-        np.asarray(right_plot_data.latitude, dtype=float),
-        equal_nan=True,
-    ):
-        raise ValueError(
-            "Diurnal map comparison requires matching latitude values."
-        )
-
-    if not np.allclose(
-        np.asarray(left_plot_data.longitude, dtype=float),
-        np.asarray(right_plot_data.longitude, dtype=float),
-        equal_nan=True,
-    ):
-        raise ValueError(
-            "Diurnal map comparison requires matching longitude values."
-        )
-
-
-def _copy_artist_calls(
-    artist_calls: Sequence[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Return a defensive copy of artist method calls."""
-    return [dict(call) for call in artist_calls]
 
 
 def _copy_optional_mapping(

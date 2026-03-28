@@ -40,6 +40,8 @@ organizado assim:
   exemplos concretos de uso da arquitetura.
 - [03h-exemplos-completos.md](./03h-exemplos-completos.md):
   exemplos mais completos, da abertura da fonte ate a chamada do plot.
+- [03i-recipes-shared.md](./03i-recipes-shared.md):
+  papel de `plot_core/recipes/_shared/` e protocolo de manutencao segura.
 - [04-faseamento.md](./04-faseamento.md): ordem sugerida de implementacao.
 - [05-boas-praticas.md](./05-boas-praticas.md):
   principios de implementacao e estilo.

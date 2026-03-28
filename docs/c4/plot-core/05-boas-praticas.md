@@ -35,6 +35,15 @@ Regras base:
   novo item em uma estrutura de lista apropriada;
 - evitar APIs de recipe com proliferacao de parametros como `primary_`,
   `secondary_`, `tertiary_` e similares.
+- recipes finais devem permanecer independentes entre si;
+- uma recipe nao deve importar helpers privados de outra recipe final;
+- quando duas ou mais recipes precisarem da mesma logica, essa logica deve
+  ser extraida para um modulo compartilhado explicito em
+  `plot_core/recipes/_shared/`;
+- modulos compartilhados devem concentrar apenas primitivas reutilizaveis e
+  estaveis, nao wrappers finais nem defaults de cenarios concretos;
+- ao alterar um helper compartilhado, o desenvolvedor deve revisar e alinhar
+  conscientemente todas as recipes que o consomem.
 
 Estrutura recomendada:
 

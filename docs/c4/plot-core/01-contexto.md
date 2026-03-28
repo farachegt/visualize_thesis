@@ -58,6 +58,13 @@ Em termos praticos:
 - o crescimento funcional desejado deve acontecer por composicao de listas de
   entradas de camada e painel, e nao pela proliferacao de argumentos como
   `primary_`, `secondary_` ou equivalentes.
+- recipes finais devem ser tratados como unidades estaveis do arcabouco de
+  plots do projeto;
+- quando surgir logica comum entre recipes, o reuso deve acontecer por
+  modulos compartilhados explicitos em `plot_core/recipes/_shared/`, e nao
+  por importacao direta de helpers privados entre recipes finais;
+- ao alterar um helper compartilhado, e responsabilidade da manutencao
+  revisar e alinhar explicitamente as recipes que dependem dele;
 - em geracao batch de figuras, o fluxo externo deve reutilizar o mesmo
   `DataAdapter` por fonte e variar apenas as requests, evitando reabertura de
   datasets a cada iteracao do loop.

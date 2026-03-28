@@ -21,6 +21,11 @@ from plot_core.recipes.diurnal import (
     plot_diurnal_peak_phase_pblh,
     plot_diurnal_peak_phase_rows,
 )
+from plot_core.recipes.diurnal_matrix import (
+    DiurnalAmplitudeMatrixRowInput,
+    DiurnalAmplitudeMatrixSourceInput,
+    plot_diurnal_amplitude_matrix_rows,
+)
 from plot_core.recipes.maps import (
     MapComparisonRowInput,
     MapComparisonSourceInput,
@@ -161,6 +166,31 @@ LEGACY_DIURNAL_AMPLITUDE_CMAP_DIFF = "RdBu_r"
 LEGACY_DIURNAL_AMPLITUDE_VMIN = 0.0
 LEGACY_DIURNAL_AMPLITUDE_VMAX: float | None = 2500.0
 LEGACY_DIURNAL_AMPLITUDE_DIFF_LIMIT: float | None = 1500.0
+LEGACY_DIURNAL_AMPLITUDE_PANEL_VARIABLE_PAIRS = (
+    ("hpbl", "hpbl"),
+    ("sensible_heat_flux", "sensible_heat_flux"),
+)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_ROW_LABELS = (
+    "PBL Height",
+    "Sensible Heat Flux",
+)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_FIELD_LABELS = (
+    "Amplitude PBLH",
+    "Amplitude SHF",
+)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_ABSOLUTE_COLORBAR_LABELS = (
+    "Amplitude PBLH",
+    "Amplitude SHF",
+)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFFERENCE_COLORBAR_LABELS = (
+    "Δ Amplitude PBLH",
+    "Δ Amplitude SHF",
+)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_VMINS = (0.0, 0.0)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_VMAXS = (2500.0, 500.0)
+LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAPS_ABS = ("turbo", "Spectral_r")
+LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAP_DIFF = "RdBu_r"
+LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFF_LIMITS = (1500.0, 200.0)
 LEGACY_DIURNAL_PHASE_START_DATE = np.datetime64("2014-02-24")
 LEGACY_DIURNAL_PHASE_N_DAYS = 3
 LEGACY_DIURNAL_PHASE_MONAN_VAR = "hpbl"
@@ -1292,6 +1322,115 @@ def build_legacy_monan_e3sm_diurnal_amplitude_figure(
         vmin=vmin,
         vmax=vmax,
         diff_limit=diff_limit,
+    )
+
+
+def build_legacy_monan_e3sm_diurnal_amplitude_panel_inputs(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ROW_LABELS
+    ),
+    field_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_FIELD_LABELS
+    ),
+    vmins: Sequence[float] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMINS,
+    vmaxs: Sequence[float | None] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMAXS,
+    cmaps_abs: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAPS_ABS
+    ),
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFF_LIMITS
+    ),
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFFERENCE_COLORBAR_LABELS
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> tuple[list[DiurnalAmplitudeMatrixRowInput], FigureSpecification]:
+    """Build the full input set for the legacy diurnal-amplitude panel."""
+    rows = _build_legacy_monan_e3sm_diurnal_amplitude_panel_rows(
+        day_start=day_start,
+        variable_pairs=variable_pairs,
+        row_labels=row_labels,
+        field_labels=field_labels,
+        vmins=vmins,
+        vmaxs=vmaxs,
+        cmaps_abs=cmaps_abs,
+        cmap_diff=cmap_diff,
+        diff_limits=diff_limits,
+        absolute_colorbar_labels=absolute_colorbar_labels,
+        difference_colorbar_labels=difference_colorbar_labels,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
+    )
+    figure_specification = (
+        _build_legacy_monan_e3sm_diurnal_amplitude_panel_figure_specification(
+            day_start=day_start,
+            row_count=len(variable_pairs),
+        )
+    )
+    return rows, figure_specification
+
+
+def build_legacy_monan_e3sm_diurnal_amplitude_panel_figure(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ROW_LABELS
+    ),
+    field_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_FIELD_LABELS
+    ),
+    vmins: Sequence[float] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMINS,
+    vmaxs: Sequence[float | None] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMAXS,
+    cmaps_abs: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAPS_ABS
+    ),
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFF_LIMITS
+    ),
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFFERENCE_COLORBAR_LABELS
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the legacy MONAN/E3SM diurnal-amplitude panel recipe."""
+    rows, figure_specification = (
+        build_legacy_monan_e3sm_diurnal_amplitude_panel_inputs(
+            day_start=day_start,
+            variable_pairs=variable_pairs,
+            row_labels=row_labels,
+            field_labels=field_labels,
+            vmins=vmins,
+            vmaxs=vmaxs,
+            cmaps_abs=cmaps_abs,
+            cmap_diff=cmap_diff,
+            diff_limits=diff_limits,
+            absolute_colorbar_labels=absolute_colorbar_labels,
+            difference_colorbar_labels=difference_colorbar_labels,
+            monan_adapter=monan_adapter,
+            e3sm_adapter=e3sm_adapter,
+        )
+    )
+    return plot_diurnal_amplitude_matrix_rows(
+        rows=rows,
+        figure_specification=figure_specification,
     )
 
 
@@ -2451,6 +2590,167 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_figure_specification(
         ncols=3,
         suptitle=f"Diurnal-Cycle Amplitude of PBLH - {day_label}",
         figure_kwargs={"figsize": (18, 4.8), "constrained_layout": True},
+    )
+
+
+def _build_legacy_monan_e3sm_diurnal_amplitude_panel_rows(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ROW_LABELS
+    ),
+    field_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_FIELD_LABELS
+    ),
+    vmins: Sequence[float] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMINS,
+    vmaxs: Sequence[float | None] = LEGACY_DIURNAL_AMPLITUDE_PANEL_VMAXS,
+    cmaps_abs: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAPS_ABS
+    ),
+    cmap_diff: str = LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFF_LIMITS
+    ),
+    absolute_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_ABSOLUTE_COLORBAR_LABELS
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFFERENCE_COLORBAR_LABELS
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> list[DiurnalAmplitudeMatrixRowInput]:
+    """Build the legacy MONAN/E3SM diurnal-amplitude matrix rows."""
+    row_count = len(variable_pairs)
+    parameter_lengths = [
+        len(row_labels),
+        len(field_labels),
+        len(vmins),
+        len(vmaxs),
+        len(cmaps_abs),
+        len(diff_limits),
+        len(absolute_colorbar_labels),
+        len(difference_colorbar_labels),
+    ]
+    if any(length != row_count for length in parameter_lengths):
+        raise ValueError(
+            "Legacy diurnal-amplitude panel rows require consistent "
+            "row-wise lengths."
+        )
+
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
+    rows: list[DiurnalAmplitudeMatrixRowInput] = []
+    for (
+        variable_pair,
+        row_label,
+        field_label,
+        vmin,
+        vmax,
+        cmap_abs,
+        diff_limit,
+        absolute_colorbar_label,
+        difference_colorbar_label,
+    ) in zip(
+        variable_pairs,
+        row_labels,
+        field_labels,
+        vmins,
+        vmaxs,
+        cmaps_abs,
+        diff_limits,
+        absolute_colorbar_labels,
+        difference_colorbar_labels,
+    ):
+        monan_variable, e3sm_variable = variable_pair
+        absolute_artist_kwargs = {
+            "cmap": cmap_abs,
+            "vmin": float(vmin),
+        }
+        if vmax is not None:
+            absolute_artist_kwargs["vmax"] = float(vmax)
+
+        difference_artist_kwargs = {"cmap": cmap_diff}
+        if diff_limit is not None:
+            difference_artist_kwargs["vmin"] = -float(diff_limit)
+            difference_artist_kwargs["vmax"] = float(diff_limit)
+
+        rows.append(
+            DiurnalAmplitudeMatrixRowInput(
+                left_source=DiurnalAmplitudeMatrixSourceInput(
+                    adapter=monan_adapter,
+                    variable_name=monan_variable,
+                    source_label="MONAN",
+                ),
+                right_source=DiurnalAmplitudeMatrixSourceInput(
+                    adapter=e3sm_adapter,
+                    variable_name=e3sm_variable,
+                    source_label="E3SM",
+                ),
+                day_start=day_start,
+                row_label=row_label,
+                field_label=field_label,
+                absolute_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=absolute_artist_kwargs,
+                ),
+                difference_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=difference_artist_kwargs,
+                ),
+                left_panel_title=f"MONAN - {field_label}",
+                right_panel_title=f"E3SM - {field_label}",
+                difference_panel_title=(
+                    f"Delta {field_label} (MONAN - E3SM)"
+                ),
+                absolute_colorbar_label=absolute_colorbar_label,
+                difference_colorbar_label=difference_colorbar_label,
+                absolute_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                difference_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                coastlines_kwargs={"linewidth": 0.8},
+                borders_kwargs={"linewidth": 0.5},
+                gridlines_kwargs={
+                    "draw_labels": True,
+                    "linewidth": 0.6,
+                    "alpha": 0.3,
+                    "x_inline": False,
+                    "y_inline": False,
+                },
+            )
+        )
+
+    return rows
+
+
+def _build_legacy_monan_e3sm_diurnal_amplitude_panel_figure_specification(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    row_count: int = len(LEGACY_DIURNAL_AMPLITUDE_PANEL_VARIABLE_PAIRS),
+) -> FigureSpecification:
+    """Build the figure specification for the amplitude matrix panel."""
+    day_label = np.datetime_as_string(day_start, unit="D")
+    return FigureSpecification(
+        nrows=row_count,
+        ncols=3,
+        suptitle=f"Diurnal-Cycle Amplitude Panel - {day_label}",
+        figure_kwargs={
+            "figsize": (22, max(5.0 * row_count, 9.0)),
+            "constrained_layout": True,
+        },
     )
 
 

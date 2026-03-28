@@ -65,3 +65,9 @@ Em geracao batch de figuras:
   ./recipes/12-vertical-profiles-panel-at-point.md
   )
 - [Precipitation MONAN](./recipes/13-precipitation-monan.md)
+- [Diurnal Amplitude Matrix Rows](
+  ./recipes/14-diurnal-amplitude-matrix-rows.md
+  )
+- [Diurnal Amplitude Panel PBLH SHF](
+  ./recipes/15-diurnal-amplitude-panel-pblh-shf.md
+  )

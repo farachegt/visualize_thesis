@@ -21,6 +21,16 @@ from ..rendering import (
     SpecializedPlotter,
 )
 from ..requests import HorizontalFieldRequest
+from ._shared.comparison_matrix import (
+    apply_comparison_matrix_labels as _apply_paper_grade_matrix_labels,
+    build_absolute_render_specification as _build_absolute_comparison_render_specification,
+    build_difference_plot_data as _build_difference_plot_data,
+    build_difference_render_specification as _build_difference_render_specification,
+    compute_shared_field_limits as _compute_shared_field_limits,
+    copy_artist_calls as _copy_artist_calls,
+    resolve_difference_units as _resolve_difference_units,
+    validate_horizontal_field_compatibility as _validate_horizontal_field_compatibility,
+)
 
 BBox = Tuple[float, float, float, float]
 
@@ -871,148 +881,6 @@ def _resolve_map_comparison_source_plot_data(
     return plot_data
 
 
-def _apply_paper_grade_matrix_labels(
-    *,
-    figure: Figure,
-    row_labels: Sequence[str],
-    column_headers: Sequence[str],
-) -> None:
-    """Replace per-panel titles with figure-level matrix headers and labels."""
-    row_count = len(row_labels)
-    panel_count = row_count * 3
-    panel_axes = figure.axes[:panel_count]
-    if len(panel_axes) < panel_count:
-        return
-
-    figure.canvas.draw()
-
-    for axis in panel_axes:
-        axis.set_title("")
-
-    suptitle = getattr(figure, "_suptitle", None)
-    suptitle_y = 0.99
-    if suptitle is not None:
-        suptitle.set_y(suptitle_y)
-        suptitle_y = suptitle.get_position()[1]
-
-    top_row_axes = panel_axes[:3]
-    header_y = max(axis.get_position().y1 for axis in top_row_axes) + 0.003
-    header_y = min(header_y, suptitle_y - 0.04)
-    for header, axis in zip(column_headers, top_row_axes):
-        position = axis.get_position()
-        header_x = 0.5 * (position.x0 + position.x1)
-        figure.text(
-            header_x,
-            header_y,
-            header,
-            ha="center",
-            va="bottom",
-            fontsize=14,
-        )
-
-    left_column_x0 = min(axis.get_position().x0 for axis in panel_axes[::3])
-    for row_index, row_label in enumerate(row_labels):
-        row_axis = panel_axes[row_index * 3]
-        position = row_axis.get_position()
-        label_y = 0.5 * (position.y0 + position.y1)
-        label_x = max(left_column_x0 - 0.105, 0.005)
-        figure.text(
-            label_x,
-            label_y,
-            row_label,
-            ha="right",
-            va="center",
-            rotation=90,
-            fontsize=13,
-        )
-
-
-def _build_absolute_comparison_render_specification(
-    render_specification: RenderSpecification,
-    left_field: np.ndarray,
-    right_field: np.ndarray,
-) -> RenderSpecification:
-    """Return one absolute-field render specification shared by both sides."""
-    artist_kwargs = dict(render_specification.artist_kwargs)
-    if "vmin" not in artist_kwargs or "vmax" not in artist_kwargs:
-        shared_vmin, shared_vmax = _compute_shared_field_limits(
-            [left_field, right_field]
-        )
-        artist_kwargs.setdefault("vmin", shared_vmin)
-        artist_kwargs.setdefault("vmax", shared_vmax)
-
-    return RenderSpecification(
-        artist_method=render_specification.artist_method,
-        artist_kwargs=artist_kwargs,
-        artist_calls=_copy_artist_calls(render_specification.artist_calls),
-    )
-
-
-def _build_difference_render_specification(
-    render_specification: RenderSpecification,
-    difference_field: np.ndarray,
-) -> RenderSpecification:
-    """Return one render specification for the difference field."""
-    artist_kwargs = dict(render_specification.artist_kwargs)
-    if "vmin" not in artist_kwargs and "vmax" not in artist_kwargs:
-        diff_limit = _compute_difference_limit(difference_field)
-        artist_kwargs["vmin"] = -diff_limit
-        artist_kwargs["vmax"] = diff_limit
-    elif "vmin" not in artist_kwargs:
-        artist_kwargs["vmin"] = -abs(float(artist_kwargs["vmax"]))
-    elif "vmax" not in artist_kwargs:
-        artist_kwargs["vmax"] = abs(float(artist_kwargs["vmin"]))
-
-    return RenderSpecification(
-        artist_method=render_specification.artist_method,
-        artist_kwargs=artist_kwargs,
-        artist_calls=_copy_artist_calls(render_specification.artist_calls),
-    )
-
-
-def _compute_difference_limit(
-    difference_field: np.ndarray,
-) -> float:
-    """Return one finite symmetric limit for a difference field."""
-    values = np.asarray(difference_field, dtype=float)
-    valid_values = values[np.isfinite(values)]
-    if valid_values.size == 0:
-        return 1.0
-
-    diff_limit = float(np.nanmax(np.abs(valid_values)))
-    if diff_limit == 0.0:
-        return 1.0
-
-    return diff_limit
-
-
-def _build_difference_plot_data(
-    left_plot_data: HorizontalFieldPlotData,
-    right_plot_data: HorizontalFieldPlotData,
-    *,
-    label: str,
-) -> HorizontalFieldPlotData:
-    """Build the left-minus-right field used in comparison panels."""
-    _validate_horizontal_field_compatibility(
-        left_plot_data,
-        right_plot_data,
-    )
-    return HorizontalFieldPlotData(
-        label=label,
-        field=left_plot_data.field - right_plot_data.field,
-        longitude=np.asarray(left_plot_data.longitude),
-        latitude=np.asarray(left_plot_data.latitude),
-        units=_resolve_difference_units(
-            left_plot_data.units,
-            right_plot_data.units,
-        ),
-        time_label=left_plot_data.time_label or right_plot_data.time_label,
-        vertical_label=(
-            left_plot_data.vertical_label or right_plot_data.vertical_label
-        ),
-    )
-
-
 def _build_precipitation_plot_data(
     *,
     current_precipitation: HorizontalFieldPlotData,
@@ -1092,45 +960,6 @@ def _build_precipitation_color_mapping(
     return level_list, discrete_cmap, norm
 
 
-def _resolve_difference_units(
-    left_units: str | None,
-    right_units: str | None,
-) -> str | None:
-    """Return the units used by a difference field."""
-    if left_units == right_units:
-        return left_units
-    return left_units or right_units
-
-
-def _validate_horizontal_field_compatibility(
-    left_plot_data: HorizontalFieldPlotData,
-    right_plot_data: HorizontalFieldPlotData,
-) -> None:
-    """Validate that two map fields share the same grid geometry."""
-    if left_plot_data.field.shape != right_plot_data.field.shape:
-        raise ValueError(
-            "Map comparison requires both fields to share the same shape."
-        )
-
-    if not np.allclose(
-        np.asarray(left_plot_data.latitude, dtype=float),
-        np.asarray(right_plot_data.latitude, dtype=float),
-        equal_nan=True,
-    ):
-        raise ValueError(
-            "Map comparison requires matching latitude coordinates."
-        )
-
-    if not np.allclose(
-        np.asarray(left_plot_data.longitude, dtype=float),
-        np.asarray(right_plot_data.longitude, dtype=float),
-        equal_nan=True,
-    ):
-        raise ValueError(
-            "Map comparison requires matching longitude coordinates."
-        )
-
-
 def _apply_shared_field_limits(
     plot_panels: Sequence[PlotPanel],
     layer_index: int,
@@ -1170,25 +999,6 @@ def _apply_shared_field_limits(
         )
 
 
-def _compute_shared_field_limits(
-    fields: Sequence[np.ndarray],
-) -> tuple[float, float]:
-    """Return one finite `vmin`/`vmax` pair for a collection of fields."""
-    valid_values = [
-        np.asarray(field, dtype=float)[np.isfinite(field)]
-        for field in fields
-    ]
-    valid_values = [values for values in valid_values if values.size > 0]
-    if not valid_values:
-        return 0.0, 1.0
-
-    vmin = min(float(np.nanmin(values)) for values in valid_values)
-    vmax = max(float(np.nanmax(values)) for values in valid_values)
-    if vmin == vmax:
-        vmax = vmin + 1.0
-    return vmin, vmax
-
-
 def _copy_optional_mapping(
     values: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
@@ -1196,24 +1006,6 @@ def _copy_optional_mapping(
     if values is None:
         return None
     return dict(values)
-
-
-def _copy_artist_calls(
-    artist_calls: Sequence[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Return deep-enough copies of artist-call dictionaries."""
-    copied_calls: list[dict[str, Any]] = []
-    for artist_call in artist_calls:
-        copied_calls.append(
-            {
-                "method": artist_call["method"],
-                "args": tuple(artist_call.get("args", ())),
-                "kwargs": dict(artist_call.get("kwargs", {})),
-            }
-        )
-    return copied_calls
-
-
 def _as_horizontal_field_plot_data(
     layer: PlotLayer,
 ) -> HorizontalFieldPlotData:

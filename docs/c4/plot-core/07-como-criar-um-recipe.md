@@ -53,6 +53,20 @@ O que deve entrar aqui:
 - funcao publica `plot_...(...)`;
 - wrappers publicos de casos legados, quando fizer sentido.
 
+Regra de independencia entre recipes:
+
+- recipes finais nao devem depender diretamente de helpers privados de
+  outras recipes finais;
+- quando duas ou mais recipes precisarem da mesma logica, essa logica deve
+  ser extraida para um modulo compartilhado explicito em
+  `plot_core/recipes/_shared/`;
+- esses modulos compartilhados devem concentrar primitivas reutilizaveis e
+  estaveis, e nao mais um recipe final disfarçado.
+
+Para entender melhor quando e como usar esse diretorio, consulte tambem:
+
+- [Helpers Compartilhados de Recipes](./03i-recipes-shared.md)
+
 O que nao deve entrar aqui:
 
 - paths concretos do projeto;
@@ -258,6 +272,21 @@ Esses helpers devem:
 - ficar abaixo da API publica;
 - nao ser exportados no `__init__.py`.
 
+Regra complementar:
+
+- helpers privados locais servem apenas ao recipe onde nasceram;
+- se outro recipe passar a precisar deles, o caminho correto e extrair um
+  modulo compartilhado, em vez de importar o helper privado diretamente.
+
+Exemplo de direcao aceita:
+
+- `plot_core/recipes/_shared/comparison_matrix.py`
+- `plot_core/recipes/_shared/diurnal_reductions.py`
+
+Exemplo de direcao a evitar:
+
+- `recipe_a.py` importando `_helper_privado` de `recipe_b.py`
+
 ## Passo 5. Use o `DataAdapter` corretamente
 
 O recipe nao deve abrir arquivo diretamente.
@@ -310,6 +339,30 @@ Isso e importante porque:
 
 - preserva o caso legado;
 - sem prender a arquitetura inteira a ele.
+
+## Passo 6a. Extraia helpers compartilhados quando necessario
+
+Quando duas recipes diferentes precisarem da mesma logica:
+
+1. nao copie o mesmo trecho em silencio;
+2. nao importe helpers privados de uma recipe final na outra;
+3. extraia a logica para um modulo compartilhado explicito em
+   `plot_core/recipes/_shared/`;
+4. atualize as recipes consumidoras para depender desse modulo.
+
+Responsabilidade de manutencao:
+
+- se um helper compartilhado mudar de comportamento, as recipes que o usam
+  devem ser revisadas e alinhadas explicitamente;
+- a estabilidade de um recipe final nao deve depender de efeitos colaterais
+  acidentais de outro recipe final.
+
+Checklist pratico:
+
+- verifique se o helper ja tem dois ou mais consumidores reais;
+- confirme que ele nao carrega defaults de um cenario concreto;
+- localize os consumidores com `rg` antes de alterar o comportamento;
+- so conclua a mudanca depois de revisar os recipes afetados.
 
 ## Passo 7. Promova o uso real para `plot_core/scenarios/`
 
@@ -460,4 +513,8 @@ Antes de considerar um recipe pronto, confira:
 - existe builder oficial em `plot_core/scenarios/`;
 - existe script oficial em `scripts/recipes/`;
 - existe markdown proprio do recipe;
+- qualquer logica compartilhada nova foi colocada em modulo explicito, e nao
+  importada como helper privado de outro recipe final;
+- se o recipe depender de helper compartilhado, os consumidores desse helper
+  ficaram identificados e revisaveis;
 - o loop batch reutiliza adapters e chama `close()`.
