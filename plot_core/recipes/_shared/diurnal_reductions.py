@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Literal, Tuple
 
 import numpy as np
 import xarray as xr
@@ -15,6 +15,7 @@ from .comparison_matrix import (
 )
 
 BBox = Tuple[float, float, float, float]
+DiurnalTimeReduce = Literal["min", "max"]
 
 
 @dataclass
@@ -28,31 +29,46 @@ class DiurnalSourceInput:
     vertical_selection: Any | None = None
 
 
+def resolve_diurnal_reduced_plot_data(
+    source_input: DiurnalSourceInput,
+    day_start: np.datetime64,
+    day_duration: np.timedelta64,
+    *,
+    time_reduce: DiurnalTimeReduce,
+) -> HorizontalFieldPlotData:
+    """Resolve one source into a reduced daily map field."""
+    plot_data = source_input.adapter.to_horizontal_field_plot_data(
+        variable_name=source_input.variable_name,
+        request=_build_diurnal_horizontal_request(
+            day_start=day_start,
+            day_duration=day_duration,
+            time_reduce=time_reduce,
+            bbox=source_input.bbox,
+            vertical_selection=source_input.vertical_selection,
+        ),
+    )
+    plot_data.label = source_input.source_label
+    plot_data.time_label = np.datetime_as_string(day_start, unit="D")
+    return plot_data
+
+
 def resolve_diurnal_amplitude_plot_data(
     source_input: DiurnalSourceInput,
     day_start: np.datetime64,
     day_duration: np.timedelta64,
 ) -> HorizontalFieldPlotData:
     """Resolve one source into a daily amplitude map field."""
-    max_plot_data = source_input.adapter.to_horizontal_field_plot_data(
-        variable_name=source_input.variable_name,
-        request=_build_diurnal_horizontal_request(
-            day_start=day_start,
-            day_duration=day_duration,
-            time_reduce="max",
-            bbox=source_input.bbox,
-            vertical_selection=source_input.vertical_selection,
-        ),
+    max_plot_data = resolve_diurnal_reduced_plot_data(
+        source_input,
+        day_start,
+        day_duration,
+        time_reduce="max",
     )
-    min_plot_data = source_input.adapter.to_horizontal_field_plot_data(
-        variable_name=source_input.variable_name,
-        request=_build_diurnal_horizontal_request(
-            day_start=day_start,
-            day_duration=day_duration,
-            time_reduce="min",
-            bbox=source_input.bbox,
-            vertical_selection=source_input.vertical_selection,
-        ),
+    min_plot_data = resolve_diurnal_reduced_plot_data(
+        source_input,
+        day_start,
+        day_duration,
+        time_reduce="min",
     )
     validate_horizontal_field_compatibility(
         max_plot_data,

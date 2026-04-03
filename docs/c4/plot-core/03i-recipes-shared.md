@@ -84,6 +84,7 @@ Responsabilidade:
 
 Hoje esse modulo concentra, por exemplo:
 
+- `resolve_diurnal_reduced_plot_data(...)`
 - `DiurnalSourceInput`
 - `resolve_diurnal_amplitude_plot_data(...)`
 - `resolve_diurnal_peak_phase_plot_data(...)`

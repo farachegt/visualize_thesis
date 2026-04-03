@@ -71,3 +71,9 @@ Em geracao batch de figuras:
 - [Diurnal Amplitude Panel PBLH SHF](
   ./recipes/15-diurnal-amplitude-panel-pblh-shf.md
   )
+- [Diurnal Extrema Matrix Rows](
+  ./recipes/16-diurnal-extrema-matrix-rows.md
+  )
+- [Diurnal Extrema Panel PBLH SHF](
+  ./recipes/17-diurnal-extrema-panel-pblh-shf.md
+  )

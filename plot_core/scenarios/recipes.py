@@ -21,6 +21,11 @@ from plot_core.recipes.diurnal import (
     plot_diurnal_peak_phase_pblh,
     plot_diurnal_peak_phase_rows,
 )
+from plot_core.recipes.diurnal_extrema_matrix import (
+    DiurnalExtremaMatrixRowInput,
+    DiurnalExtremaMatrixSourceInput,
+    plot_diurnal_extrema_matrix_rows,
+)
 from plot_core.recipes.diurnal_matrix import (
     DiurnalAmplitudeMatrixRowInput,
     DiurnalAmplitudeMatrixSourceInput,
@@ -191,6 +196,23 @@ LEGACY_DIURNAL_AMPLITUDE_PANEL_VMAXS = (2500.0, 500.0)
 LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAPS_ABS = ("turbo", "Spectral_r")
 LEGACY_DIURNAL_AMPLITUDE_PANEL_CMAP_DIFF = "RdBu_r"
 LEGACY_DIURNAL_AMPLITUDE_PANEL_DIFF_LIMITS = (1500.0, 200.0)
+LEGACY_DIURNAL_EXTREMA_VARIABLE_PAIRS = (
+    ("hpbl", "hpbl"),
+    ("sensible_heat_flux", "sensible_heat_flux"),
+)
+LEGACY_DIURNAL_EXTREMA_ROW_LABELS = (
+    "PBL Height",
+    "Sensible Heat Flux",
+)
+LEGACY_DIURNAL_EXTREMA_CMAPS_ABS = ("turbo", "Spectral_r")
+LEGACY_DIURNAL_EXTREMA_CMAP_DIFF = "RdBu_r"
+LEGACY_DIURNAL_EXTREMA_PBLH_VMIN = 0.0
+LEGACY_DIURNAL_EXTREMA_PBLH_VMAX = 3000.0
+LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN = -200.0
+LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX = 200.0
+LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMIN = 0.0
+LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMAX = 500.0
+LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS = (1500.0, 200.0)
 LEGACY_DIURNAL_PHASE_START_DATE = np.datetime64("2014-02-24")
 LEGACY_DIURNAL_PHASE_N_DAYS = 3
 LEGACY_DIURNAL_PHASE_MONAN_VAR = "hpbl"
@@ -1429,6 +1451,92 @@ def build_legacy_monan_e3sm_diurnal_amplitude_panel_figure(
         )
     )
     return plot_diurnal_amplitude_matrix_rows(
+        rows=rows,
+        figure_specification=figure_specification,
+    )
+
+
+def build_monan_e3sm_diurnal_extrema_panel_inputs(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    time_reduce: str = "min",
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_EXTREMA_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = LEGACY_DIURNAL_EXTREMA_ROW_LABELS,
+    cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> tuple[list[DiurnalExtremaMatrixRowInput], FigureSpecification]:
+    """Build the full input set for the official extrema panel recipe."""
+    (
+        field_labels,
+        absolute_colorbar_labels,
+        difference_colorbar_labels,
+        vmins,
+        vmaxs,
+    ) = _build_diurnal_extrema_defaults(time_reduce)
+    rows = _build_monan_e3sm_diurnal_extrema_panel_rows(
+        day_start=day_start,
+        time_reduce=time_reduce,
+        variable_pairs=variable_pairs,
+        row_labels=row_labels,
+        field_labels=field_labels,
+        vmins=vmins,
+        vmaxs=vmaxs,
+        cmaps_abs=cmaps_abs,
+        cmap_diff=cmap_diff,
+        diff_limits=diff_limits,
+        absolute_colorbar_labels=absolute_colorbar_labels,
+        difference_colorbar_labels=difference_colorbar_labels,
+        monan_adapter=monan_adapter,
+        e3sm_adapter=e3sm_adapter,
+    )
+    figure_specification = (
+        _build_monan_e3sm_diurnal_extrema_panel_figure_specification(
+            day_start=day_start,
+            time_reduce=time_reduce,
+            row_count=len(variable_pairs),
+        )
+    )
+    return rows, figure_specification
+
+
+def build_monan_e3sm_diurnal_extrema_panel_figure(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    time_reduce: str = "min",
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_EXTREMA_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = LEGACY_DIURNAL_EXTREMA_ROW_LABELS,
+    cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> Figure:
+    """Execute the MONAN/E3SM extrema panel recipe."""
+    rows, figure_specification = (
+        build_monan_e3sm_diurnal_extrema_panel_inputs(
+            day_start=day_start,
+            time_reduce=time_reduce,
+            variable_pairs=variable_pairs,
+            row_labels=row_labels,
+            cmaps_abs=cmaps_abs,
+            cmap_diff=cmap_diff,
+            diff_limits=diff_limits,
+            monan_adapter=monan_adapter,
+            e3sm_adapter=e3sm_adapter,
+        )
+    )
+    return plot_diurnal_extrema_matrix_rows(
         rows=rows,
         figure_specification=figure_specification,
     )
@@ -2747,6 +2855,228 @@ def _build_legacy_monan_e3sm_diurnal_amplitude_panel_figure_specification(
         nrows=row_count,
         ncols=3,
         suptitle=f"Diurnal-Cycle Amplitude Panel - {day_label}",
+        figure_kwargs={
+            "figsize": (22, max(5.0 * row_count, 9.0)),
+            "constrained_layout": True,
+        },
+    )
+
+
+def _build_diurnal_extrema_defaults(
+    time_reduce: str,
+) -> tuple[
+    Sequence[str],
+    Sequence[str],
+    Sequence[str],
+    Sequence[float],
+    Sequence[float | None],
+]:
+    """Return the default labels and limits for one extrema panel."""
+    if time_reduce == "min":
+        return (
+            ("Minimum PBLH", "Minimum SHF"),
+            ("Minimum PBLH", "Minimum SHF"),
+            ("Delta Minimum PBLH", "Delta Minimum SHF"),
+            (
+                LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
+                LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN,
+            ),
+            (
+                LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
+                LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX,
+            ),
+        )
+
+    if time_reduce == "max":
+        return (
+            ("Maximum PBLH", "Maximum SHF"),
+            ("Maximum PBLH", "Maximum SHF"),
+            ("Delta Maximum PBLH", "Delta Maximum SHF"),
+            (
+                LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
+                LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMIN,
+            ),
+            (
+                LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
+                LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMAX,
+            ),
+        )
+
+    raise ValueError(
+        "Diurnal extrema panel expects time_reduce to be "
+        "'min' or 'max'."
+    )
+
+
+def _build_monan_e3sm_diurnal_extrema_panel_rows(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    time_reduce: str = "min",
+    variable_pairs: Sequence[tuple[str, str]] = (
+        LEGACY_DIURNAL_EXTREMA_VARIABLE_PAIRS
+    ),
+    row_labels: Sequence[str] = LEGACY_DIURNAL_EXTREMA_ROW_LABELS,
+    field_labels: Sequence[str] = ("Minimum PBLH", "Minimum SHF"),
+    vmins: Sequence[float] = (
+        LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
+        LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN,
+    ),
+    vmaxs: Sequence[float | None] = (
+        LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
+        LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX,
+    ),
+    cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+    cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+    diff_limits: Sequence[float | None] = (
+        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
+    ),
+    absolute_colorbar_labels: Sequence[str] = (
+        "Minimum PBLH",
+        "Minimum SHF",
+    ),
+    difference_colorbar_labels: Sequence[str] = (
+        "Delta Minimum PBLH",
+        "Delta Minimum SHF",
+    ),
+    monan_adapter: DataAdapter | None = None,
+    e3sm_adapter: DataAdapter | None = None,
+) -> list[DiurnalExtremaMatrixRowInput]:
+    """Build the MONAN/E3SM diurnal-extrema matrix rows."""
+    row_count = len(variable_pairs)
+    parameter_lengths = [
+        len(row_labels),
+        len(field_labels),
+        len(vmins),
+        len(vmaxs),
+        len(cmaps_abs),
+        len(diff_limits),
+        len(absolute_colorbar_labels),
+        len(difference_colorbar_labels),
+    ]
+    if any(length != row_count for length in parameter_lengths):
+        raise ValueError(
+            "Diurnal-extrema panel rows require consistent "
+            "row-wise lengths."
+        )
+
+    if monan_adapter is None:
+        monan_adapter = build_legacy_monan_e3sm_adapter()
+    if e3sm_adapter is None:
+        e3sm_adapter = build_legacy_e3sm_adapter()
+
+    rows: list[DiurnalExtremaMatrixRowInput] = []
+    for (
+        variable_pair,
+        row_label,
+        field_label,
+        vmin,
+        vmax,
+        cmap_abs,
+        diff_limit,
+        absolute_colorbar_label,
+        difference_colorbar_label,
+    ) in zip(
+        variable_pairs,
+        row_labels,
+        field_labels,
+        vmins,
+        vmaxs,
+        cmaps_abs,
+        diff_limits,
+        absolute_colorbar_labels,
+        difference_colorbar_labels,
+    ):
+        monan_variable, e3sm_variable = variable_pair
+        absolute_artist_kwargs = {
+            "cmap": cmap_abs,
+            "vmin": float(vmin),
+        }
+        if vmax is not None:
+            absolute_artist_kwargs["vmax"] = float(vmax)
+
+        difference_artist_kwargs = {"cmap": cmap_diff}
+        if diff_limit is not None:
+            difference_artist_kwargs["vmin"] = -float(diff_limit)
+            difference_artist_kwargs["vmax"] = float(diff_limit)
+
+        rows.append(
+            DiurnalExtremaMatrixRowInput(
+                left_source=DiurnalExtremaMatrixSourceInput(
+                    adapter=monan_adapter,
+                    variable_name=monan_variable,
+                    source_label="MONAN",
+                ),
+                right_source=DiurnalExtremaMatrixSourceInput(
+                    adapter=e3sm_adapter,
+                    variable_name=e3sm_variable,
+                    source_label="E3SM",
+                ),
+                day_start=day_start,
+                time_reduce=time_reduce,  # type: ignore[arg-type]
+                row_label=row_label,
+                field_label=field_label,
+                absolute_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=absolute_artist_kwargs,
+                ),
+                difference_render_specification=RenderSpecification(
+                    artist_method="pcolormesh",
+                    artist_kwargs=difference_artist_kwargs,
+                ),
+                left_panel_title=f"MONAN - {field_label}",
+                right_panel_title=f"E3SM - {field_label}",
+                difference_panel_title=(
+                    f"Delta {field_label} (MONAN - E3SM)"
+                ),
+                absolute_colorbar_label=absolute_colorbar_label,
+                difference_colorbar_label=difference_colorbar_label,
+                absolute_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                difference_colorbar_kwargs={
+                    "orientation": "horizontal",
+                    "fraction": 0.045,
+                    "pad": 0.04,
+                },
+                coastlines_kwargs={"linewidth": 0.8},
+                borders_kwargs={"linewidth": 0.5},
+                gridlines_kwargs={
+                    "draw_labels": True,
+                    "linewidth": 0.6,
+                    "alpha": 0.3,
+                    "x_inline": False,
+                    "y_inline": False,
+                },
+            )
+        )
+
+    return rows
+
+
+def _build_monan_e3sm_diurnal_extrema_panel_figure_specification(
+    *,
+    day_start: np.datetime64 = LEGACY_DIURNAL_AMPLITUDE_START_DATE,
+    time_reduce: str = "min",
+    row_count: int = len(LEGACY_DIURNAL_EXTREMA_VARIABLE_PAIRS),
+) -> FigureSpecification:
+    """Build the figure specification for the extrema matrix panel."""
+    day_label = np.datetime_as_string(day_start, unit="D")
+    if time_reduce == "min":
+        title_prefix = "Daily Minimum Panel"
+    elif time_reduce == "max":
+        title_prefix = "Daily Maximum Panel"
+    else:
+        raise ValueError(
+            "Diurnal extrema panel expects time_reduce to be "
+            "'min' or 'max'."
+        )
+
+    return FigureSpecification(
+        nrows=row_count,
+        ncols=3,
+        suptitle=f"{title_prefix} - {day_label}",
         figure_kwargs={
             "figsize": (22, max(5.0 * row_count, 9.0)),
             "constrained_layout": True,

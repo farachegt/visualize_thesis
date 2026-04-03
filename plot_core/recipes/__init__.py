@@ -15,6 +15,11 @@ from .diurnal import (
     plot_diurnal_peak_phase_pblh,
     plot_diurnal_peak_phase_rows,
 )
+from .diurnal_extrema_matrix import (
+    DiurnalExtremaMatrixRowInput,
+    DiurnalExtremaMatrixSourceInput,
+    plot_diurnal_extrema_matrix_rows,
+)
 from .diurnal_matrix import (
     DiurnalAmplitudeMatrixRowInput,
     DiurnalAmplitudeMatrixSourceInput,
@@ -56,6 +61,8 @@ __all__ = [
     "DiurnalAmplitudeMatrixSourceInput",
     "DiurnalPeakPhaseRowInput",
     "DiurnalPeakPhaseSourceInput",
+    "DiurnalExtremaMatrixRowInput",
+    "DiurnalExtremaMatrixSourceInput",
     "HourlyMeanLayerInput",
     "HourlyMeanPanelInput",
     "HourlyMeanTkeColumnInput",
@@ -71,6 +78,7 @@ __all__ = [
     "plot_diurnal_amplitude_rows",
     "plot_diurnal_amplitude_matrix_rows",
     "plot_diurnal_cycle_amplitude_pblh",
+    "plot_diurnal_extrema_matrix_rows",
     "plot_diurnal_peak_phase_pblh",
     "plot_diurnal_peak_phase_rows",
     "plot_hourly_mean_panels",

@@ -27,7 +27,7 @@ Este diretorio concentra helpers compartilhados entre recipes finais.
 - `comparison_matrix.py`
   logica compartilhada para comparacoes `left / right / delta`
 - `diurnal_reductions.py`
-  logica compartilhada para amplitude e fase diurna
+  logica compartilhada para minimos, maximos, amplitude e fase diurna
 
 ## Manutencao
 
