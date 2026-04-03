@@ -492,7 +492,9 @@ def plot_paper_grade_panel(
         figure_specification=FigureSpecification(
             nrows=row_count,
             ncols=3,
-            suptitle=f"Simulation 2014-02-24T00:00 - Hindcast {time_label}",
+            suptitle=(
+                f"Initialization 2014-02-24T00:00 - Forecast {time_label}"
+            ),
             figure_kwargs={
                 "figsize": (22, max(5.0 * row_count, 9.0)),
                 "constrained_layout": True,
