@@ -1,0 +1,218 @@
+diff --git a/plot_core/recipes/maps.py b/plot_core/recipes/maps.py
+index 7ff826c..db97869 100644
+--- a/plot_core/recipes/maps.py
++++ b/plot_core/recipes/maps.py
+@@ -492,7 +492,7 @@ def plot_paper_grade_panel(
+         figure_specification=FigureSpecification(
+             nrows=row_count,
+             ncols=3,
+-            suptitle=f"Simulation 2014-02-24T00:00 - Hindcast {time_label}",
++            suptitle=f"Initialization 2014-02-24T00:00 - Forecast {time_label}",
+             figure_kwargs={
+                 "figsize": (22, max(5.0 * row_count, 9.0)),
+                 "constrained_layout": True,
+diff --git a/plot_core/scenarios/recipes.py b/plot_core/scenarios/recipes.py
+index c620cb3..d239871 100644
+--- a/plot_core/scenarios/recipes.py
++++ b/plot_core/scenarios/recipes.py
+@@ -109,7 +109,7 @@ LEGACY_MONAN_E3SM_PROFILE_THETA_XLIM = (290.0, 320.0)
+ LEGACY_MONAN_E3SM_PROFILE_TKE_XLIM = (-0.01, 0.6)
+ LEGACY_MONAN_E3SM_PROFILE_QT_XLIM = (0.0, 0.018)
+ LEGACY_MONAN_E3SM_PROFILE_WIND_SPEED_XLIM = (0.0, 15.0)
+-LEGACY_HOURLY_MEAN_REGION_NAME = "African Desert"
++LEGACY_HOURLY_MEAN_REGION_NAME = "Sahara Desert"
+ LEGACY_HOURLY_MEAN_POINT_LAT = 20.0
+ LEGACY_HOURLY_MEAN_POINT_LON = 0.0
+ LEGACY_HOURLY_MEAN_START_DATE = np.datetime64("2014-02-24T00:00:00")
+@@ -149,14 +149,14 @@ LEGACY_PAPER_GRADE_VARIABLE_PAIRS = (
+ )
+ LEGACY_PAPER_GRADE_LABELS = ("PBL Height", "Sensible Heat Flux")
+ LEGACY_PAPER_GRADE_ABSOLUTE_COLORBAR_LABELS = (
+-    "PBL Height [m]",
++    "PBLH [m]",
+     "SHF [W/m^2]",
+ )
+ LEGACY_PAPER_GRADE_DIFFERENCE_COLORBAR_LABELS = (
+-    "Delta PBLH [m]",
+-    "Delta SHF [W/m^2]",
++    "Δ PBLH [m]",
++    "Δ SHF [W m^-2]",
+ )
+-LEGACY_PAPER_GRADE_VMINS = (0.0, -200.0)
++LEGACY_PAPER_GRADE_VMINS = (0.0, -100.0)
+ LEGACY_PAPER_GRADE_VMAXS = (3000.0, 500.0)
+ LEGACY_PAPER_GRADE_CMAPS_ABS = ("turbo", "Spectral_r")
+ LEGACY_PAPER_GRADE_CMAP_DIFF = "RdBu_r"
+@@ -206,13 +206,16 @@ LEGACY_DIURNAL_EXTREMA_ROW_LABELS = (
+ )
+ LEGACY_DIURNAL_EXTREMA_CMAPS_ABS = ("turbo", "Spectral_r")
+ LEGACY_DIURNAL_EXTREMA_CMAP_DIFF = "RdBu_r"
+-LEGACY_DIURNAL_EXTREMA_PBLH_VMIN = 0.0
+-LEGACY_DIURNAL_EXTREMA_PBLH_VMAX = 3000.0
+-LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN = -200.0
+-LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX = 200.0
++LEGACY_DIURNAL_EXTREMA_PBLH_MAX_VMIN = 0.0
++LEGACY_DIURNAL_EXTREMA_PBLH_MAX_VMAX = 4000.0
++LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMIN = 0.0
++LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMAX = 2000.0
++LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN = -100.0
++LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX = 100.0
+ LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMIN = 0.0
+ LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMAX = 500.0
+-LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS = (1500.0, 200.0)
++LEGACY_DIURNAL_EXTREMA_DIFF_MAX_LIMITS = (1500.0, 300.0)
++LEGACY_DIURNAL_EXTREMA_DIFF_MIN_LIMITS = (600.0, 60.0)
+ LEGACY_DIURNAL_PHASE_START_DATE = np.datetime64("2014-02-24")
+ LEGACY_DIURNAL_PHASE_N_DAYS = 3
+ LEGACY_DIURNAL_PHASE_MONAN_VAR = "hpbl"
+@@ -612,8 +615,8 @@ def _build_legacy_vertical_profiles_panel_at_point_figure_specification(
+         nrows=2,
+         ncols=2,
+         suptitle=(
+-            f"Simulation {simulation_label} - "
+-            f"Hindcast {hindcast_label} "
++            f"Initialization {simulation_label} - "
++            f"Forecast {hindcast_label} "
+             f"({point_label})"
+         ),
+         figure_kwargs={"figsize": (10.8, 10), "constrained_layout": True},
+@@ -1467,7 +1470,7 @@ def build_monan_e3sm_diurnal_extrema_panel_inputs(
+     cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+     cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+     diff_limits: Sequence[float | None] = (
+-        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
++        LEGACY_DIURNAL_EXTREMA_DIFF_MIN_LIMITS
+     ),
+     monan_adapter: DataAdapter | None = None,
+     e3sm_adapter: DataAdapter | None = None,
+@@ -1517,12 +1520,17 @@ def build_monan_e3sm_diurnal_extrema_panel_figure(
+     cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+     cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+     diff_limits: Sequence[float | None] = (
+-        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
++        LEGACY_DIURNAL_EXTREMA_DIFF_MIN_LIMITS
+     ),
+     monan_adapter: DataAdapter | None = None,
+     e3sm_adapter: DataAdapter | None = None,
+ ) -> Figure:
+     """Execute the MONAN/E3SM extrema panel recipe."""
++    if time_reduce == "min":
++        diff_limits = LEGACY_DIURNAL_EXTREMA_DIFF_MIN_LIMITS
++    else:
++        diff_limits = LEGACY_DIURNAL_EXTREMA_DIFF_MAX_LIMITS
++
+     rows, figure_specification = (
+         build_monan_e3sm_diurnal_extrema_panel_inputs(
+             day_start=day_start,
+@@ -2600,7 +2608,7 @@ def _build_legacy_monan_e3sm_paper_grade_figure_specification(
+     return FigureSpecification(
+         nrows=row_count,
+         ncols=3,
+-        suptitle=f"Simulation 2014-02-24T00:00 - Hindcast {time_label}",
++        suptitle=f"Initialized 2014-02-24T00:00 - Forecast {time_label}",
+         figure_kwargs={
+             "figsize": (22, max(5.0 * row_count, 9.0)),
+             "constrained_layout": True,
+@@ -2876,13 +2884,13 @@ def _build_diurnal_extrema_defaults(
+         return (
+             ("Minimum PBLH", "Minimum SHF"),
+             ("Minimum PBLH", "Minimum SHF"),
+-            ("Delta Minimum PBLH", "Delta Minimum SHF"),
++            ("Δ Minimum PBLH", "Δ Minimum SHF"),
+             (
+-                LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
++                LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMIN,
+                 LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN,
+             ),
+             (
+-                LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
++                LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMAX,
+                 LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX,
+             ),
+         )
+@@ -2891,13 +2899,13 @@ def _build_diurnal_extrema_defaults(
+         return (
+             ("Maximum PBLH", "Maximum SHF"),
+             ("Maximum PBLH", "Maximum SHF"),
+-            ("Delta Maximum PBLH", "Delta Maximum SHF"),
++            ("Δ Maximum PBLH", "Δ Maximum SHF"),
+             (
+-                LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
++                LEGACY_DIURNAL_EXTREMA_PBLH_MAX_VMIN,
+                 LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMIN,
+             ),
+             (
+-                LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
++                LEGACY_DIURNAL_EXTREMA_PBLH_MAX_VMAX,
+                 LEGACY_DIURNAL_EXTREMA_SHF_MAX_VMAX,
+             ),
+         )
+@@ -2918,25 +2926,25 @@ def _build_monan_e3sm_diurnal_extrema_panel_rows(
+     row_labels: Sequence[str] = LEGACY_DIURNAL_EXTREMA_ROW_LABELS,
+     field_labels: Sequence[str] = ("Minimum PBLH", "Minimum SHF"),
+     vmins: Sequence[float] = (
+-        LEGACY_DIURNAL_EXTREMA_PBLH_VMIN,
++        LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMIN,
+         LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMIN,
+     ),
+     vmaxs: Sequence[float | None] = (
+-        LEGACY_DIURNAL_EXTREMA_PBLH_VMAX,
++        LEGACY_DIURNAL_EXTREMA_PBLH_MIN_VMAX,
+         LEGACY_DIURNAL_EXTREMA_SHF_MIN_VMAX,
+     ),
+     cmaps_abs: Sequence[str] = LEGACY_DIURNAL_EXTREMA_CMAPS_ABS,
+     cmap_diff: str = LEGACY_DIURNAL_EXTREMA_CMAP_DIFF,
+     diff_limits: Sequence[float | None] = (
+-        LEGACY_DIURNAL_EXTREMA_DIFF_LIMITS
++        LEGACY_DIURNAL_EXTREMA_DIFF_MIN_LIMITS
+     ),
+     absolute_colorbar_labels: Sequence[str] = (
+         "Minimum PBLH",
+         "Minimum SHF",
+     ),
+     difference_colorbar_labels: Sequence[str] = (
+-        "Delta Minimum PBLH",
+-        "Delta Minimum SHF",
++        "Δ Minimum PBLH",
++        "Δ Minimum SHF",
+     ),
+     monan_adapter: DataAdapter | None = None,
+     e3sm_adapter: DataAdapter | None = None,
+@@ -3064,9 +3072,9 @@ def _build_monan_e3sm_diurnal_extrema_panel_figure_specification(
+     """Build the figure specification for the extrema matrix panel."""
+     day_label = np.datetime_as_string(day_start, unit="D")
+     if time_reduce == "min":
+-        title_prefix = "Daily Minimum Panel"
++        title_prefix = "Diurnal-Cycle Minimum Panel"
+     elif time_reduce == "max":
+-        title_prefix = "Daily Maximum Panel"
++        title_prefix = "Diurnal-Cycle Maximum Panel"
+     else:
+         raise ValueError(
+             "Diurnal extrema panel expects time_reduce to be "
+diff --git a/scripts/recipes/generate_legacy_monan_e3sm_hourly_mean.py b/scripts/recipes/generate_legacy_monan_e3sm_hourly_mean.py
+index 7d7aa50..5b9a70f 100644
+--- a/scripts/recipes/generate_legacy_monan_e3sm_hourly_mean.py
++++ b/scripts/recipes/generate_legacy_monan_e3sm_hourly_mean.py
+@@ -19,17 +19,15 @@ from plot_core.scenarios import (
+ REGION_COORDINATES = {
+     "Atlantic Ocean": (-14.0, -24.0),
+     "Amazon Rainforest": (-3.0, -60.0),
+-    "African Desert": (20.0, 0.0),
+-    "Siberia": (60.0, 100.0),
+-    "Australia": (-25.0, 135.0),
++    "Sahara Desert": (20.0, 0.0),
++    "Greenland": (76.4, -41.0),
+ }
+ 
+ REGION_TKE_VMAX = {
+     "Atlantic Ocean": 0.2,
+     "Amazon Rainforest": 1.0,
+-    "African Desert": 2.0,
+-    "Siberia": 2.0,
+-    "Australia": 2.0,
++    "Sahara Desert": 2.0,
++    "Greenland": 1.0,
+ }
+ 
+ 
