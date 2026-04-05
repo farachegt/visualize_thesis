@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Mapping, Sequence
 
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
-from plot_core.plot_data import HorizontalFieldPlotData
 from plot_core.recipes.cross_sections import (
     CrossSectionLayerInput,
     CrossSectionPanelInput,
@@ -38,7 +39,6 @@ from plot_core.recipes.maps import (
     MapComparisonSourceInput,
     MapLayerInput,
     MapPanelInput,
-    PreparedMapLayerInput,
     plot_map_panels,
     plot_map_comparison_rows,
     plot_paper_grade_panel,
@@ -784,57 +784,34 @@ def build_legacy_monan_e3sm_hourly_mean_region_map_figure(
         [latitude for latitude, _ in region_coordinates.values()],
         dtype=float,
     )
-    return plot_map_panels(
-        panels=[
-            MapPanelInput(
-                layers=[
-                    PreparedMapLayerInput(
-                        plot_data=_build_blank_world_map_plot_data(),
-                        render_specification=RenderSpecification(
-                            artist_method="pcolormesh",
-                            artist_kwargs={
-                                "cmap": "Greys",
-                                "vmin": 0.0,
-                                "vmax": 1.0,
-                                "alpha": 0.0,
-                            },
-                        ),
-                    )
-                ],
-                axes_set_kwargs={"title": "Hourly Mean Regions"},
-                axes_calls=[
-                    {
-                        "method": "scatter",
-                        "args": [longitudes, latitudes],
-                        "kwargs": {
-                            "transform": ccrs.PlateCarree(),
-                            "marker": "x",
-                            "s": 120.0,
-                            "linewidths": 2.5,
-                            "color": "crimson",
-                            "zorder": 6,
-                        },
-                    }
-                ],
-                extent=(-180.0, 180.0, -90.0, 90.0),
-                coastlines_kwargs={"linewidth": 0.8},
-                borders_kwargs={"linewidth": 0.5},
-                gridlines_kwargs={
-                    "draw_labels": True,
-                    "linewidth": 0.6,
-                    "alpha": 0.3,
-                    "x_inline": False,
-                    "y_inline": False,
-                },
-            )
-        ],
-        figure_specification=FigureSpecification(
-            nrows=1,
-            ncols=1,
-            suptitle="Hourly Mean Reference Regions",
-            figure_kwargs={"figsize": (12, 6), "constrained_layout": True},
-        ),
+    figure = plt.figure(figsize=(12, 6), constrained_layout=True)
+    axis = figure.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+    axis.set_global()
+    axis.set_title("Hourly Mean Regions")
+    axis.coastlines(linewidth=0.8)
+    axis.add_feature(cfeature.BORDERS, linewidth=0.5)
+    gridliner = axis.gridlines(
+        crs=ccrs.PlateCarree(),
+        draw_labels=True,
+        linewidth=0.6,
+        alpha=0.3,
+        x_inline=False,
+        y_inline=False,
     )
+    gridliner.top_labels = False
+    gridliner.right_labels = False
+    axis.scatter(
+        longitudes,
+        latitudes,
+        transform=ccrs.PlateCarree(),
+        marker="x",
+        s=120.0,
+        linewidths=2.5,
+        color="crimson",
+        zorder=6,
+    )
+    figure.suptitle("Hourly Mean Reference Regions")
+    return figure
 
 
 def build_legacy_monan_e3sm_cross_section_inputs(
@@ -1785,19 +1762,6 @@ def _build_legacy_monan_e3sm_hourly_mean_bbox(
     min_lon = max(-180.0, point_lon - half_box_deg)
     max_lon = min(180.0, point_lon + half_box_deg)
     return (min_lon, max_lon, min_lat, max_lat)
-
-
-def _build_blank_world_map_plot_data() -> HorizontalFieldPlotData:
-    """Build an invisible global field used as a map canvas."""
-    return HorizontalFieldPlotData(
-        field=np.zeros((2, 2), dtype=float),
-        longitude=np.asarray([-180.0, 180.0], dtype=float),
-        latitude=np.asarray([-90.0, 90.0], dtype=float),
-        label="World map",
-        units=None,
-        time_label=None,
-        vertical_label=None,
-    )
 
 
 def _build_legacy_profile_panel_axes_set_kwargs(
