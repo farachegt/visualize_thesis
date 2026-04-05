@@ -226,6 +226,7 @@ LEGACY_DIURNAL_PHASE_CMAP_DIFF = "RdBu_r"
 LEGACY_DIURNAL_PHASE_VMIN = 0.0
 LEGACY_DIURNAL_PHASE_VMAX = 23.0
 LEGACY_DIURNAL_PHASE_DIFF_LIMIT = 12.0
+LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE = 100.0
 LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
 LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
 
@@ -1561,6 +1562,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_inputs(
     phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
     phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
     diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    minimum_amplitude_for_peak_phase: float | None = (
+        LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> tuple[list[DiurnalPeakPhaseRowInput], FigureSpecification]:
@@ -1586,6 +1590,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_inputs(
         Maximum color value used by the absolute phase fields.
     diff_limit:
         Symmetric difference limit centred on zero.
+    minimum_amplitude_for_peak_phase:
+        Optional minimum daily PBLH amplitude required to keep one grid
+        point in the phase maps. Pass `None` to disable the filter.
     monan_adapter:
         Optional pre-built MONAN adapter reused across multiple calls.
     e3sm_adapter:
@@ -1609,6 +1616,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_inputs(
         phase_vmin=phase_vmin,
         phase_vmax=phase_vmax,
         diff_limit=diff_limit,
+        minimum_amplitude_for_peak_phase=(
+            minimum_amplitude_for_peak_phase
+        ),
         monan_adapter=monan_adapter,
         e3sm_adapter=e3sm_adapter,
     )
@@ -1630,6 +1640,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_figure(
     phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
     phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
     diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    minimum_amplitude_for_peak_phase: float | None = (
+        LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> Figure:
@@ -1653,6 +1666,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_figure(
         Maximum color value used by the absolute phase fields.
     diff_limit:
         Symmetric difference limit centred on zero.
+    minimum_amplitude_for_peak_phase:
+        Optional minimum daily PBLH amplitude required to keep one grid
+        point in the phase maps. Pass `None` to disable the filter.
     monan_adapter:
         Optional pre-built MONAN adapter reused across multiple calls.
     e3sm_adapter:
@@ -1677,6 +1693,9 @@ def build_legacy_monan_e3sm_diurnal_peak_phase_figure(
         phase_vmin=phase_vmin,
         phase_vmax=phase_vmax,
         diff_limit=diff_limit,
+        minimum_amplitude_for_peak_phase=(
+            minimum_amplitude_for_peak_phase
+        ),
     )
 
 
@@ -3103,6 +3122,9 @@ def _build_legacy_monan_e3sm_diurnal_peak_phase_rows(
     phase_vmin: float = LEGACY_DIURNAL_PHASE_VMIN,
     phase_vmax: float = LEGACY_DIURNAL_PHASE_VMAX,
     diff_limit: float = LEGACY_DIURNAL_PHASE_DIFF_LIMIT,
+    minimum_amplitude_for_peak_phase: float | None = (
+        LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE
+    ),
     monan_adapter: DataAdapter | None = None,
     e3sm_adapter: DataAdapter | None = None,
 ) -> list[DiurnalPeakPhaseRowInput]:
@@ -3126,6 +3148,9 @@ def _build_legacy_monan_e3sm_diurnal_peak_phase_rows(
             ),
             day_start=day_start,
             field_label=field_label,
+            minimum_amplitude_for_peak_phase=(
+                minimum_amplitude_for_peak_phase
+            ),
             absolute_render_specification=RenderSpecification(
                 artist_method="pcolormesh",
                 artist_kwargs={

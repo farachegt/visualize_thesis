@@ -5,6 +5,9 @@
 Oferecer um wrapper de conveniencia para reproduzir o layout legado de fase
 do pico diario de `hpbl` entre MONAN e E3SM.
 
+Esse wrapper tambem aceita um limiar opcional de amplitude diaria para
+mascarar pontos cuja fase do pico nao seja robusta.
+
 ## Imagem de referencia
 
 Atualizar este link para uma imagem real:
@@ -39,12 +42,14 @@ flowchart LR
     A[Script externo] --> B[monan_adapter]
     A --> C[e3sm_adapter]
     A --> D[day_start]
+    A --> E0[minimum_amplitude_for_peak_phase]
     B --> E[plot_diurnal_peak_phase_pblh]
     C --> E
     D --> E
+    E0 --> E
     E --> F[DiurnalPeakPhaseSourceInput]
     E --> G[DiurnalPeakPhaseRowInput]
-    F --> H[HorizontalFieldPlotData de fase]
+    F --> H[HorizontalFieldPlotData de fase mascarada]
     G --> I[RenderSpecification absoluta]
     G --> J[RenderSpecification de diferenca]
     H --> K[plot_diurnal_peak_phase_rows]
@@ -68,6 +73,8 @@ Vale a mesma logica do wrapper legado de amplitude diaria:
 - o wrapper existe para reproduzir o caso legado com rapidez;
 - a superficie mais flexivel para adicionar layers continua sendo
   `plot_diurnal_peak_phase_rows`.
+- o parametro `minimum_amplitude_for_peak_phase` permite rodar com filtro
+  de ruido, por exemplo `100.0`, ou sem filtro, usando `None`.
 
 Entao:
 
@@ -93,4 +100,8 @@ row = DiurnalPeakPhaseRowInput(
 Resumo:
 
 - para reproduzir o legado rapidamente, use o wrapper;
+- para ativar o filtro de amplitude, passe
+  `minimum_amplitude_for_peak_phase=100.0`;
+- para desativar o filtro, passe
+  `minimum_amplitude_for_peak_phase=None`;
 - para extensao livre por layer, prefira o recipe generico.

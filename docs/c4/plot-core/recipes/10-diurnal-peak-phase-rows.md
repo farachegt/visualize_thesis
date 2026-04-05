@@ -9,6 +9,10 @@ linha:
 - fase do pico diario da fonte da direita;
 - diferenca de fase `esquerda - direita`.
 
+Opcionalmente, o recipe pode mascarar pontos cuja amplitude diaria do
+campo seja menor que um limiar, reduzindo ruido em areas onde a fase do
+pico nao e robusta.
+
 ## Imagem de referencia
 
 Atualizar este link para uma imagem real:
@@ -36,7 +40,7 @@ flowchart LR
     A --> C[DiurnalPeakPhaseRowInput]
     A --> D[FigureSpecification]
     B --> E[DataAdapter]
-    C --> F[Selecao diaria e idxmax por tempo]
+    C --> F[Selecao diaria,\nmascara por amplitude e idxmax]
     E --> F
     F --> G[HorizontalFieldPlotData]
     G --> H[PreparedMapLayerInput]
@@ -60,22 +64,23 @@ flowchart LR
     E --> I[Dataset aberto]
     I --> J[Resolucao da variavel canonica]
     J --> K[Selecao do dia]
-    K --> L[idxmax no eixo tempo]
-    L --> M[Hora do pico]
-    M --> N[Validacao de grade]
-    N --> O[Campo esquerdo]
-    N --> P[Campo direito]
-    O --> Q[Diferenca circular de fase]
-    P --> Q
-    O --> R[PreparedMapLayerInput]
-    P --> R
+    K --> L[Amplitude diaria opcional]
+    L --> M[idxmax no eixo tempo]
+    M --> N[Hora do pico mascarada]
+    N --> O[Validacao de grade]
+    O --> P[Campo esquerdo]
+    O --> Q[Campo direito]
+    P --> R[Diferenca circular de fase]
     Q --> R
-    C --> S[left_extra_layers,\nright_extra_layers,\ndifference_extra_layers]
-    R --> T[MapPanelInput]
-    S --> T
-    D --> U[plot_map_panels]
+    P --> S[PreparedMapLayerInput]
+    Q --> S
+    R --> S
+    C --> T[left_extra_layers,\nright_extra_layers,\ndifference_extra_layers]
+    S --> U[MapPanelInput]
     T --> U
-    U --> V[Figure]
+    D --> V[plot_map_panels]
+    U --> V
+    V --> W[Figure]
 ```
 
 ## Exemplo minimo
@@ -103,6 +108,7 @@ figure = plot_diurnal_peak_phase_rows(
             ),
             day_start=np.datetime64("2014-02-24"),
             field_label="Peak Hour PBLH",
+            minimum_amplitude_for_peak_phase=100.0,
             absolute_render_specification=RenderSpecification(
                 artist_method="pcolormesh",
                 artist_kwargs={
@@ -161,6 +167,12 @@ row.right_extra_layers = [
         ),
     )
 ]
+```
+
+Para rodar sem o filtro de amplitude:
+
+```python
+row.minimum_amplitude_for_peak_phase = None
 ```
 
 O que nao faz sentido aqui:

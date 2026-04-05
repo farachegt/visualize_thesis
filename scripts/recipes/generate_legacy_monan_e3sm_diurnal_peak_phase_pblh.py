@@ -20,6 +20,7 @@ from plot_core.scenarios import (
 START_DATE = np.datetime64("2014-02-24")
 N_DAYS = 3
 FIELD_FILE_STEM = "diurnal_peak_phase_pblh"
+MINIMUM_AMPLITUDE_FOR_PEAK_PHASE: float | None = 100.0
 
 
 def generate_legacy_monan_e3sm_diurnal_peak_phase_pblh_figures(
@@ -51,6 +52,9 @@ def generate_legacy_monan_e3sm_diurnal_peak_phase_pblh_figures(
         for day_start in _build_daily_starts(START_DATE, N_DAYS):
             figure = build_legacy_monan_e3sm_diurnal_peak_phase_figure(
                 day_start=day_start,
+                minimum_amplitude_for_peak_phase=(
+                    MINIMUM_AMPLITUDE_FOR_PEAK_PHASE
+                ),
                 monan_adapter=monan_adapter,
                 e3sm_adapter=e3sm_adapter,
             )

@@ -94,12 +94,15 @@ def resolve_diurnal_peak_phase_plot_data(
     source_input: DiurnalSourceInput,
     day_start: np.datetime64,
     day_duration: np.timedelta64,
+    *,
+    minimum_amplitude_for_peak_phase: float | None = None,
 ) -> HorizontalFieldPlotData:
     """Resolve one source into a daily peak-phase map field."""
     peak_phase_field = _resolve_diurnal_peak_phase_field(
         source_input,
         day_start,
         day_duration,
+        minimum_amplitude_for_peak_phase=minimum_amplitude_for_peak_phase,
     )
     dataset = source_input.adapter.open_data()
     latitude_name = source_input.adapter._resolve_axis_name(
@@ -169,8 +172,18 @@ def _resolve_diurnal_peak_phase_field(
     source_input: DiurnalSourceInput,
     day_start: np.datetime64,
     day_duration: np.timedelta64,
+    *,
+    minimum_amplitude_for_peak_phase: float | None = None,
 ) -> xr.DataArray:
     """Resolve one source into a daily peak-hour `DataArray`."""
+    if (
+        minimum_amplitude_for_peak_phase is not None
+        and minimum_amplitude_for_peak_phase < 0.0
+    ):
+        raise ValueError(
+            "minimum_amplitude_for_peak_phase must be non-negative."
+        )
+
     dataset = source_input.adapter.open_data()
     resolved_variables: dict[str, xr.DataArray] = {}
     field = source_input.adapter._resolve_variable(
@@ -209,6 +222,13 @@ def _resolve_diurnal_peak_phase_field(
         )
 
     valid_mask = daily_field.notnull().any(time_name)
+    if minimum_amplitude_for_peak_phase is not None:
+        amplitude_field = daily_field.max(time_name) - daily_field.min(
+            time_name
+        )
+        valid_mask = valid_mask & (
+            amplitude_field >= float(minimum_amplitude_for_peak_phase)
+        )
     peak_time = daily_field.fillna(-np.inf).idxmax(time_name)
     peak_hour = peak_time.dt.hour.astype(float)
     return peak_hour.where(valid_mask)

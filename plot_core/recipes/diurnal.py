@@ -191,6 +191,10 @@ class DiurnalPeakPhaseRowInput:
         Rendering specification used by the difference panel. When `vmin`
         and `vmax` are not provided, symmetric limits centred on zero are
         derived from the difference field.
+    minimum_amplitude_for_peak_phase:
+        Optional minimum daily amplitude required to keep one grid point
+        in the phase maps. When provided, points below this threshold are
+        masked in the left, right and difference panels.
     day_duration:
         Temporal span used to compute the phase. The default is one day.
     left_panel_title:
@@ -233,6 +237,7 @@ class DiurnalPeakPhaseRowInput:
     field_label: str
     absolute_render_specification: RenderSpecification
     difference_render_specification: RenderSpecification
+    minimum_amplitude_for_peak_phase: float | None = None
     day_duration: np.timedelta64 = np.timedelta64(1, "D")
     left_panel_title: str | None = None
     right_panel_title: str | None = None
@@ -513,6 +518,7 @@ def plot_diurnal_peak_phase_pblh(
     phase_vmin: float = 0.0,
     phase_vmax: float = 23.0,
     diff_limit: float = 12.0,
+    minimum_amplitude_for_peak_phase: float | None = None,
     plotter: SpecializedPlotter | None = None,
 ) -> Figure:
     """Build the legacy daily peak-phase figure using the new core.
@@ -539,6 +545,9 @@ def plot_diurnal_peak_phase_pblh(
         Maximum color value used by the absolute phase fields.
     diff_limit:
         Symmetric difference limit centred on zero.
+    minimum_amplitude_for_peak_phase:
+        Optional minimum daily PBLH amplitude required to keep one grid
+        point in the phase maps. Pass `None` to disable the filter.
     plotter:
         Optional plotter instance. When omitted, a fresh
         `SpecializedPlotter` is created.
@@ -564,6 +573,9 @@ def plot_diurnal_peak_phase_pblh(
                 ),
                 day_start=day_start,
                 field_label="Peak Hour PBLH",
+                minimum_amplitude_for_peak_phase=(
+                    minimum_amplitude_for_peak_phase
+                ),
                 absolute_render_specification=RenderSpecification(
                     artist_method="pcolormesh",
                     artist_kwargs={
@@ -744,11 +756,17 @@ def _build_diurnal_peak_phase_row(
         row_input.left_source,
         row_input.day_start,
         row_input.day_duration,
+        minimum_amplitude_for_peak_phase=(
+            row_input.minimum_amplitude_for_peak_phase
+        ),
     )
     right_plot_data = _resolve_diurnal_peak_phase_plot_data(
         row_input.right_source,
         row_input.day_start,
         row_input.day_duration,
+        minimum_amplitude_for_peak_phase=(
+            row_input.minimum_amplitude_for_peak_phase
+        ),
     )
     _validate_horizontal_field_compatibility(
         left_plot_data,
