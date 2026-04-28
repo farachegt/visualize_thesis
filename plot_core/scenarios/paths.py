@@ -32,3 +32,21 @@ LEGACY_MYNN_MONAN_GLOB_PATTERN = (
     "GLOBAL_GFdef_ERA5_x1.655362_mynn_transition_dry/"
     "2014090300/diag/posprocess/diag.*"
 )
+
+TIME_SERIES_MONAN_MYNN_GLOB_PATTERN = (
+    "/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/"
+    "dataout/REGNOL2_GFdef_ERA5_10km_mynn_dry_season/2014100200/"
+    "diag/posprocess/*.nc"
+)
+TIME_SERIES_MONAN_SHOC_GLOB_PATTERN = (
+    "/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/"
+    "dataout/REGNOL2_GFdef_ERA5_10km_shoc_dry_season/2014100200/"
+    "diag/posprocess/*.nc"
+)
+TIME_SERIES_ERA5_PATH = (
+    "/lustre/projetos/monan_atm/guilherme.farache/ERA5/sl_20141002.grib"
+)
+TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN = (
+    "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
+    "b1 (Quality Control applied)/MET/maometM1.b1.2014100[2-6]*.cdf"
+)

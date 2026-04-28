@@ -260,6 +260,103 @@ def derive_pressure_from_height_standard_atmosphere(
     )
 
 
+def derive_specific_humidity_from_dewpoint_surface_pressure(
+    surface_pressure: ArrayLike,
+    dewpoint_temperature: ArrayLike,
+) -> ArrayLike:
+    """Derive specific humidity from dewpoint temperature and pressure.
+
+    Parameters
+    ----------
+    surface_pressure:
+        Surface pressure in canonical units expected by the derivation,
+        typically Pa.
+    dewpoint_temperature:
+        Dewpoint temperature in canonical units expected by the derivation,
+        typically K.
+
+    Returns
+    -------
+    xr.DataArray | np.ndarray
+        Specific humidity in `g kg-1` with the same structural type as the
+        dewpoint-temperature input when possible.
+
+    Raises
+    ------
+    ImportError
+        If `MetPy` is not available in the environment.
+    """
+    mpcalc, units = _require_metpy()
+    specific_humidity_quantity = mpcalc.specific_humidity_from_dewpoint(
+        _to_quantity(surface_pressure, units.pascal),
+        _to_quantity(dewpoint_temperature, units.kelvin),
+    ).to("g/kg")
+    return _wrap_result(
+        template=dewpoint_temperature,
+        values=specific_humidity_quantity.magnitude,
+        units_text="g kg-1",
+        long_name="Specific humidity at 2 m",
+    )
+
+
+def derive_specific_humidity_from_temperature_relative_humidity_surface_pressure(
+    temperature: ArrayLike,
+    relative_humidity: ArrayLike,
+    surface_pressure: ArrayLike,
+) -> ArrayLike:
+    """Derive specific humidity from temperature, RH and pressure.
+
+    This implementation follows the project-requested approximation:
+
+    `q = 0.622 * e / (p - e)`,
+
+    where `e = RH * e_s(T)` and `RH` is interpreted as a fraction in `[0, 1]`.
+
+    Parameters
+    ----------
+    temperature:
+        Air temperature expected in degC.
+    relative_humidity:
+        Relative humidity as percentage (`0..100`) or fraction (`0..1`).
+    surface_pressure:
+        Surface pressure in canonical units expected by the derivation,
+        typically Pa.
+
+    Returns
+    -------
+    xr.DataArray | np.ndarray
+        Specific humidity in `g kg-1` with the same structural type as the
+        temperature input when possible.
+
+    Raises
+    ------
+    ImportError
+        If `MetPy` is not available in the environment.
+    """
+    mpcalc, units = _require_metpy()
+    temperature_quantity = units.Quantity(
+        _to_numpy(temperature),
+        units.degC,
+    )
+    saturation_vapor_pressure = mpcalc.saturation_vapor_pressure(
+        temperature_quantity
+    )
+    pressure_quantity = _to_quantity(surface_pressure, units.pascal).to(
+        saturation_vapor_pressure.units
+    )
+    rh_fraction = _to_relative_humidity_fraction(relative_humidity)
+    vapor_pressure = rh_fraction * saturation_vapor_pressure
+    specific_humidity_quantity = (
+        (vapor_pressure / (pressure_quantity - vapor_pressure)) * 0.622
+    ).to("g/kg")
+    return _wrap_result(
+        template=temperature,
+        values=specific_humidity_quantity.magnitude,
+        units_text="g kg-1",
+        long_name="Specific humidity at 2 m",
+    )
+
+
 DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
     "theta_from_pressure_temperature": {
         "dependencies": ("pressure", "temperature"),
@@ -294,6 +391,21 @@ DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
     "pressure_from_height_standard_atmosphere": {
         "dependencies": ("height",),
         "function": derive_pressure_from_height_standard_atmosphere,
+        "accepted_options": (),
+    },
+    "specific_humidity_from_dewpoint_surface_pressure": {
+        "dependencies": (
+            "surface_pressure",
+            "dewpoint_temperature_2m",
+        ),
+        "function": derive_specific_humidity_from_dewpoint_surface_pressure,
+        "accepted_options": (),
+    },
+    "specific_humidity_from_temperature_relative_humidity_surface_pressure": {
+        "dependencies": ("temperature_2m", "rh", "surface_pressure"),
+        "function": (
+            derive_specific_humidity_from_temperature_relative_humidity_surface_pressure
+        ),
         "accepted_options": (),
     },
 }
@@ -447,3 +559,22 @@ def _extract_units(values: ArrayLike) -> Optional[str]:
             return str(units_value)
 
     return None
+
+
+def _to_relative_humidity_fraction(
+    relative_humidity: ArrayLike,
+) -> np.ndarray:
+    """Convert relative humidity input into a dimensionless fraction."""
+    rh_values = _to_numpy(relative_humidity).astype(float, copy=False)
+    units_text = (_extract_units(relative_humidity) or "").strip().lower()
+    if units_text in {"percent", "%", "pct"}:
+        return rh_values / 100.0
+    if rh_values.size == 0:
+        return rh_values
+    finite_values = rh_values[np.isfinite(rh_values)]
+    if finite_values.size == 0:
+        return rh_values
+    if np.nanmax(finite_values) > 1.5:
+        return rh_values / 100.0
+
+    return rh_values

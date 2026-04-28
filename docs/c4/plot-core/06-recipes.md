@@ -77,3 +77,4 @@ Em geracao batch de figuras:
 - [Diurnal Extrema Panel PBLH SHF](
   ./recipes/17-diurnal-extrema-panel-pblh-shf.md
   )
+- [Time Series Panels](./recipes/18-time-series-panels.md)

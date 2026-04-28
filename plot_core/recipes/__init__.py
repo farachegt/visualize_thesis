@@ -44,6 +44,12 @@ from .profiles import (
     plot_vertical_profiles_panel_at_point,
     plot_vertical_profiles_panel,
 )
+from .time_series import (
+    PreparedTimeSeriesLayerInput,
+    TimeSeriesLayerInput,
+    TimeSeriesPanelInput,
+    plot_time_series_panels,
+)
 from .time_vertical import (
     HourlyMeanLayerInput,
     HourlyMeanPanelInput,
@@ -71,7 +77,10 @@ __all__ = [
     "MapLayerInput",
     "MapPanelInput",
     "PreparedMapLayerInput",
+    "PreparedTimeSeriesLayerInput",
     "PanelInput",
+    "TimeSeriesLayerInput",
+    "TimeSeriesPanelInput",
     "VerticalProfileCloudHatchInput",
     "VerticalProfileSourceInput",
     "plot_cross_section_panels",
@@ -86,6 +95,7 @@ __all__ = [
     "plot_map_panels",
     "plot_paper_grade_panel",
     "plot_precipitation_monan",
+    "plot_time_series_panels",
     "VerticalProfileLayerInput",
     "plot_vertical_profiles_panel_at_point",
     "plot_vertical_profile_tke_hourly_mean",

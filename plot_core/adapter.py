@@ -25,6 +25,7 @@ from .plot_data import (
     VerticalProfilePlotData,
 )
 from .readers import CSVFileFormatReader, FileFormatReader
+from .readers import GRIBFileFormatReader
 from .readers import NetCDFFileFormatReader
 from .requests import (
     HorizontalFieldRequest,
@@ -35,7 +36,7 @@ from .requests import (
 )
 from .specifications import SourceSpecification, VariableSpecification
 
-FileFormat = Literal["netcdf", "csv"]
+FileFormat = Literal["netcdf", "csv", "grib"]
 GeometryType = Literal["gridded", "fixed_point", "moving_point"]
 
 UNIT_REGISTRY = UnitRegistry()
@@ -876,6 +877,12 @@ class DataAdapter:
                 )
             elif self.file_format == "csv":
                 self._reader = CSVFileFormatReader(
+                    path=self.path,
+                    glob_pattern=self.glob_pattern,
+                    reader_options=reader_options,
+                )
+            elif self.file_format == "grib":
+                self._reader = GRIBFileFormatReader(
                     path=self.path,
                     glob_pattern=self.glob_pattern,
                     reader_options=reader_options,

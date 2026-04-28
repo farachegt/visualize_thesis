@@ -10,6 +10,10 @@ from .paths import (
     MODELO_U_PATH,
     OBS_CEILOMETRO_PATH,
     OBS_RADIOSONDA_U_PATH,
+    TIME_SERIES_ERA5_PATH,
+    TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN,
+    TIME_SERIES_MONAN_MYNN_GLOB_PATTERN,
+    TIME_SERIES_MONAN_SHOC_GLOB_PATTERN,
 )
 from .source_specifications import (
     build_ceilometro_source_specification,
@@ -19,6 +23,10 @@ from .source_specifications import (
     build_legacy_shoc_monan_source_specification,
     build_model_u_source_specification,
     build_radiosonde_u_source_specification,
+    build_time_series_era5_source_specification,
+    build_time_series_goamazon_surface_station_source_specification,
+    build_time_series_mynn_source_specification,
+    build_time_series_shoc_source_specification,
 )
 
 
@@ -155,4 +163,58 @@ def build_ceilometro_adapter() -> DataAdapter:
         geometry_type="fixed_point",
         source_specification=build_ceilometro_source_specification(),
         reader_options={"parse_dates": ["datetime"]},
+    )
+
+
+def build_time_series_mynn_adapter() -> DataAdapter:
+    """Build the MYNN MONAN adapter for the surface time-series scenario."""
+    return DataAdapter(
+        glob_pattern=TIME_SERIES_MONAN_MYNN_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_time_series_mynn_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_time_series_shoc_adapter() -> DataAdapter:
+    """Build the SHOC MONAN adapter for the surface time-series scenario."""
+    return DataAdapter(
+        glob_pattern=TIME_SERIES_MONAN_SHOC_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_time_series_shoc_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_time_series_era5_adapter() -> DataAdapter:
+    """Build the ERA5 adapter for the surface time-series scenario."""
+    return DataAdapter(
+        path=TIME_SERIES_ERA5_PATH,
+        file_format="grib",
+        geometry_type="gridded",
+        source_specification=build_time_series_era5_source_specification(),
+        reader_options={"engine": "cfgrib"},
+    )
+
+
+def build_time_series_goamazon_surface_station_adapter() -> DataAdapter:
+    """Build the GoAmazon station adapter for the time-series scenario."""
+    return DataAdapter(
+        glob_pattern=TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN,
+        file_format="netcdf",
+        geometry_type="fixed_point",
+        source_specification=(
+            build_time_series_goamazon_surface_station_source_specification()
+        ),
+        reader_options={},
     )

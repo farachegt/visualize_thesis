@@ -17,6 +17,7 @@ pipeline operem sobre uma estrutura homogenea.
 Exemplos:
 
 - `NetCDFFileFormatReader`
+- `GRIBFileFormatReader`
 - `CSVFileFormatReader`
 
 Na pratica, essas implementacoes concretas funcionam como readers
@@ -72,6 +73,31 @@ NetCDFFileFormatReader(path="/dados/monan/history_20140215.nc")
 NetCDFFileFormatReader(
     glob_pattern="/dados/monan/history_201402*.nc",
     chunks={"time": 1},
+)
+```
+
+## `GRIBFileFormatReader`
+
+Comportamento esperado:
+
+- implementa `open_data()`;
+- quando receber `path`, deve usar `xarray.open_dataset`;
+- quando receber `glob_pattern`, deve usar `xarray.open_mfdataset`;
+- deve definir `engine="cfgrib"` por padrao quando o caller nao informar
+  `engine` em `reader_options`;
+- deve permitir opcoes adicionais de leitura em `reader_options`;
+- deve devolver um `xarray.Dataset`.
+
+Exemplos curtos:
+
+```python
+GRIBFileFormatReader(path="/dados/era5/sl_20141002.grib")
+```
+
+```python
+GRIBFileFormatReader(
+    glob_pattern="/dados/era5/sl_201410*.grib",
+    reader_options={"backend_kwargs": {"indexpath": ""}},
 )
 ```
 

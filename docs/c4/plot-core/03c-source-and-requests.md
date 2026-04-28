@@ -190,6 +190,11 @@ A lista documentada abaixo representa o estado atual esperado da arquitetura:
 - `qc`
 - `qv`
 - `temperature`
+- `temperature_2m`
+- `dewpoint_temperature_2m`
+- `specific_humidity_2m`
+- `wind_speed_10m`
+- `surface_pressure`
 - `tke`
 - `sensible_heat_flux`
 - `rthblten`
@@ -234,6 +239,10 @@ As derivacoes declaradas em `SourceSpecification` podem incluir, entre outras:
   diretamente na fonte;
 - `height` a partir de `pressure`;
 - `pressure` a partir de `height`.
+- `specific_humidity_2m` a partir de `surface_pressure` e temperatura de
+  ponto de orvalho;
+- `specific_humidity_2m` a partir de `temperature_2m`, `rh` e
+  `surface_pressure`.
 
 Sempre que houver suporte direto no MetPy, a derivacao registrada no sistema
 deve apontar para a funcao oficial de `metpy.calc`, em vez de reimplementar a
@@ -250,6 +259,15 @@ Casos fechados para esta arquitetura:
   - usar `metpy.calc.pressure_to_height_std(pressure)`;
 - `pressure_from_height_standard_atmosphere`
   - usar `metpy.calc.height_to_pressure_std(height)`.
+- `specific_humidity_from_dewpoint_surface_pressure`
+  - usar `metpy.calc.specific_humidity_from_dewpoint(
+    pressure, dewpoint_temperature
+    )`.
+- `specific_humidity_from_temperature_relative_humidity_surface_pressure`
+  - usar `metpy.calc.saturation_vapor_pressure(temperature)` para obter
+    `e_s`;
+  - depois aplicar a aproximacao:
+    `q = 0.622 * e / (p - e)`, com `e = RH * e_s`.
 
 As conversoes entre `pressure` e `height` devem seguir a mesma ideia ja usada
 na versao anterior do codigo:
@@ -311,6 +329,18 @@ DERIVATION_REGISTRY = {
     "pressure_from_height_standard_atmosphere": {
         "dependencies": ("height",),
         "function": derive_pressure_from_height_standard_atmosphere,
+        "accepted_options": (),
+    },
+    "specific_humidity_from_dewpoint_surface_pressure": {
+        "dependencies": ("surface_pressure", "dewpoint_temperature_2m"),
+        "function": derive_specific_humidity_from_dewpoint_surface_pressure,
+        "accepted_options": (),
+    },
+    "specific_humidity_from_temperature_relative_humidity_surface_pressure": {
+        "dependencies": ("temperature_2m", "rh", "surface_pressure"),
+        "function": (
+            derive_specific_humidity_from_temperature_relative_humidity_surface_pressure
+        ),
         "accepted_options": (),
     },
 }

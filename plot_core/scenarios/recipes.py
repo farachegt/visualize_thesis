@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
+from plot_core.plot_data import TimeSeriesPlotData
 from plot_core.recipes.cross_sections import (
     CrossSectionLayerInput,
     CrossSectionPanelInput,
@@ -51,6 +52,12 @@ from plot_core.recipes.profiles import (
     plot_vertical_profiles_panel_at_point,
     plot_vertical_profiles_panel,
 )
+from plot_core.recipes.time_series import (
+    PreparedTimeSeriesLayerInput,
+    TimeSeriesLayerInput,
+    TimeSeriesPanelInput,
+    plot_time_series_panels,
+)
 from plot_core.recipes.time_vertical import (
     HourlyMeanLayerInput,
     HourlyMeanPanelInput,
@@ -76,8 +83,16 @@ from .adapters import (
     build_legacy_shoc_monan_adapter,
     build_model_u_adapter,
     build_radiosonde_u_adapter,
+    build_time_series_era5_adapter,
+    build_time_series_goamazon_surface_station_adapter,
+    build_time_series_mynn_adapter,
+    build_time_series_shoc_adapter,
 )
 from .requests import (
+    TIME_SERIES_COMPARISON_DURATION_DAYS,
+    TIME_SERIES_COMPARISON_INIT_DATE,
+    build_time_series_comparison_gridded_request,
+    build_time_series_comparison_station_request,
     build_legacy_chile_coast_vertical_profile_request,
     build_model_vertical_profile_request,
     build_radiosonde_vertical_profile_request,
@@ -232,6 +247,19 @@ LEGACY_DIURNAL_PHASE_DIFF_LIMIT = 12.0
 LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE = 100.0
 LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
 LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
+TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS = -4
+TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 12
+TIME_SERIES_COMPARISON_SOURCE_STYLES = (
+    ("SHOC", "tab:blue"),
+    ("MYNN", "tab:orange"),
+    ("ERA5", "black"),
+    ("Observation", "tab:green"),
+)
+TIME_SERIES_COMPARISON_PANELS = (
+    ("temperature_2m", "2 m temperature [°C]"),
+    ("specific_humidity_2m", "Specific humidity [g/kg]"),
+    ("wind_speed_10m", "10 m wind speed [m/s]"),
+)
 
 
 # ============================================================================
@@ -3309,3 +3337,262 @@ def _build_legacy_side_by_side_panel(
             "left_labels": show_left_labels,
         },
     )
+
+
+def build_time_series_comparison_adapters() -> list[DataAdapter]:
+    """Build adapters for the SHOC, MYNN, ERA5 and station comparison."""
+    return [
+        build_time_series_shoc_adapter(),
+        build_time_series_mynn_adapter(),
+        build_time_series_era5_adapter(),
+        build_time_series_goamazon_surface_station_adapter(),
+    ]
+
+
+def build_surface_nwp_reanalysis_time_series_comparison_inputs(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    local_utc_offset_hours: int = TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS,
+    tick_step_hours: int = TIME_SERIES_COMPARISON_TICK_STEP_HOURS,
+) -> tuple[list[TimeSeriesPanelInput], FigureSpecification]:
+    """Build panel inputs and figure layout for the 3-panel comparison."""
+    if adapters is None:
+        source_adapters = build_time_series_comparison_adapters()
+    else:
+        source_adapters = list(adapters)
+
+    expected_source_count = len(TIME_SERIES_COMPARISON_SOURCE_STYLES)
+    if len(source_adapters) != expected_source_count:
+        raise ValueError(
+            "Expected "
+            f"{expected_source_count} adapters in SHOC/MYNN/ERA5/"
+            "Observation order."
+        )
+
+    start_time = np.datetime64(init_date, "ns")
+    end_time_exclusive = start_time + np.timedelta64(
+        TIME_SERIES_COMPARISON_DURATION_DAYS,
+        "D",
+    )
+    gridded_request = build_time_series_comparison_gridded_request(
+        init_date=start_time
+    )
+    station_request = build_time_series_comparison_station_request(
+        init_date=start_time
+    )
+    local_time_axes_calls = _build_local_time_axes_calls(
+        start_time=start_time,
+        end_time_exclusive=end_time_exclusive,
+        utc_offset_hours=local_utc_offset_hours,
+        tick_step_hours=tick_step_hours,
+    )
+
+    panels: list[TimeSeriesPanelInput] = []
+    station_source_index = expected_source_count - 1
+    panel_count = len(TIME_SERIES_COMPARISON_PANELS)
+    for panel_index, (
+        variable_name,
+        y_axis_label,
+    ) in enumerate(TIME_SERIES_COMPARISON_PANELS):
+        layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput] = []
+        for source_index, (
+            source_label,
+            source_color,
+        ) in enumerate(TIME_SERIES_COMPARISON_SOURCE_STYLES):
+            adapter = source_adapters[source_index]
+            render_specification = RenderSpecification(
+                artist_method="plot",
+                artist_kwargs={
+                    "color": source_color,
+                    "linewidth": 1.6,
+                },
+            )
+            if source_index == station_source_index:
+                raw_station_plot_data = adapter.to_time_series_plot_data(
+                    variable_name=variable_name,
+                    request=station_request,
+                )
+                hourly_station_plot_data = (
+                    _build_hourly_nearest_station_plot_data(
+                        raw_station_plot_data,
+                        start_time=start_time,
+                        end_time_exclusive=end_time_exclusive,
+                    )
+                )
+                layers.append(
+                    PreparedTimeSeriesLayerInput(
+                        plot_data=hourly_station_plot_data,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+            else:
+                layers.append(
+                    TimeSeriesLayerInput(
+                        adapter=adapter,
+                        request=gridded_request,
+                        variable_name=variable_name,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+
+        panel_axes_set_kwargs = {"ylabel": y_axis_label}
+        if panel_index == panel_count - 1:
+            panel_axes_set_kwargs["xlabel"] = "Local time (GMT-4)"
+
+        panels.append(
+            TimeSeriesPanelInput(
+                layers=layers,
+                axes_set_kwargs=panel_axes_set_kwargs,
+                grid_kwargs={"visible": True, "alpha": 0.3},
+                legend_kwargs=(
+                    {
+                        "loc": "upper right",
+                        "ncol": 4,
+                    }
+                    if panel_index == 0
+                    else None
+                ),
+                axes_calls=[dict(axis_call) for axis_call in local_time_axes_calls],
+            )
+        )
+
+    figure_specification = FigureSpecification(
+        nrows=3,
+        ncols=1,
+        figure_kwargs={
+            "figsize": (13, 8),
+            "constrained_layout": True,
+            "sharex": True,
+        },
+    )
+    return panels, figure_specification
+
+
+def build_surface_nwp_reanalysis_time_series_comparison_figure(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+) -> Figure:
+    """Build the 3-panel SHOC/MYNN/ERA5/station comparison figure."""
+    panels, figure_specification = (
+        build_surface_nwp_reanalysis_time_series_comparison_inputs(
+            adapters=adapters,
+            init_date=init_date,
+        )
+    )
+    return plot_time_series_panels(
+        panels=panels,
+        figure_specification=figure_specification,
+    )
+
+
+def _build_local_time_axes_calls(
+    *,
+    start_time: np.datetime64,
+    end_time_exclusive: np.datetime64,
+    utc_offset_hours: int,
+    tick_step_hours: int,
+) -> list[dict[str, object]]:
+    """Build x-axis calls that display GMT-offset labels over UTC values."""
+    tick_times = np.arange(
+        start_time,
+        end_time_exclusive,
+        np.timedelta64(tick_step_hours, "h"),
+    ).astype("datetime64[ns]")
+    local_times = tick_times + np.timedelta64(utc_offset_hours, "h")
+    tick_labels = [
+        np.datetime_as_string(local_time, unit="h").replace("T", " ")
+        for local_time in local_times
+    ]
+    return [
+        {"method": "set_xticks", "args": [tick_times]},
+        {"method": "set_xticklabels", "args": [tick_labels]},
+        {
+            "method": "set_xlim",
+            "args": [
+                start_time,
+                end_time_exclusive - np.timedelta64(1, "ns"),
+            ],
+        },
+    ]
+
+
+def _build_hourly_nearest_station_plot_data(
+    plot_data: TimeSeriesPlotData,
+    *,
+    start_time: np.datetime64,
+    end_time_exclusive: np.datetime64,
+) -> TimeSeriesPlotData:
+    """Return station data reduced to hourly nearest samples."""
+    source_times = np.asarray(plot_data.times, dtype="datetime64[ns]")
+    source_values = np.asarray(plot_data.values)
+    if source_times.size == 0:
+        raise ValueError("Station time series is empty for this request.")
+
+    in_window = (
+        (source_times >= start_time)
+        & (source_times < end_time_exclusive)
+    )
+    if not np.any(in_window):
+        raise ValueError(
+            "Station time series has no samples within the requested "
+            "comparison interval."
+        )
+
+    window_times = source_times[in_window]
+    window_values = source_values[in_window]
+    sort_indices = np.argsort(window_times)
+    window_times = window_times[sort_indices]
+    window_values = window_values[sort_indices]
+
+    hourly_times = np.arange(
+        start_time,
+        end_time_exclusive,
+        np.timedelta64(1, "h"),
+    ).astype("datetime64[ns]")
+    nearest_indices = _select_nearest_time_indices(
+        source_times=window_times,
+        target_times=hourly_times,
+    )
+    hourly_values = window_values[nearest_indices]
+
+    hourly_draw_mask = None
+    if plot_data.draw_mask is not None:
+        source_draw_mask = np.asarray(plot_data.draw_mask)[in_window]
+        source_draw_mask = source_draw_mask[sort_indices]
+        hourly_draw_mask = source_draw_mask[nearest_indices]
+
+    return TimeSeriesPlotData(
+        label=plot_data.label,
+        times=hourly_times,
+        values=np.asarray(hourly_values),
+        units=plot_data.units,
+        site_label=plot_data.site_label,
+        vertical_label=plot_data.vertical_label,
+        value_axis=plot_data.value_axis,
+        draw_mask=hourly_draw_mask,
+    )
+
+
+def _select_nearest_time_indices(
+    *,
+    source_times: np.ndarray,
+    target_times: np.ndarray,
+) -> np.ndarray:
+    """Return source indices that are nearest to each target timestamp."""
+    source_int = source_times.astype("datetime64[ns]").astype(np.int64)
+    target_int = target_times.astype("datetime64[ns]").astype(np.int64)
+    insertion_points = np.searchsorted(source_int, target_int, side="left")
+    right_indices = np.clip(
+        insertion_points,
+        0,
+        source_int.size - 1,
+    )
+    left_indices = np.clip(right_indices - 1, 0, source_int.size - 1)
+    left_distance = np.abs(target_int - source_int[left_indices])
+    right_distance = np.abs(source_int[right_indices] - target_int)
+    choose_left = left_distance <= right_distance
+    return np.where(choose_left, left_indices, right_indices)

@@ -102,6 +102,66 @@ class NetCDFFileFormatReader(FileFormatReader):
 
 
 @dataclass
+class GRIBFileFormatReader(FileFormatReader):
+    """Read GRIB data from a single file or a glob pattern."""
+
+    def open_data(self) -> xr.Dataset:
+        """Open GRIB data with xarray and the cfgrib backend.
+
+        Returns
+        -------
+        xr.Dataset
+            Dataset opened from the configured GRIB source.
+
+        Raises
+        ------
+        ValueError
+            If neither `path` nor `glob_pattern` is defined, or if both are
+            provided at the same time.
+        FileNotFoundError
+            If the configured path does not exist or no file matches the
+            glob pattern.
+        """
+        self._validate_source_configuration()
+        reader_options = dict(self.reader_options)
+        reader_options.setdefault("engine", "cfgrib")
+
+        if self.path is not None:
+            if not self.path.exists():
+                raise FileNotFoundError(
+                    f"GRIB path does not exist: {self.path}"
+                )
+
+            return xr.open_dataset(self.path, **reader_options)
+
+        matching_paths = sorted(glob(self.glob_pattern or ""))
+        if not matching_paths:
+            raise FileNotFoundError(
+                "No GRIB files matched the configured glob pattern: "
+                f"{self.glob_pattern}"
+            )
+
+        return xr.open_mfdataset(self.glob_pattern, **reader_options)
+
+    def _validate_source_configuration(self) -> None:
+        """Validate whether the reader source configuration is coherent.
+
+        Raises
+        ------
+        ValueError
+            If `path` and `glob_pattern` are both missing or both defined.
+        """
+        has_path = self.path is not None
+        has_glob = self.glob_pattern is not None
+
+        if has_path == has_glob:
+            raise ValueError(
+                "GRIBFileFormatReader requires exactly one of `path` or "
+                "`glob_pattern`."
+            )
+
+
+@dataclass
 class CSVFileFormatReader(FileFormatReader):
     """Read a simple tabular CSV file and convert it to `xarray.Dataset`."""
 

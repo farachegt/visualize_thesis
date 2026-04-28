@@ -17,6 +17,10 @@ from .adapters import (
     build_legacy_shoc_monan_adapter,
     build_model_u_adapter,
     build_radiosonde_u_adapter,
+    build_time_series_era5_adapter,
+    build_time_series_goamazon_surface_station_adapter,
+    build_time_series_mynn_adapter,
+    build_time_series_shoc_adapter,
 )
 from .paths import (
     DATAFILES_DIR,
@@ -28,6 +32,10 @@ from .paths import (
     OBS_CEILOMETRO_PATH,
     OBS_RADIOSONDA_U_PATH,
     OUTPUT_DIR,
+    TIME_SERIES_ERA5_PATH,
+    TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN,
+    TIME_SERIES_MONAN_MYNN_GLOB_PATTERN,
+    TIME_SERIES_MONAN_SHOC_GLOB_PATTERN,
 )
 from .requests import (
     build_ceilometro_time_series_request,
@@ -36,8 +44,13 @@ from .requests import (
     build_model_single_time_request,
     build_model_vertical_profile_request,
     build_radiosonde_vertical_profile_request,
+    build_time_series_comparison_gridded_request,
+    build_time_series_comparison_station_request,
 )
 from .recipes import (
+    build_surface_nwp_reanalysis_time_series_comparison_figure,
+    build_surface_nwp_reanalysis_time_series_comparison_inputs,
+    build_time_series_comparison_adapters,
     build_legacy_monan_e3sm_cross_section_figure,
     build_legacy_monan_e3sm_cross_section_inputs,
     build_legacy_monan_e3sm_diurnal_amplitude_figure,
@@ -72,6 +85,10 @@ from .source_specifications import (
     build_legacy_shoc_monan_source_specification,
     build_model_u_source_specification,
     build_radiosonde_u_source_specification,
+    build_time_series_era5_source_specification,
+    build_time_series_goamazon_surface_station_source_specification,
+    build_time_series_mynn_source_specification,
+    build_time_series_shoc_source_specification,
 )
 
 __all__ = [
@@ -84,6 +101,10 @@ __all__ = [
     "OBS_CEILOMETRO_PATH",
     "OBS_RADIOSONDA_U_PATH",
     "OUTPUT_DIR",
+    "TIME_SERIES_ERA5_PATH",
+    "TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN",
+    "TIME_SERIES_MONAN_MYNN_GLOB_PATTERN",
+    "TIME_SERIES_MONAN_SHOC_GLOB_PATTERN",
     "build_ceilometro_adapter",
     "build_ceilometro_source_specification",
     "build_ceilometro_time_series_request",
@@ -124,6 +145,19 @@ __all__ = [
     "build_radiosonde_u_adapter",
     "build_radiosonde_u_source_specification",
     "build_radiosonde_vertical_profile_request",
+    "build_surface_nwp_reanalysis_time_series_comparison_figure",
+    "build_surface_nwp_reanalysis_time_series_comparison_inputs",
+    "build_time_series_comparison_adapters",
+    "build_time_series_comparison_gridded_request",
+    "build_time_series_comparison_station_request",
+    "build_time_series_era5_adapter",
+    "build_time_series_era5_source_specification",
+    "build_time_series_goamazon_surface_station_adapter",
+    "build_time_series_goamazon_surface_station_source_specification",
+    "build_time_series_mynn_adapter",
+    "build_time_series_mynn_source_specification",
+    "build_time_series_shoc_adapter",
+    "build_time_series_shoc_source_specification",
     "build_legacy_vertical_profile_figure_specification",
     "build_legacy_vertical_profile_recipe_panels",
     "build_vertical_profile_recipe_figure",

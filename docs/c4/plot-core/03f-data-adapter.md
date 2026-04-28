@@ -38,7 +38,7 @@ Uma assinatura publica coerente com as decisoes ja tomadas e:
 class DataAdapter:
     path: str | Path | None = None
     glob_pattern: str | None = None
-    file_format: Literal["netcdf", "csv"]
+    file_format: Literal["netcdf", "csv", "grib"]
     geometry_type: Literal["gridded", "fixed_point", "moving_point"]
     source_specification: SourceSpecification
     reader_options: Mapping[str, Any] | None = None
@@ -71,6 +71,8 @@ Leitura correta de `reader_options`:
   - `xarray.open_mfdataset`, quando a fonte vier por `glob_pattern`;
 - para `csv`, `reader_options` deve ser repassado para os parametros
   adicionais de `pandas.read_csv`.
+- para `grib`, `reader_options` deve ser repassado para o backend do xarray,
+  com `engine="cfgrib"` por padrao quando o caller nao informar engine.
 
 Exemplos:
 
@@ -87,15 +89,22 @@ Exemplos:
   - `decimal`
   - `parse_dates`
 
+- `grib`
+  - `engine` (default: `cfgrib`)
+  - `backend_kwargs`
+
 Regras de validacao esperadas:
 
 - exatamente um entre `path` e `glob_pattern` deve ser informado;
-- `glob_pattern` deve ser suportado apenas para fontes `netcdf`;
+- `glob_pattern` deve ser suportado para fontes `netcdf` e `grib`;
 - para `csv`, apenas `path` deve ser aceito no MVP;
 - para `csv`, o caso prioritario desta arquitetura e `geometry_type="fixed_point"`;
 - para `netcdf`, o backend de abertura deve ser escolhido assim:
   - `path` -> `xarray.open_dataset`
   - `glob_pattern` -> `xarray.open_mfdataset`
+- para `grib`, o backend de abertura deve ser escolhido assim:
+  - `path` -> `xarray.open_dataset(..., engine="cfgrib")`
+  - `glob_pattern` -> `xarray.open_mfdataset(..., engine="cfgrib")`
 - `file_format` e `geometry_type` devem ser suficientes para resolver os
   componentes concretos internamente;
 - `source_specification` e obrigatoria.
@@ -197,6 +206,7 @@ classDiagram
     class DataAdapter
     class FileFormatReader
     class NetCDFFileFormatReader
+    class GRIBFileFormatReader
     class CSVFileFormatReader
     class GeometryHandler
     class GriddedGeometryHandler
@@ -221,6 +231,7 @@ classDiagram
     class SpecializedPlotter
 
     FileFormatReader <|-- NetCDFFileFormatReader
+    FileFormatReader <|-- GRIBFileFormatReader
     FileFormatReader <|-- CSVFileFormatReader
 
     GeometryHandler <|-- GriddedGeometryHandler
@@ -391,6 +402,10 @@ Exemplos:
 
 - modelo em grade:
   - `NetCDFFileFormatReader`
+  - `GriddedGeometryHandler`
+  - `SourceSpecification`
+- reanalise em GRIB:
+  - `GRIBFileFormatReader`
   - `GriddedGeometryHandler`
   - `SourceSpecification`
 - radiossonda em netCDF:
