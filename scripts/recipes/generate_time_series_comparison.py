@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def generate_time_series_comparison_figure(
     output_path: Path | None = None,
+    mode: str = "full",
 ) -> Path:
     """Generate and save the 3-panel SHOC/MYNN/ERA5/station comparison."""
     import matplotlib.pyplot as plt
@@ -21,8 +22,10 @@ def generate_time_series_comparison_figure(
         build_time_series_comparison_adapters,
     )
 
-    final_output_path = output_path or (
-        OUTPUT_DIR / "time_series_comparison.png"
+    series_mode = _normalize_mode(mode)
+    final_output_path = output_path or _default_output_path(
+        OUTPUT_DIR,
+        series_mode,
     )
     final_output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +33,8 @@ def generate_time_series_comparison_figure(
     try:
         figure = (
             build_surface_nwp_reanalysis_time_series_comparison_figure(
-                adapters=adapters
+                adapters=adapters,
+                series_mode=series_mode,
             )
         )
         figure.savefig(final_output_path, dpi=150, bbox_inches="tight")
@@ -40,6 +44,22 @@ def generate_time_series_comparison_figure(
             adapter.close()
 
     return final_output_path
+
+
+def _normalize_mode(mode: str) -> str:
+    """Return the scenario mode name used by the builder."""
+    if mode == "hourly-mean":
+        return "hourly_mean"
+    if mode in {"full", "hourly_mean"}:
+        return mode
+    raise ValueError("mode must be 'full' or 'hourly-mean'.")
+
+
+def _default_output_path(output_dir: Path, mode: str) -> Path:
+    """Return the default output path for one plot mode."""
+    if mode == "hourly_mean":
+        return output_dir / "time_series_comparison_hourly_mean.png"
+    return output_dir / "time_series_comparison.png"
 
 
 def main() -> None:
@@ -55,14 +75,24 @@ def main() -> None:
         type=Path,
         default=None,
         help=(
-            "Output file path. Default: "
-            "tests/output/time_series_comparison.png"
+            "Output file path. Default depends on --mode and writes under "
+            "tests/output/."
+        ),
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("full", "hourly-mean"),
+        default="full",
+        help=(
+            "Plot mode. Use 'full' for the 5-day series or "
+            "'hourly-mean' for UTC-hour means over the 5-day window."
         ),
     )
     args = parser.parse_args()
 
     saved_path = generate_time_series_comparison_figure(
-        output_path=args.output
+        output_path=args.output,
+        mode=args.mode,
     )
     print(f"saved: {saved_path}")
 

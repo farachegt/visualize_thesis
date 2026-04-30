@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from typing import Literal, Mapping, Sequence
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -247,8 +247,10 @@ LEGACY_DIURNAL_PHASE_DIFF_LIMIT = 12.0
 LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE = 100.0
 LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
 LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
+TimeSeriesComparisonMode = Literal["full", "hourly_mean"]
 TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS = -4
 TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 12
+TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS = 3
 TIME_SERIES_COMPARISON_SOURCE_STYLES = (
     ("SHOC", "tab:blue"),
     ("MYNN", "tab:orange"),
@@ -3353,10 +3355,15 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     *,
     adapters: Sequence[DataAdapter] | None = None,
     init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    series_mode: TimeSeriesComparisonMode = "full",
     local_utc_offset_hours: int = TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS,
     tick_step_hours: int = TIME_SERIES_COMPARISON_TICK_STEP_HOURS,
+    hourly_mean_tick_step_hours: int = (
+        TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS
+    ),
 ) -> tuple[list[TimeSeriesPanelInput], FigureSpecification]:
     """Build panel inputs and figure layout for the 3-panel comparison."""
+    _validate_time_series_comparison_mode(series_mode)
     if adapters is None:
         source_adapters = build_time_series_comparison_adapters()
     else:
@@ -3381,12 +3388,18 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     station_request = build_time_series_comparison_station_request(
         init_date=start_time
     )
-    local_time_axes_calls = _build_local_time_axes_calls(
-        start_time=start_time,
-        end_time_exclusive=end_time_exclusive,
-        utc_offset_hours=local_utc_offset_hours,
-        tick_step_hours=tick_step_hours,
-    )
+    if series_mode == "hourly_mean":
+        axes_calls = _build_hourly_mean_local_time_axes_calls(
+            utc_offset_hours=local_utc_offset_hours,
+            tick_step_hours=hourly_mean_tick_step_hours,
+        )
+    else:
+        axes_calls = _build_local_time_axes_calls(
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+            utc_offset_hours=local_utc_offset_hours,
+            tick_step_hours=tick_step_hours,
+        )
 
     panels: list[TimeSeriesPanelInput] = []
     station_source_index = expected_source_count - 1
@@ -3413,16 +3426,41 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     variable_name=variable_name,
                     request=station_request,
                 )
-                hourly_station_plot_data = (
+                prepared_plot_data = (
                     _build_hourly_nearest_station_plot_data(
                         raw_station_plot_data,
                         start_time=start_time,
                         end_time_exclusive=end_time_exclusive,
                     )
                 )
+                if series_mode == "hourly_mean":
+                    prepared_plot_data = (
+                        _build_hourly_mean_time_series_plot_data(
+                            prepared_plot_data,
+                            start_time=start_time,
+                            end_time_exclusive=end_time_exclusive,
+                        )
+                    )
                 layers.append(
                     PreparedTimeSeriesLayerInput(
-                        plot_data=hourly_station_plot_data,
+                        plot_data=prepared_plot_data,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+            elif series_mode == "hourly_mean":
+                raw_plot_data = adapter.to_time_series_plot_data(
+                    variable_name=variable_name,
+                    request=gridded_request,
+                )
+                prepared_plot_data = _build_hourly_mean_time_series_plot_data(
+                    raw_plot_data,
+                    start_time=start_time,
+                    end_time_exclusive=end_time_exclusive,
+                )
+                layers.append(
+                    PreparedTimeSeriesLayerInput(
+                        plot_data=prepared_plot_data,
                         render_specification=render_specification,
                         legend_label=source_label,
                     )
@@ -3440,7 +3478,11 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
 
         panel_axes_set_kwargs = {"ylabel": y_axis_label}
         if panel_index == panel_count - 1:
-            panel_axes_set_kwargs["xlabel"] = "Local time (GMT-4)"
+            panel_axes_set_kwargs["xlabel"] = (
+                "Local hour (GMT-4)"
+                if series_mode == "hourly_mean"
+                else "Local time (GMT-4)"
+            )
 
         panels.append(
             TimeSeriesPanelInput(
@@ -3455,7 +3497,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     if panel_index == 0
                     else None
                 ),
-                axes_calls=[dict(axis_call) for axis_call in local_time_axes_calls],
+                axes_calls=[dict(axis_call) for axis_call in axes_calls],
             )
         )
 
@@ -3475,18 +3517,30 @@ def build_surface_nwp_reanalysis_time_series_comparison_figure(
     *,
     adapters: Sequence[DataAdapter] | None = None,
     init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    series_mode: TimeSeriesComparisonMode = "full",
 ) -> Figure:
     """Build the 3-panel SHOC/MYNN/ERA5/station comparison figure."""
     panels, figure_specification = (
         build_surface_nwp_reanalysis_time_series_comparison_inputs(
             adapters=adapters,
             init_date=init_date,
+            series_mode=series_mode,
         )
     )
     return plot_time_series_panels(
         panels=panels,
         figure_specification=figure_specification,
     )
+
+
+def _validate_time_series_comparison_mode(
+    series_mode: str,
+) -> None:
+    """Validate the time-series comparison mode."""
+    if series_mode not in {"full", "hourly_mean"}:
+        raise ValueError(
+            "series_mode must be either 'full' or 'hourly_mean'."
+        )
 
 
 def _build_local_time_axes_calls(
@@ -3517,6 +3571,24 @@ def _build_local_time_axes_calls(
                 end_time_exclusive - np.timedelta64(1, "ns"),
             ],
         },
+    ]
+
+
+def _build_hourly_mean_local_time_axes_calls(
+    *,
+    utc_offset_hours: int,
+    tick_step_hours: int,
+) -> list[dict[str, object]]:
+    """Build x-axis calls for UTC-hour means displayed as local hour."""
+    tick_hours = np.arange(0, 24, tick_step_hours)
+    tick_labels = [
+        f"{int((hour + utc_offset_hours) % 24):02d}"
+        for hour in tick_hours
+    ]
+    return [
+        {"method": "set_xticks", "args": [tick_hours]},
+        {"method": "set_xticklabels", "args": [tick_labels]},
+        {"method": "set_xlim", "args": [0, 23]},
     ]
 
 
@@ -3575,6 +3647,68 @@ def _build_hourly_nearest_station_plot_data(
         value_axis=plot_data.value_axis,
         draw_mask=hourly_draw_mask,
     )
+
+
+def _build_hourly_mean_time_series_plot_data(
+    plot_data: TimeSeriesPlotData,
+    *,
+    start_time: np.datetime64,
+    end_time_exclusive: np.datetime64,
+) -> TimeSeriesPlotData:
+    """Return 24 UTC-hour means for one time-series plot-data object."""
+    source_times = np.asarray(plot_data.times, dtype="datetime64[ns]")
+    source_values = np.asarray(plot_data.values, dtype=float)
+    if source_times.size != source_values.size:
+        raise ValueError(
+            "Time-series hourly means require matching time and value sizes."
+        )
+
+    in_window = (
+        (source_times >= start_time)
+        & (source_times < end_time_exclusive)
+    )
+    if not np.any(in_window):
+        raise ValueError(
+            "Time series has no samples within the requested comparison "
+            "interval."
+        )
+
+    window_times = source_times[in_window]
+    window_values = source_values[in_window]
+    utc_hours = _compute_utc_hours(window_times)
+    hourly_values = np.full(24, np.nan, dtype=float)
+    for hour in range(24):
+        hour_values = window_values[utc_hours == hour]
+        valid_values = hour_values[~np.isnan(hour_values)]
+        if valid_values.size > 0:
+            hourly_values[hour] = float(np.mean(valid_values))
+
+    hourly_draw_mask = None
+    if plot_data.draw_mask is not None:
+        source_draw_mask = np.asarray(plot_data.draw_mask)[in_window]
+        hourly_draw_mask = np.zeros(24, dtype=bool)
+        for hour in range(24):
+            hour_mask = utc_hours == hour
+            if np.any(hour_mask):
+                hourly_draw_mask[hour] = bool(
+                    np.any(source_draw_mask[hour_mask])
+                )
+
+    return TimeSeriesPlotData(
+        label=plot_data.label,
+        times=np.arange(24),
+        values=hourly_values,
+        units=plot_data.units,
+        site_label=plot_data.site_label,
+        vertical_label=plot_data.vertical_label,
+        value_axis=plot_data.value_axis,
+        draw_mask=hourly_draw_mask,
+    )
+
+
+def _compute_utc_hours(times: np.ndarray) -> np.ndarray:
+    """Return UTC hour-of-day values for datetime64 timestamps."""
+    return (times.astype("datetime64[h]").astype(np.int64) % 24).astype(int)
 
 
 def _select_nearest_time_indices(
