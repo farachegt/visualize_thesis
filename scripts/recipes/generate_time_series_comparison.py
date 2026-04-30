@@ -1,25 +1,26 @@
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 import sys
-
-import matplotlib.pyplot as plt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-
-from plot_core.scenarios import (
-    OUTPUT_DIR,
-    build_surface_nwp_reanalysis_time_series_comparison_figure,
-    build_time_series_comparison_adapters,
-)
 
 
 def generate_time_series_comparison_figure(
     output_path: Path | None = None,
 ) -> Path:
     """Generate and save the 3-panel SHOC/MYNN/ERA5/station comparison."""
+    import matplotlib.pyplot as plt
+
+    from plot_core.scenarios import (
+        OUTPUT_DIR,
+        build_surface_nwp_reanalysis_time_series_comparison_figure,
+        build_time_series_comparison_adapters,
+    )
+
     final_output_path = output_path or (
         OUTPUT_DIR / "time_series_comparison.png"
     )
@@ -43,7 +44,26 @@ def generate_time_series_comparison_figure(
 
 def main() -> None:
     """Generate the time-series comparison figure and print its path."""
-    saved_path = generate_time_series_comparison_figure()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate the SHOC/MYNN/ERA5/Observation time-series "
+            "comparison figure."
+        )
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "Output file path. Default: "
+            "tests/output/time_series_comparison.png"
+        ),
+    )
+    args = parser.parse_args()
+
+    saved_path = generate_time_series_comparison_figure(
+        output_path=args.output
+    )
     print(f"saved: {saved_path}")
 
 

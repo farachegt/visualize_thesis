@@ -1143,11 +1143,52 @@ class FixedPointGeometryHandler(GeometryHandler):
                 )
             return
 
-        if dataset[latitude_name].size > 1 or dataset[longitude_name].size > 1:
+        latitude_values = dataset[latitude_name]
+        longitude_values = dataset[longitude_name]
+        if (
+            not self._is_single_horizontal_coordinate(latitude_values)
+            or not self._is_single_horizontal_coordinate(longitude_values)
+        ):
             raise ValueError(
                 "FixedPointGeometryHandler expects a single horizontal "
                 "position."
             )
+
+    def _is_single_horizontal_coordinate(
+        self,
+        coordinate: xr.DataArray,
+    ) -> bool:
+        """Return whether one coordinate represents a single point.
+
+        Fixed-point datasets often carry latitude and longitude repeated
+        along time. This helper accepts that shape as long as all finite
+        values are effectively identical.
+        """
+        flattened = np.asarray(coordinate.values).reshape(-1)
+        if flattened.size == 0:
+            return False
+        if flattened.size == 1:
+            return True
+
+        try:
+            numeric_values = flattened.astype(float, copy=False)
+        except (TypeError, ValueError):
+            reference_value = flattened[0]
+            return bool(np.all(flattened == reference_value))
+
+        finite_values = numeric_values[np.isfinite(numeric_values)]
+        if finite_values.size == 0:
+            return False
+
+        reference_value = float(finite_values[0])
+        return bool(
+            np.allclose(
+                finite_values,
+                reference_value,
+                rtol=0.0,
+                atol=1e-6,
+            )
+        )
 
     def supported_plot_data_kinds(
         self,
