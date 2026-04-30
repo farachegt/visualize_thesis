@@ -3390,7 +3390,6 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     )
     if series_mode == "hourly_mean":
         axes_calls = _build_hourly_mean_local_time_axes_calls(
-            utc_offset_hours=local_utc_offset_hours,
             tick_step_hours=hourly_mean_tick_step_hours,
         )
     else:
@@ -3439,6 +3438,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                             prepared_plot_data,
                             start_time=start_time,
                             end_time_exclusive=end_time_exclusive,
+                            utc_offset_hours=local_utc_offset_hours,
                         )
                     )
                 layers.append(
@@ -3457,6 +3457,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     raw_plot_data,
                     start_time=start_time,
                     end_time_exclusive=end_time_exclusive,
+                    utc_offset_hours=local_utc_offset_hours,
                 )
                 layers.append(
                     PreparedTimeSeriesLayerInput(
@@ -3576,15 +3577,11 @@ def _build_local_time_axes_calls(
 
 def _build_hourly_mean_local_time_axes_calls(
     *,
-    utc_offset_hours: int,
     tick_step_hours: int,
 ) -> list[dict[str, object]]:
-    """Build x-axis calls for UTC-hour means displayed as local hour."""
+    """Build x-axis calls for hourly means indexed by local hour."""
     tick_hours = np.arange(0, 24, tick_step_hours)
-    tick_labels = [
-        f"{int((hour + utc_offset_hours) % 24):02d}"
-        for hour in tick_hours
-    ]
+    tick_labels = [f"{int(hour):02d}" for hour in tick_hours]
     return [
         {"method": "set_xticks", "args": [tick_hours]},
         {"method": "set_xticklabels", "args": [tick_labels]},
@@ -3654,8 +3651,13 @@ def _build_hourly_mean_time_series_plot_data(
     *,
     start_time: np.datetime64,
     end_time_exclusive: np.datetime64,
+    utc_offset_hours: int,
 ) -> TimeSeriesPlotData:
-    """Return 24 UTC-hour means for one time-series plot-data object."""
+    """Return 24 hourly means indexed by local hour.
+
+    The source timestamps stay in UTC for grouping. Each UTC-hour mean is
+    placed on the corresponding local-hour axis position.
+    """
     source_times = np.asarray(plot_data.times, dtype="datetime64[ns]")
     source_values = np.asarray(plot_data.values, dtype=float)
     if source_times.size != source_values.size:
@@ -3675,10 +3677,10 @@ def _build_hourly_mean_time_series_plot_data(
 
     window_times = source_times[in_window]
     window_values = source_values[in_window]
-    utc_hours = _compute_utc_hours(window_times)
+    local_hours = _compute_local_hours(window_times, utc_offset_hours)
     hourly_values = np.full(24, np.nan, dtype=float)
     for hour in range(24):
-        hour_values = window_values[utc_hours == hour]
+        hour_values = window_values[local_hours == hour]
         valid_values = hour_values[~np.isnan(hour_values)]
         if valid_values.size > 0:
             hourly_values[hour] = float(np.mean(valid_values))
@@ -3688,7 +3690,7 @@ def _build_hourly_mean_time_series_plot_data(
         source_draw_mask = np.asarray(plot_data.draw_mask)[in_window]
         hourly_draw_mask = np.zeros(24, dtype=bool)
         for hour in range(24):
-            hour_mask = utc_hours == hour
+            hour_mask = local_hours == hour
             if np.any(hour_mask):
                 hourly_draw_mask[hour] = bool(
                     np.any(source_draw_mask[hour_mask])
@@ -3706,9 +3708,13 @@ def _build_hourly_mean_time_series_plot_data(
     )
 
 
-def _compute_utc_hours(times: np.ndarray) -> np.ndarray:
-    """Return UTC hour-of-day values for datetime64 timestamps."""
-    return (times.astype("datetime64[h]").astype(np.int64) % 24).astype(int)
+def _compute_local_hours(
+    times: np.ndarray,
+    utc_offset_hours: int,
+) -> np.ndarray:
+    """Return local hour-of-day values for UTC datetime64 timestamps."""
+    utc_hours = (times.astype("datetime64[h]").astype(np.int64) % 24)
+    return ((utc_hours + utc_offset_hours) % 24).astype(int)
 
 
 def _select_nearest_time_indices(
