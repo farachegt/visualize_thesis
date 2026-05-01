@@ -386,12 +386,16 @@ class DataAdapter:
                 "TimeSeriesPlotData requires a resolved time axis."
             )
 
-        if time_name in values.dims:
-            values = values.transpose(time_name)
+        values, times = self._prepare_time_series_values_and_times(
+            prepared,
+            values,
+            time_name,
+            request,
+        )
 
         return TimeSeriesPlotData(
             label=self.source_specification.label,
-            times=self._to_datetime64_array(prepared[time_name].values),
+            times=times,
             values=self._to_numpy_1d(values),
             units=self._extract_units(values),
             site_label=self.source_specification.site_label,
@@ -770,6 +774,162 @@ class DataAdapter:
             )
 
         return direct_variable
+
+    def _prepare_time_series_values_and_times(
+        self,
+        dataset: xr.Dataset,
+        values: xr.DataArray,
+        time_name: str,
+        request: TimeSeriesRequest,
+    ) -> tuple[xr.DataArray, np.ndarray]:
+        """Return time-series values and a matching 1D datetime axis.
+
+        Most sources expose a single time dimension. Some GRIB sources expose
+        forecast reference time plus lead time as `(time, step)` and carry the
+        actual timestamps in `valid_time`. Those are flattened into a regular
+        1D valid-time series here, after the geometry handler has selected the
+        point or region.
+        """
+        if time_name in values.dims:
+            extra_dimensions = tuple(
+                dimension
+                for dimension in values.dims
+                if dimension != time_name
+            )
+            if all(
+                values.sizes[dimension] == 1
+                for dimension in extra_dimensions
+            ):
+                one_dimensional_values = values.squeeze(
+                    dim=extra_dimensions,
+                    drop=True,
+                )
+                return (
+                    one_dimensional_values.transpose(time_name),
+                    self._to_datetime64_array(dataset[time_name].values),
+                )
+
+        squeezed_values = values.squeeze(drop=True)
+        if (
+            time_name in squeezed_values.dims
+            and len(squeezed_values.dims) == 1
+        ):
+            return (
+                squeezed_values.transpose(time_name),
+                self._to_datetime64_array(dataset[time_name].values),
+            )
+
+        valid_time = self._resolve_valid_time_coordinate(
+            dataset,
+            squeezed_values,
+        )
+        if valid_time is not None:
+            return self._stack_valid_time_series(
+                squeezed_values,
+                valid_time,
+                request,
+            )
+
+        if time_name in squeezed_values.dims:
+            raise ValueError(
+                "TimeSeriesPlotData requires values with only the resolved "
+                f"time dimension {time_name!r}; got dimensions "
+                f"{squeezed_values.dims!r}."
+            )
+
+        raise ValueError(
+            "TimeSeriesPlotData requires values to expose the resolved time "
+            f"dimension {time_name!r} or a compatible `valid_time` "
+            f"coordinate; got dimensions {squeezed_values.dims!r}."
+        )
+
+    def _resolve_valid_time_coordinate(
+        self,
+        dataset: xr.Dataset,
+        values: xr.DataArray,
+    ) -> xr.DataArray | None:
+        """Return a `valid_time` coordinate compatible with `values`."""
+        valid_time: xr.DataArray | None = None
+        if "valid_time" in values.coords:
+            valid_time = values.coords["valid_time"]
+        elif "valid_time" in dataset.coords:
+            valid_time = dataset.coords["valid_time"]
+        elif "valid_time" in dataset:
+            valid_time = dataset["valid_time"]
+
+        if valid_time is None:
+            return None
+
+        valid_time = valid_time.squeeze(drop=True)
+        if not valid_time.dims:
+            return None
+
+        if any(dimension not in values.dims for dimension in valid_time.dims):
+            return None
+
+        return valid_time
+
+    def _stack_valid_time_series(
+        self,
+        values: xr.DataArray,
+        valid_time: xr.DataArray,
+        request: TimeSeriesRequest,
+    ) -> tuple[xr.DataArray, np.ndarray]:
+        """Flatten values that are indexed by a multi-dimensional valid time."""
+        stack_dimensions = tuple(valid_time.dims)
+        extra_dimensions = tuple(
+            dimension
+            for dimension in values.dims
+            if dimension not in stack_dimensions
+        )
+        if extra_dimensions:
+            values = values.squeeze(dim=extra_dimensions, drop=True)
+
+        if set(values.dims) != set(stack_dimensions):
+            raise ValueError(
+                "The resolved time-series values are not compatible with "
+                "`valid_time`; got value dimensions "
+                f"{values.dims!r} and valid_time dimensions "
+                f"{valid_time.dims!r}."
+            )
+
+        sample_dimension = "__time_series_sample"
+        stacked_values = values.stack(
+            {sample_dimension: stack_dimensions}
+        )
+        stacked_times = valid_time.stack(
+            {sample_dimension: stack_dimensions}
+        )
+        time_values = self._to_datetime64_array(stacked_times.values)
+        value_array = np.asarray(stacked_values.values)
+        finite_time_mask = ~np.isnat(time_values)
+        request_times = self._to_datetime64_array(request.times)
+        start_time = np.min(request_times)
+        end_time = np.max(request_times)
+        in_window = (
+            finite_time_mask
+            & (time_values >= start_time)
+            & (time_values <= end_time)
+        )
+        if not np.any(in_window):
+            raise ValueError(
+                "TimeSeriesPlotData has no valid-time samples within the "
+                "requested interval."
+            )
+
+        selected_times = time_values[in_window]
+        selected_values = value_array[in_window]
+        sort_indices = np.argsort(selected_times)
+        selected_times = selected_times[sort_indices]
+        selected_values = selected_values[sort_indices]
+        result = xr.DataArray(
+            selected_values,
+            dims=(sample_dimension,),
+            coords={sample_dimension: selected_times},
+            attrs=dict(values.attrs),
+            name=values.name,
+        )
+        return result, selected_times
 
     def _resolve_vertical_axis_values(
         self,
