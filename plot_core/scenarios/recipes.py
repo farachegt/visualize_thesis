@@ -3543,10 +3543,10 @@ def _build_time_series_comparison_title(init_date: object) -> str:
     """Return the figure title for one time-series comparison case."""
     compact_date = normalize_time_series_init_date(init_date)
     init_date_label = (
-        f"{compact_date[6:]}-{compact_date[4:6]}-{compact_date[:4]}"
+        f"{compact_date[:4]}-{compact_date[4:6]}-{compact_date[6:]}"
     )
     return (
-        "SHOC/MYNN/ERA5/Observation Time-Series Comparison - "
+        "SHOC, MYNN, ERA5 and Observation Time-Series Comparison - "
         f"{build_time_series_season_label(init_date)} "
         f"(init {init_date_label})"
     )
