@@ -257,16 +257,21 @@ TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS = -4
 TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 12
 TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS = 3
 TIME_SERIES_COMPARISON_SOURCE_STYLES = (
-    ("SHOC", "tab:blue"),
-    ("MYNN", "tab:orange"),
-    ("ERA5", "tab:gray"),
-    ("Observation", "tab:black"),
+    ("SHOC", "blue"),
+    ("MYNN", "orange"),
+    ("ERA5", "gray"),
+    ("Observation", "black"),
 )
 TIME_SERIES_COMPARISON_PANELS = (
     ("temperature_2m", "2 m temperature [°C]"),
     ("specific_humidity_2m", "Specific humidity [g/kg]"),
     ("wind_speed_10m", "10 m wind speed [m/s]"),
 )
+TIME_SERIES_COMPARISON_Y_LIMITS = {
+    "temperature_2m": (20.0, 35.0),
+    "specific_humidity_2m": (14.0, 26.0),
+    "wind_speed_10m": (0.0, 8.0),
+}
 
 
 # ============================================================================
@@ -3492,7 +3497,10 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     )
                 )
 
-        panel_axes_set_kwargs = {"ylabel": y_axis_label}
+        panel_axes_set_kwargs = {
+            "ylabel": y_axis_label,
+            "ylim": TIME_SERIES_COMPARISON_Y_LIMITS[variable_name],
+        }
         if panel_index == panel_count - 1:
             panel_axes_set_kwargs["xlabel"] = (
                 "Local hour (GMT-4)"
@@ -3587,6 +3595,12 @@ def _build_local_time_axes_calls(
         end_time_exclusive,
         np.timedelta64(tick_step_hours, "h"),
     ).astype("datetime64[ns]")
+    final_tick_time = (
+        end_time_exclusive - np.timedelta64(1, "h")
+    ).astype("datetime64[ns]")
+    if final_tick_time > tick_times[-1]:
+        tick_times = np.append(tick_times, final_tick_time)
+
     local_times = tick_times + np.timedelta64(utc_offset_hours, "h")
     tick_labels = [
         np.datetime_as_string(local_time, unit="h").replace("T", " ")
