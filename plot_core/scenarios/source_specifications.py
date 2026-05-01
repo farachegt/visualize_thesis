@@ -202,6 +202,22 @@ def build_time_series_shoc_source_specification() -> SourceSpecification:
     )
 
 
+def build_surface_flux_time_series_mynn_source_specification(
+) -> SourceSpecification:
+    """Build the MYNN MONAN source spec for surface-flux time series."""
+    return _build_surface_flux_time_series_monan_source_specification(
+        label="MYNN"
+    )
+
+
+def build_surface_flux_time_series_shoc_source_specification(
+) -> SourceSpecification:
+    """Build the SHOC MONAN source spec for surface-flux time series."""
+    return _build_surface_flux_time_series_monan_source_specification(
+        label="SHOC"
+    )
+
+
 def build_time_series_era5_source_specification() -> SourceSpecification:
     """Build the ERA5 source specification for surface time-series panels."""
     return SourceSpecification(
@@ -248,6 +264,44 @@ def build_time_series_era5_source_specification() -> SourceSpecification:
     )
 
 
+def build_surface_flux_time_series_era5_source_specification(
+) -> SourceSpecification:
+    """Build the ERA5 source specification for surface-flux time series."""
+    return SourceSpecification(
+        label="ERA5",
+        time_name="time",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        longitude_convention="-180_180",
+        variables={
+            "accumulated_sensible_heat_flux": VariableSpecification(
+                source_name="sshf",
+                input_units="J m^-2",
+            ),
+            "accumulated_latent_heat_flux": VariableSpecification(
+                source_name="slhf",
+                input_units="J m^-2",
+            ),
+            "sensible_heat_flux": VariableSpecification(
+                derivation_kind=(
+                    "sensible_heat_flux_from_hourly_accumulated_energy"
+                ),
+                derivation_options={
+                    "long_name": "Sensible heat flux",
+                },
+            ),
+            "latent_heat_flux": VariableSpecification(
+                derivation_kind=(
+                    "latent_heat_flux_from_hourly_accumulated_energy"
+                ),
+                derivation_options={
+                    "long_name": "Latent heat flux",
+                },
+            ),
+        },
+    )
+
+
 def build_time_series_goamazon_surface_station_source_specification(
 ) -> SourceSpecification:
     """Build the GoAmazon surface-station source specification."""
@@ -282,6 +336,27 @@ def build_time_series_goamazon_surface_station_source_specification(
                 source_name="wspd_arith_mean",
                 input_units="m s-1",
                 target_units="m s-1",
+            ),
+        },
+    )
+
+
+def build_surface_flux_goamazon_eddy_correlation_source_specification(
+) -> SourceSpecification:
+    """Build the GoAmazon eddy-correlation flux source specification."""
+    return SourceSpecification(
+        label="Observation",
+        time_name="time",
+        site_latitude=-3.21297,
+        site_longitude=-60.5981,
+        variables={
+            "sensible_heat_flux": VariableSpecification(
+                source_name="h",
+                input_units="W m^-2",
+            ),
+            "latent_heat_flux": VariableSpecification(
+                source_name="lv_e",
+                input_units="W m^-2",
             ),
         },
     )
@@ -405,6 +480,30 @@ def _build_time_series_monan_surface_source_specification(
             "wind_speed_10m": VariableSpecification(
                 derivation_kind="wind_speed_from_uv",
                 target_units="m s-1",
+            ),
+        },
+    )
+
+
+def _build_surface_flux_time_series_monan_source_specification(
+    *,
+    label: str,
+) -> SourceSpecification:
+    """Build shared MONAN surface-flux mappings for time-series comparison."""
+    return SourceSpecification(
+        label=label,
+        time_name="Time",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        longitude_convention="-180_180",
+        variables={
+            "sensible_heat_flux": VariableSpecification(
+                source_name="hfx",
+                input_units="W m^-2",
+            ),
+            "latent_heat_flux": VariableSpecification(
+                source_name="lh",
+                input_units="W m^-2",
             ),
         },
     )

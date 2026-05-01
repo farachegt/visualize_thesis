@@ -60,6 +60,10 @@ TIME_SERIES_GOAMAZON_SURFACE_STATION_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "b1 (Quality Control applied)/MET"
 )
+TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_DIR = (
+    "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
+    "b1 (Quality Control applied)/Eddy Correlation Flux"
+)
 
 
 def normalize_time_series_init_date(
@@ -141,6 +145,22 @@ def build_time_series_goamazon_surface_station_glob_patterns(
     )
 
 
+def build_surface_flux_goamazon_eddy_correlation_glob_patterns(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact daily GoAmazon eddy-correlation globs."""
+    compact_date = normalize_time_series_init_date(init_date)
+    start_date = datetime.strptime(compact_date, "%Y%m%d").date()
+    return tuple(
+        (
+            f"{TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_DIR}/"
+            f"mao30ecorM1.b1."
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}*.cdf"
+        )
+        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
 TIME_SERIES_MONAN_MYNN_GLOB_PATTERN = build_time_series_monan_glob_pattern(
     scheme="mynn"
 )
@@ -153,4 +173,7 @@ TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERNS = (
 )
 TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERN = (
     TIME_SERIES_GOAMAZON_SURFACE_STATION_GLOB_PATTERNS[0]
+)
+TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_GLOB_PATTERNS = (
+    build_surface_flux_goamazon_eddy_correlation_glob_patterns()
 )

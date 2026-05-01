@@ -77,6 +77,10 @@ from plot_core.requests import (
 )
 
 from .adapters import (
+    build_surface_flux_goamazon_eddy_correlation_adapter,
+    build_surface_flux_time_series_era5_adapter,
+    build_surface_flux_time_series_mynn_adapter,
+    build_surface_flux_time_series_shoc_adapter,
     build_legacy_e3sm_adapter,
     build_legacy_monan_e3sm_adapter,
     build_legacy_mynn_monan_adapter,
@@ -272,6 +276,10 @@ TIME_SERIES_COMPARISON_Y_LIMITS = {
     "specific_humidity_2m": (14.0, 26.0),
     "wind_speed_10m": (0.0, 8.0),
 }
+SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS = (
+    ("sensible_heat_flux", "Sensible heat flux [W m^-2]"),
+    ("latent_heat_flux", "Latent heat flux [W m^-2]"),
+)
 
 
 # ============================================================================
@@ -3561,6 +3569,227 @@ def build_surface_nwp_reanalysis_time_series_comparison_figure(
     """Build the 3-panel SHOC/MYNN/ERA5/station comparison figure."""
     panels, figure_specification = (
         build_surface_nwp_reanalysis_time_series_comparison_inputs(
+            adapters=adapters,
+            init_date=init_date,
+            series_mode=series_mode,
+        )
+    )
+    return plot_time_series_panels(
+        panels=panels,
+        figure_specification=figure_specification,
+    )
+
+
+def build_surface_flux_time_series_comparison_adapters(
+    *,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+) -> list[DataAdapter]:
+    """Build adapters for the SHOC, MYNN, ERA5 and flux-tower comparison."""
+    return [
+        build_surface_flux_time_series_shoc_adapter(init_date=init_date),
+        build_surface_flux_time_series_mynn_adapter(init_date=init_date),
+        build_surface_flux_time_series_era5_adapter(init_date=init_date),
+        build_surface_flux_goamazon_eddy_correlation_adapter(
+            init_date=init_date
+        ),
+    ]
+
+
+def build_surface_flux_time_series_comparison_inputs(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+    series_mode: TimeSeriesComparisonMode = "full",
+    local_utc_offset_hours: int = TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS,
+    tick_step_hours: int = TIME_SERIES_COMPARISON_TICK_STEP_HOURS,
+    hourly_mean_tick_step_hours: int = (
+        TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS
+    ),
+) -> tuple[list[TimeSeriesPanelInput], FigureSpecification]:
+    """Build panel inputs and figure layout for the surface-flux comparison."""
+    _validate_time_series_comparison_mode(series_mode)
+    start_time = np.datetime64(
+        build_time_series_init_datetime_string(init_date),
+        "ns",
+    )
+    if adapters is None:
+        source_adapters = build_surface_flux_time_series_comparison_adapters(
+            init_date=start_time
+        )
+    else:
+        source_adapters = list(adapters)
+
+    expected_source_count = len(TIME_SERIES_COMPARISON_SOURCE_STYLES)
+    if len(source_adapters) != expected_source_count:
+        raise ValueError(
+            "Expected "
+            f"{expected_source_count} adapters in SHOC/MYNN/ERA5/"
+            "Observation order."
+        )
+
+    end_time_exclusive = start_time + np.timedelta64(
+        TIME_SERIES_COMPARISON_DURATION_DAYS,
+        "D",
+    )
+    gridded_request = build_time_series_comparison_gridded_request(
+        init_date=start_time
+    )
+    station_request = build_time_series_comparison_station_request(
+        init_date=start_time
+    )
+    if series_mode == "hourly_mean":
+        axes_calls = _build_hourly_mean_local_time_axes_calls(
+            tick_step_hours=hourly_mean_tick_step_hours,
+        )
+    else:
+        axes_calls = _build_local_time_axes_calls(
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+            utc_offset_hours=local_utc_offset_hours,
+            tick_step_hours=tick_step_hours,
+        )
+
+    panels: list[TimeSeriesPanelInput] = []
+    station_source_index = expected_source_count - 1
+    panel_count = len(SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS)
+    for panel_index, (
+        variable_name,
+        y_axis_label,
+    ) in enumerate(SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS):
+        layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput] = []
+        for source_index, (
+            source_label,
+            source_color,
+        ) in enumerate(TIME_SERIES_COMPARISON_SOURCE_STYLES):
+            adapter = source_adapters[source_index]
+            render_specification = RenderSpecification(
+                artist_method="plot",
+                artist_kwargs={
+                    "color": source_color,
+                    "linewidth": 1.6,
+                },
+            )
+            if source_index == station_source_index:
+                raw_station_plot_data = adapter.to_time_series_plot_data(
+                    variable_name=variable_name,
+                    request=station_request,
+                )
+                prepared_plot_data = (
+                    _build_hourly_nearest_station_plot_data(
+                        raw_station_plot_data,
+                        start_time=start_time,
+                        end_time_exclusive=end_time_exclusive,
+                    )
+                )
+                if series_mode == "hourly_mean":
+                    prepared_plot_data = (
+                        _build_hourly_mean_time_series_plot_data(
+                            prepared_plot_data,
+                            start_time=start_time,
+                            end_time_exclusive=end_time_exclusive,
+                            utc_offset_hours=local_utc_offset_hours,
+                        )
+                    )
+                layers.append(
+                    PreparedTimeSeriesLayerInput(
+                        plot_data=prepared_plot_data,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+            elif series_mode == "hourly_mean":
+                raw_plot_data = adapter.to_time_series_plot_data(
+                    variable_name=variable_name,
+                    request=gridded_request,
+                )
+                prepared_plot_data = _build_hourly_mean_time_series_plot_data(
+                    raw_plot_data,
+                    start_time=start_time,
+                    end_time_exclusive=end_time_exclusive,
+                    utc_offset_hours=local_utc_offset_hours,
+                )
+                layers.append(
+                    PreparedTimeSeriesLayerInput(
+                        plot_data=prepared_plot_data,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+            else:
+                layers.append(
+                    TimeSeriesLayerInput(
+                        adapter=adapter,
+                        request=gridded_request,
+                        variable_name=variable_name,
+                        render_specification=render_specification,
+                        legend_label=source_label,
+                    )
+                )
+
+        panel_axes_set_kwargs = {"ylabel": y_axis_label}
+        if panel_index == panel_count - 1:
+            panel_axes_set_kwargs["xlabel"] = (
+                "Local hour (GMT-4)"
+                if series_mode == "hourly_mean"
+                else "Local time (GMT-4)"
+            )
+
+        panels.append(
+            TimeSeriesPanelInput(
+                layers=layers,
+                axes_set_kwargs=panel_axes_set_kwargs,
+                grid_kwargs={"visible": True, "alpha": 0.3},
+                legend_kwargs=(
+                    {
+                        "loc": "upper right",
+                        "ncol": 4,
+                    }
+                    if panel_index == 0
+                    else None
+                ),
+                axes_calls=[dict(axis_call) for axis_call in axes_calls],
+            )
+        )
+
+    figure_specification = FigureSpecification(
+        nrows=2,
+        ncols=1,
+        suptitle=_build_surface_flux_time_series_comparison_title(init_date),
+        suptitle_kwargs={"fontsize": 13},
+        figure_kwargs={
+            "figsize": (13, 6),
+            "constrained_layout": True,
+            "sharex": True,
+        },
+    )
+    return panels, figure_specification
+
+
+def _build_surface_flux_time_series_comparison_title(
+    init_date: object,
+) -> str:
+    """Return the figure title for one surface-flux comparison case."""
+    compact_date = normalize_time_series_init_date(init_date)
+    init_date_label = (
+        f"{compact_date[:4]}-{compact_date[4:6]}-{compact_date[6:]}"
+    )
+    return (
+        "SHOC, MYNN, ERA5 and Observation Surface-Flux "
+        "Time-Series Comparison - "
+        f"{build_time_series_season_label(init_date)} "
+        f"(init {init_date_label})"
+    )
+
+
+def build_surface_flux_time_series_comparison_figure(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+    series_mode: TimeSeriesComparisonMode = "full",
+) -> Figure:
+    """Build the 2-panel SHOC/MYNN/ERA5/flux-tower comparison figure."""
+    panels, figure_specification = (
+        build_surface_flux_time_series_comparison_inputs(
             adapters=adapters,
             init_date=init_date,
             series_mode=series_mode,

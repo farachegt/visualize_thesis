@@ -11,11 +11,16 @@ from .paths import (
     OBS_CEILOMETRO_PATH,
     OBS_RADIOSONDA_U_PATH,
     TIME_SERIES_DEFAULT_INIT_DATE,
+    build_surface_flux_goamazon_eddy_correlation_glob_patterns,
     build_time_series_era5_path,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
 )
 from .source_specifications import (
+    build_surface_flux_goamazon_eddy_correlation_source_specification,
+    build_surface_flux_time_series_era5_source_specification,
+    build_surface_flux_time_series_mynn_source_specification,
+    build_surface_flux_time_series_shoc_source_specification,
     build_ceilometro_source_specification,
     build_legacy_e3sm_source_specification,
     build_legacy_monan_e3sm_source_specification,
@@ -235,6 +240,95 @@ def build_time_series_goamazon_surface_station_adapter(
         geometry_type="fixed_point",
         source_specification=(
             build_time_series_goamazon_surface_station_source_specification()
+        ),
+        reader_options={},
+    )
+
+
+def build_surface_flux_time_series_mynn_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the MYNN MONAN adapter for surface-flux time series."""
+    return DataAdapter(
+        glob_pattern=build_time_series_monan_glob_pattern(
+            scheme="mynn",
+            init_date=init_date,
+        ),
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=(
+            build_surface_flux_time_series_mynn_source_specification()
+        ),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_surface_flux_time_series_shoc_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the SHOC MONAN adapter for surface-flux time series."""
+    return DataAdapter(
+        glob_pattern=build_time_series_monan_glob_pattern(
+            scheme="shoc",
+            init_date=init_date,
+        ),
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=(
+            build_surface_flux_time_series_shoc_source_specification()
+        ),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_surface_flux_time_series_era5_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the ERA5 adapter for surface-flux time series."""
+    return DataAdapter(
+        path=build_time_series_era5_path(init_date),
+        file_format="grib",
+        geometry_type="gridded",
+        source_specification=(
+            build_surface_flux_time_series_era5_source_specification()
+        ),
+        reader_options={
+            "engine": "cfgrib",
+            "backend_kwargs": {
+                "filter_by_keys": {
+                    "shortName": ["sshf", "slhf"],
+                },
+            },
+        },
+    )
+
+
+def build_surface_flux_goamazon_eddy_correlation_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the GoAmazon eddy-correlation adapter for flux time series."""
+    return DataAdapter(
+        glob_patterns=(
+            build_surface_flux_goamazon_eddy_correlation_glob_patterns(
+                init_date=init_date
+            )
+        ),
+        file_format="netcdf",
+        geometry_type="fixed_point",
+        source_specification=(
+            build_surface_flux_goamazon_eddy_correlation_source_specification()
         ),
         reader_options={},
     )
