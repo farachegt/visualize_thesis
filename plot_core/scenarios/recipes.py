@@ -88,6 +88,11 @@ from .adapters import (
     build_time_series_mynn_adapter,
     build_time_series_shoc_adapter,
 )
+from .paths import (
+    build_time_series_init_datetime_string,
+    build_time_series_season_label,
+    normalize_time_series_init_date,
+)
 from .requests import (
     TIME_SERIES_COMPARISON_DURATION_DAYS,
     TIME_SERIES_COMPARISON_INIT_DATE,
@@ -254,8 +259,8 @@ TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS = 3
 TIME_SERIES_COMPARISON_SOURCE_STYLES = (
     ("SHOC", "tab:blue"),
     ("MYNN", "tab:orange"),
-    ("ERA5", "black"),
-    ("Observation", "tab:green"),
+    ("ERA5", "tab:gray"),
+    ("Observation", "tab:black"),
 )
 TIME_SERIES_COMPARISON_PANELS = (
     ("temperature_2m", "2 m temperature [°C]"),
@@ -3341,20 +3346,25 @@ def _build_legacy_side_by_side_panel(
     )
 
 
-def build_time_series_comparison_adapters() -> list[DataAdapter]:
+def build_time_series_comparison_adapters(
+    *,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+) -> list[DataAdapter]:
     """Build adapters for the SHOC, MYNN, ERA5 and station comparison."""
     return [
-        build_time_series_shoc_adapter(),
-        build_time_series_mynn_adapter(),
-        build_time_series_era5_adapter(),
-        build_time_series_goamazon_surface_station_adapter(),
+        build_time_series_shoc_adapter(init_date=init_date),
+        build_time_series_mynn_adapter(init_date=init_date),
+        build_time_series_era5_adapter(init_date=init_date),
+        build_time_series_goamazon_surface_station_adapter(
+            init_date=init_date
+        ),
     ]
 
 
 def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     *,
     adapters: Sequence[DataAdapter] | None = None,
-    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     series_mode: TimeSeriesComparisonMode = "full",
     local_utc_offset_hours: int = TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS,
     tick_step_hours: int = TIME_SERIES_COMPARISON_TICK_STEP_HOURS,
@@ -3364,8 +3374,14 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
 ) -> tuple[list[TimeSeriesPanelInput], FigureSpecification]:
     """Build panel inputs and figure layout for the 3-panel comparison."""
     _validate_time_series_comparison_mode(series_mode)
+    start_time = np.datetime64(
+        build_time_series_init_datetime_string(init_date),
+        "ns",
+    )
     if adapters is None:
-        source_adapters = build_time_series_comparison_adapters()
+        source_adapters = build_time_series_comparison_adapters(
+            init_date=start_time
+        )
     else:
         source_adapters = list(adapters)
 
@@ -3377,7 +3393,6 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             "Observation order."
         )
 
-    start_time = np.datetime64(init_date, "ns")
     end_time_exclusive = start_time + np.timedelta64(
         TIME_SERIES_COMPARISON_DURATION_DAYS,
         "D",
@@ -3505,6 +3520,8 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     figure_specification = FigureSpecification(
         nrows=3,
         ncols=1,
+        suptitle=_build_time_series_comparison_title(init_date),
+        suptitle_kwargs={"fontsize": 13},
         figure_kwargs={
             "figsize": (13, 8),
             "constrained_layout": True,
@@ -3514,10 +3531,23 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     return panels, figure_specification
 
 
+def _build_time_series_comparison_title(init_date: object) -> str:
+    """Return the figure title for one time-series comparison case."""
+    compact_date = normalize_time_series_init_date(init_date)
+    init_date_label = (
+        f"{compact_date[6:]}-{compact_date[4:6]}-{compact_date[:4]}"
+    )
+    return (
+        "SHOC/MYNN/ERA5/Observation Time-Series Comparison - "
+        f"{build_time_series_season_label(init_date)} "
+        f"(init {init_date_label})"
+    )
+
+
 def build_surface_nwp_reanalysis_time_series_comparison_figure(
     *,
     adapters: Sequence[DataAdapter] | None = None,
-    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     series_mode: TimeSeriesComparisonMode = "full",
 ) -> Figure:
     """Build the 3-panel SHOC/MYNN/ERA5/station comparison figure."""

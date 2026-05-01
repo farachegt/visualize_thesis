@@ -9,6 +9,8 @@ from plot_core.requests import (
     VerticalProfileRequest,
 )
 
+from .paths import build_time_series_init_datetime_string
+
 LEGACY_CHILE_COAST_LATITUDE = -26.0
 LEGACY_CHILE_COAST_LONGITUDE = -73.0
 LEGACY_CHILE_COAST_TIME = np.datetime64("2014-09-03T00:00:00")
@@ -156,7 +158,7 @@ def build_legacy_chile_coast_vertical_profile_request(
 
 def build_time_series_comparison_gridded_request(
     *,
-    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
 ) -> TimeSeriesRequest:
     """Build the 5-day gridded request at the canonical station point."""
     return TimeSeriesRequest(
@@ -168,7 +170,7 @@ def build_time_series_comparison_gridded_request(
 
 def build_time_series_comparison_station_request(
     *,
-    init_date: np.datetime64 = TIME_SERIES_COMPARISON_INIT_DATE,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
 ) -> TimeSeriesRequest:
     """Build the 5-day fixed-point station request."""
     return TimeSeriesRequest(
@@ -177,10 +179,13 @@ def build_time_series_comparison_station_request(
 
 
 def _build_time_series_comparison_times(
-    init_date: np.datetime64,
+    init_date: object,
 ) -> np.ndarray:
     """Return the standard 5-day comparison interval as `datetime64[ns]`."""
-    start_time = np.datetime64(init_date, "ns")
+    start_time = np.datetime64(
+        build_time_series_init_datetime_string(init_date),
+        "ns",
+    )
     end_time_exclusive = start_time + np.timedelta64(
         TIME_SERIES_COMPARISON_DURATION_DAYS,
         "D",

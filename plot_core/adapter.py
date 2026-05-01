@@ -58,6 +58,8 @@ class DataAdapter:
         Path to a single source file.
     glob_pattern:
         Glob pattern used only for NetCDF multi-file opening.
+    glob_patterns:
+        Multiple glob patterns used only for NetCDF multi-file opening.
     reader_options:
         Backend-specific reader options forwarded to xarray or pandas.
     """
@@ -67,6 +69,7 @@ class DataAdapter:
     source_specification: SourceSpecification
     path: str | Path | None = None
     glob_pattern: str | None = None
+    glob_patterns: Sequence[str] | None = None
     reader_options: Mapping[str, Any] | None = None
     _reader: FileFormatReader | None = field(
         init=False,
@@ -95,6 +98,13 @@ class DataAdapter:
         """
         if self.path is not None:
             self.path = Path(self.path)
+        if self.glob_patterns is not None:
+            if isinstance(self.glob_patterns, str):
+                raise ValueError(
+                    "`glob_patterns` must be a sequence of glob pattern "
+                    "strings, not a single string."
+                )
+            self.glob_patterns = tuple(self.glob_patterns)
 
         self._validate_configuration()
 
@@ -873,18 +883,21 @@ class DataAdapter:
                 self._reader = NetCDFFileFormatReader(
                     path=self.path,
                     glob_pattern=self.glob_pattern,
+                    glob_patterns=self.glob_patterns,
                     reader_options=reader_options,
                 )
             elif self.file_format == "csv":
                 self._reader = CSVFileFormatReader(
                     path=self.path,
                     glob_pattern=self.glob_pattern,
+                    glob_patterns=self.glob_patterns,
                     reader_options=reader_options,
                 )
             elif self.file_format == "grib":
                 self._reader = GRIBFileFormatReader(
                     path=self.path,
                     glob_pattern=self.glob_pattern,
+                    glob_patterns=self.glob_patterns,
                     reader_options=reader_options,
                 )
             else:
@@ -914,15 +927,30 @@ class DataAdapter:
         """Validate whether the adapter configuration is coherent."""
         has_path = self.path is not None
         has_glob = self.glob_pattern is not None
-        if has_path == has_glob:
+        has_globs = self.glob_patterns is not None
+        if sum([has_path, has_glob, has_globs]) != 1:
             raise ValueError(
-                "DataAdapter requires exactly one of `path` or "
-                "`glob_pattern`."
+                "DataAdapter requires exactly one of `path`, "
+                "`glob_pattern`, or `glob_patterns`."
             )
 
-        if self.file_format == "csv" and self.glob_pattern is not None:
+        if self.glob_patterns is not None and len(self.glob_patterns) == 0:
             raise ValueError(
-                "CSV sources do not support `glob_pattern` in the MVP."
+                "DataAdapter requires at least one glob pattern when "
+                "`glob_patterns` is provided."
+            )
+
+        if self.file_format == "csv" and (
+            self.glob_pattern is not None
+            or self.glob_patterns is not None
+        ):
+            raise ValueError(
+                "CSV sources do not support glob patterns in the MVP."
+            )
+
+        if self.file_format == "grib" and self.glob_patterns is not None:
+            raise ValueError(
+                "GRIB sources do not support `glob_patterns`."
             )
 
         if self.file_format == "csv" and self.geometry_type != "fixed_point":
