@@ -277,8 +277,8 @@ TIME_SERIES_COMPARISON_Y_LIMITS = {
     "wind_speed_10m": (0.0, 8.0),
 }
 SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS = (
-    ("sensible_heat_flux", "Sensible heat flux [W m^-2]"),
-    ("latent_heat_flux", "Latent heat flux [W m^-2]"),
+    ("sensible_heat_flux", "Sensible heat flux [W/m²]"),
+    ("latent_heat_flux", "Latent heat flux [W/m²]"),
 )
 SURFACE_FLUX_TIME_SERIES_NO_OBSERVATION_INIT_DATES = {"20140216"}
 
