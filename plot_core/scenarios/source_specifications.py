@@ -287,6 +287,7 @@ def build_surface_flux_time_series_era5_source_specification(
                     "sensible_heat_flux_from_hourly_accumulated_energy"
                 ),
                 derivation_options={
+                    "sign_multiplier": -1.0,
                     "long_name": "Sensible heat flux",
                 },
             ),
@@ -295,6 +296,7 @@ def build_surface_flux_time_series_era5_source_specification(
                     "latent_heat_flux_from_hourly_accumulated_energy"
                 ),
                 derivation_options={
+                    "sign_multiplier": -1.0,
                     "long_name": "Latent heat flux",
                 },
             ),

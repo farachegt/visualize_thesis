@@ -280,6 +280,7 @@ SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS = (
     ("sensible_heat_flux", "Sensible heat flux [W m^-2]"),
     ("latent_heat_flux", "Latent heat flux [W m^-2]"),
 )
+SURFACE_FLUX_TIME_SERIES_NO_OBSERVATION_INIT_DATES = {"20140216"}
 
 
 # ============================================================================
@@ -3585,14 +3586,18 @@ def build_surface_flux_time_series_comparison_adapters(
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
 ) -> list[DataAdapter]:
     """Build adapters for the SHOC, MYNN, ERA5 and flux-tower comparison."""
-    return [
+    adapters = [
         build_surface_flux_time_series_shoc_adapter(init_date=init_date),
         build_surface_flux_time_series_mynn_adapter(init_date=init_date),
         build_surface_flux_time_series_era5_adapter(init_date=init_date),
-        build_surface_flux_goamazon_eddy_correlation_adapter(
-            init_date=init_date
-        ),
     ]
+    if _surface_flux_time_series_has_observation(init_date):
+        adapters.append(
+            build_surface_flux_goamazon_eddy_correlation_adapter(
+                init_date=init_date
+            )
+        )
+    return adapters
 
 
 def build_surface_flux_time_series_comparison_inputs(
@@ -3612,6 +3617,7 @@ def build_surface_flux_time_series_comparison_inputs(
         build_time_series_init_datetime_string(init_date),
         "ns",
     )
+    source_styles = _build_surface_flux_time_series_source_styles(init_date)
     if adapters is None:
         source_adapters = build_surface_flux_time_series_comparison_adapters(
             init_date=start_time
@@ -3619,12 +3625,12 @@ def build_surface_flux_time_series_comparison_inputs(
     else:
         source_adapters = list(adapters)
 
-    expected_source_count = len(TIME_SERIES_COMPARISON_SOURCE_STYLES)
+    expected_source_count = len(source_styles)
     if len(source_adapters) != expected_source_count:
         raise ValueError(
             "Expected "
-            f"{expected_source_count} adapters in SHOC/MYNN/ERA5/"
-            "Observation order."
+            f"{expected_source_count} adapters in "
+            f"{_format_source_labels_for_error(source_styles)} order."
         )
 
     end_time_exclusive = start_time + np.timedelta64(
@@ -3650,7 +3656,11 @@ def build_surface_flux_time_series_comparison_inputs(
         )
 
     panels: list[TimeSeriesPanelInput] = []
-    station_source_index = expected_source_count - 1
+    observation_source_index = (
+        expected_source_count - 1
+        if _surface_flux_time_series_has_observation(init_date)
+        else None
+    )
     panel_count = len(SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS)
     for panel_index, (
         variable_name,
@@ -3660,7 +3670,7 @@ def build_surface_flux_time_series_comparison_inputs(
         for source_index, (
             source_label,
             source_color,
-        ) in enumerate(TIME_SERIES_COMPARISON_SOURCE_STYLES):
+        ) in enumerate(source_styles):
             adapter = source_adapters[source_index]
             render_specification = RenderSpecification(
                 artist_method="plot",
@@ -3669,7 +3679,7 @@ def build_surface_flux_time_series_comparison_inputs(
                     "linewidth": 1.6,
                 },
             )
-            if source_index == station_source_index:
+            if source_index == observation_source_index:
                 raw_station_plot_data = adapter.to_time_series_plot_data(
                     variable_name=variable_name,
                     request=station_request,
@@ -3770,11 +3780,12 @@ def _build_surface_flux_time_series_comparison_title(
 ) -> str:
     """Return the figure title for one surface-flux comparison case."""
     compact_date = normalize_time_series_init_date(init_date)
+    source_styles = _build_surface_flux_time_series_source_styles(init_date)
     init_date_label = (
         f"{compact_date[:4]}-{compact_date[4:6]}-{compact_date[6:]}"
     )
     return (
-        "SHOC, MYNN, ERA5 and Observation Surface-Flux "
+        f"{_format_source_labels_for_title(source_styles)} Surface-Flux "
         "Time-Series Comparison - "
         f"{build_time_series_season_label(init_date)} "
         f"(init {init_date_label})"
@@ -3799,6 +3810,40 @@ def build_surface_flux_time_series_comparison_figure(
         panels=panels,
         figure_specification=figure_specification,
     )
+
+
+def _surface_flux_time_series_has_observation(init_date: object) -> bool:
+    """Return whether the surface-flux case has observation files."""
+    compact_date = normalize_time_series_init_date(init_date)
+    return compact_date not in SURFACE_FLUX_TIME_SERIES_NO_OBSERVATION_INIT_DATES
+
+
+def _build_surface_flux_time_series_source_styles(
+    init_date: object,
+) -> tuple[tuple[str, str], ...]:
+    """Return source styles for one surface-flux comparison case."""
+    if _surface_flux_time_series_has_observation(init_date):
+        return TIME_SERIES_COMPARISON_SOURCE_STYLES
+    return TIME_SERIES_COMPARISON_SOURCE_STYLES[:-1]
+
+
+def _format_source_labels_for_title(
+    source_styles: Sequence[tuple[str, str]],
+) -> str:
+    """Return source labels formatted for a figure title."""
+    labels = [source_label for source_label, _ in source_styles]
+    if len(labels) == 1:
+        return labels[0]
+    if len(labels) == 2:
+        return " and ".join(labels)
+    return f"{', '.join(labels[:-1])} and {labels[-1]}"
+
+
+def _format_source_labels_for_error(
+    source_styles: Sequence[tuple[str, str]],
+) -> str:
+    """Return source labels formatted for adapter-order errors."""
+    return "/".join(source_label for source_label, _ in source_styles)
 
 
 def _validate_time_series_comparison_mode(

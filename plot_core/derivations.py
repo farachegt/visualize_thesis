@@ -360,6 +360,7 @@ def derive_specific_humidity_from_temperature_relative_humidity_surface_pressure
 def derive_hourly_flux_rate_from_accumulated_energy(
     accumulated_flux: ArrayLike,
     seconds: float = 3600.0,
+    sign_multiplier: float = 1.0,
     long_name: str = "Surface flux",
 ) -> ArrayLike:
     """Convert hourly accumulated surface energy to a flux rate.
@@ -370,6 +371,9 @@ def derive_hourly_flux_rate_from_accumulated_energy(
         Accumulated energy per unit area, expected in `J m^-2`.
     seconds:
         Accumulation period in seconds. The default is one hour.
+    sign_multiplier:
+        Multiplier applied after rate conversion. Use `-1` when the source
+        sign convention is opposite to the target convention.
     long_name:
         Descriptive name written to the output metadata.
 
@@ -382,7 +386,7 @@ def derive_hourly_flux_rate_from_accumulated_energy(
     if seconds <= 0:
         raise ValueError("Flux accumulation seconds must be positive.")
 
-    flux_values = _to_numpy(accumulated_flux) / seconds
+    flux_values = sign_multiplier * _to_numpy(accumulated_flux) / seconds
     return _wrap_result(
         template=accumulated_flux,
         values=flux_values,
@@ -445,12 +449,12 @@ DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
     "sensible_heat_flux_from_hourly_accumulated_energy": {
         "dependencies": ("accumulated_sensible_heat_flux",),
         "function": derive_hourly_flux_rate_from_accumulated_energy,
-        "accepted_options": ("seconds", "long_name"),
+        "accepted_options": ("seconds", "sign_multiplier", "long_name"),
     },
     "latent_heat_flux_from_hourly_accumulated_energy": {
         "dependencies": ("accumulated_latent_heat_flux",),
         "function": derive_hourly_flux_rate_from_accumulated_energy,
-        "accepted_options": ("seconds", "long_name"),
+        "accepted_options": ("seconds", "sign_multiplier", "long_name"),
     },
 }
 
