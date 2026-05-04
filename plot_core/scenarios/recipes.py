@@ -3534,13 +3534,14 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             )
         )
 
+    figsize = (13,8) if series_mode == "full" else (10, 8)
     figure_specification = FigureSpecification(
         nrows=3,
         ncols=1,
         suptitle=_build_time_series_comparison_title(init_date),
         suptitle_kwargs={"fontsize": 13},
         figure_kwargs={
-            "figsize": (13, 8),
+            "figsize": figsize,
             "constrained_layout": True,
             "sharex": True,
         },
