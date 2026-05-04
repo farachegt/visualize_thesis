@@ -7,6 +7,7 @@ import numpy as np
 
 VerticalAxis = Literal["pressure", "height"]
 TimeReduce = Literal["mean", "sum", "min", "max"]
+PointSamplePattern = Literal["nearest", "cross_5"]
 BBox = Tuple[float, float, float, float]
 
 
@@ -79,6 +80,10 @@ class TimeSeriesRequest(BaseRequest):
         series.
     time_frequency:
         Optional xarray-compatible resampling frequency.
+    point_sample_pattern:
+        Point sampling strategy for gridded point extraction. `nearest`
+        returns the closest grid point. `cross_5` returns the closest grid
+        point plus its north, south, east and west neighbours.
 
     Notes
     -----
@@ -92,6 +97,7 @@ class TimeSeriesRequest(BaseRequest):
     bbox: BBox | None = None
     vertical_selection: Any | None = None
     time_frequency: str | None = None
+    point_sample_pattern: PointSamplePattern = "nearest"
 
 
 @dataclass

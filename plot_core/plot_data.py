@@ -62,6 +62,19 @@ class TimeSeriesPlotData:
 
 
 @dataclass
+class TimeSeriesBandPlotData:
+    label: str
+    times: np.ndarray
+    lower_values: np.ndarray
+    upper_values: np.ndarray
+    units: str | None = None
+    site_label: str | None = None
+    vertical_label: str | None = None
+    value_axis: ValueAxis = "value"
+    draw_mask: np.ndarray | None = None
+
+
+@dataclass
 class TimeVerticalSectionPlotData:
     label: str
     field: np.ndarray

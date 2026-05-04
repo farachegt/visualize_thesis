@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Literal, Mapping, Sequence
 
 import cartopy.crs as ccrs
@@ -9,7 +10,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
-from plot_core.plot_data import TimeSeriesPlotData
+from plot_core.plot_data import TimeSeriesBandPlotData, TimeSeriesPlotData
 from plot_core.recipes.cross_sections import (
     CrossSectionLayerInput,
     CrossSectionPanelInput,
@@ -266,6 +267,8 @@ TIME_SERIES_COMPARISON_SOURCE_STYLES = (
     ("ERA5", "gray"),
     ("Observation", "black"),
 )
+TIME_SERIES_COMPARISON_MONAN_SOURCE_LABELS = {"SHOC", "MYNN"}
+TIME_SERIES_COMPARISON_STD_BAND_ALPHA = 0.18
 TIME_SERIES_COMPARISON_PANELS = (
     ("temperature_2m", "2 m temperature [°C]"),
     ("specific_humidity_2m", "Specific humidity [g/kg]"),
@@ -3414,6 +3417,9 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     gridded_request = build_time_series_comparison_gridded_request(
         init_date=start_time
     )
+    gridded_cross_5_request = _build_cross_5_time_series_request(
+        gridded_request
+    )
     station_request = build_time_series_comparison_station_request(
         init_date=start_time
     )
@@ -3476,6 +3482,37 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                         render_specification=render_specification,
                         legend_label=source_label,
                     )
+                )
+            elif _is_monan_time_series_source(source_label):
+                if series_mode == "hourly_mean":
+                    raw_plot_data = adapter.to_time_series_plot_data(
+                        variable_name=variable_name,
+                        request=gridded_request,
+                    )
+                    (
+                        prepared_plot_data,
+                        std_band_plot_data,
+                    ) = _build_hourly_mean_time_series_mean_std_plot_data(
+                        raw_plot_data,
+                        start_time=start_time,
+                        end_time_exclusive=end_time_exclusive,
+                        utc_offset_hours=local_utc_offset_hours,
+                    )
+                else:
+                    (
+                        prepared_plot_data,
+                        std_band_plot_data,
+                    ) = adapter.to_time_series_mean_std_plot_data(
+                        variable_name=variable_name,
+                        request=gridded_cross_5_request,
+                    )
+                _append_time_series_mean_std_layers(
+                    layers,
+                    mean_plot_data=prepared_plot_data,
+                    std_band_plot_data=std_band_plot_data,
+                    line_render_specification=render_specification,
+                    source_color=source_color,
+                    source_label=source_label,
                 )
             elif series_mode == "hourly_mean":
                 raw_plot_data = adapter.to_time_series_plot_data(
@@ -3641,6 +3678,9 @@ def build_surface_flux_time_series_comparison_inputs(
     gridded_request = build_time_series_comparison_gridded_request(
         init_date=start_time
     )
+    gridded_cross_5_request = _build_cross_5_time_series_request(
+        gridded_request
+    )
     station_request = build_time_series_comparison_station_request(
         init_date=start_time
     )
@@ -3707,6 +3747,37 @@ def build_surface_flux_time_series_comparison_inputs(
                         render_specification=render_specification,
                         legend_label=source_label,
                     )
+                )
+            elif _is_monan_time_series_source(source_label):
+                if series_mode == "hourly_mean":
+                    raw_plot_data = adapter.to_time_series_plot_data(
+                        variable_name=variable_name,
+                        request=gridded_request,
+                    )
+                    (
+                        prepared_plot_data,
+                        std_band_plot_data,
+                    ) = _build_hourly_mean_time_series_mean_std_plot_data(
+                        raw_plot_data,
+                        start_time=start_time,
+                        end_time_exclusive=end_time_exclusive,
+                        utc_offset_hours=local_utc_offset_hours,
+                    )
+                else:
+                    (
+                        prepared_plot_data,
+                        std_band_plot_data,
+                    ) = adapter.to_time_series_mean_std_plot_data(
+                        variable_name=variable_name,
+                        request=gridded_cross_5_request,
+                    )
+                _append_time_series_mean_std_layers(
+                    layers,
+                    mean_plot_data=prepared_plot_data,
+                    std_band_plot_data=std_band_plot_data,
+                    line_render_specification=render_specification,
+                    source_color=source_color,
+                    source_label=source_label,
                 )
             elif series_mode == "hourly_mean":
                 raw_plot_data = adapter.to_time_series_plot_data(
@@ -3908,6 +3979,59 @@ def _build_hourly_mean_local_time_axes_calls(
     ]
 
 
+def _build_cross_5_time_series_request(
+    request: TimeSeriesRequest,
+) -> TimeSeriesRequest:
+    """Return a copy of a point request that samples the 5-point cross."""
+    return replace(request, point_sample_pattern="cross_5")
+
+
+def _is_monan_time_series_source(source_label: str) -> bool:
+    """Return whether a source should receive MONAN std-band treatment."""
+    return source_label in TIME_SERIES_COMPARISON_MONAN_SOURCE_LABELS
+
+
+def _append_time_series_mean_std_layers(
+    layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput],
+    *,
+    mean_plot_data: TimeSeriesPlotData,
+    std_band_plot_data: TimeSeriesBandPlotData,
+    line_render_specification: RenderSpecification,
+    source_color: str,
+    source_label: str,
+) -> None:
+    """Append std band and mean line layers in render order."""
+    layers.append(
+        PreparedTimeSeriesLayerInput(
+            plot_data=std_band_plot_data,
+            render_specification=_build_time_series_std_band_render_spec(
+                source_color
+            ),
+        )
+    )
+    layers.append(
+        PreparedTimeSeriesLayerInput(
+            plot_data=mean_plot_data,
+            render_specification=line_render_specification,
+            legend_label=source_label,
+        )
+    )
+
+
+def _build_time_series_std_band_render_spec(
+    source_color: str,
+) -> RenderSpecification:
+    """Build the unlabeled render spec for a standard-deviation band."""
+    return RenderSpecification(
+        artist_method="fill_between",
+        artist_kwargs={
+            "color": source_color,
+            "alpha": TIME_SERIES_COMPARISON_STD_BAND_ALPHA,
+            "linewidth": 0.0,
+        },
+    )
+
+
 def _build_hourly_nearest_station_plot_data(
     plot_data: TimeSeriesPlotData,
     *,
@@ -4025,6 +4149,79 @@ def _build_hourly_mean_time_series_plot_data(
         value_axis=plot_data.value_axis,
         draw_mask=hourly_draw_mask,
     )
+
+
+def _build_hourly_mean_time_series_mean_std_plot_data(
+    plot_data: TimeSeriesPlotData,
+    *,
+    start_time: np.datetime64,
+    end_time_exclusive: np.datetime64,
+    utc_offset_hours: int,
+) -> tuple[TimeSeriesPlotData, TimeSeriesBandPlotData]:
+    """Return hourly means plus temporal std bands by local hour."""
+    source_times = np.asarray(plot_data.times, dtype="datetime64[ns]")
+    source_values = np.asarray(plot_data.values, dtype=float)
+    if source_times.size != source_values.size:
+        raise ValueError(
+            "Time-series hourly statistics require matching time and "
+            "value sizes."
+        )
+
+    in_window = (
+        (source_times >= start_time)
+        & (source_times < end_time_exclusive)
+    )
+    if not np.any(in_window):
+        raise ValueError(
+            "Time series has no samples within the requested comparison "
+            "interval."
+        )
+
+    window_times = source_times[in_window]
+    window_values = source_values[in_window]
+    local_hours = _compute_local_hours(window_times, utc_offset_hours)
+    hourly_values = np.full(24, np.nan, dtype=float)
+    hourly_std_values = np.full(24, np.nan, dtype=float)
+    for hour in range(24):
+        hour_values = window_values[local_hours == hour]
+        valid_values = hour_values[~np.isnan(hour_values)]
+        if valid_values.size > 0:
+            hourly_values[hour] = float(np.mean(valid_values))
+            hourly_std_values[hour] = float(np.std(valid_values, ddof=0))
+
+    hourly_draw_mask = None
+    if plot_data.draw_mask is not None:
+        source_draw_mask = np.asarray(plot_data.draw_mask)[in_window]
+        hourly_draw_mask = np.zeros(24, dtype=bool)
+        for hour in range(24):
+            hour_mask = local_hours == hour
+            if np.any(hour_mask):
+                hourly_draw_mask[hour] = bool(
+                    np.any(source_draw_mask[hour_mask])
+                )
+
+    mean_plot_data = TimeSeriesPlotData(
+        label=plot_data.label,
+        times=np.arange(24),
+        values=hourly_values,
+        units=plot_data.units,
+        site_label=plot_data.site_label,
+        vertical_label=plot_data.vertical_label,
+        value_axis=plot_data.value_axis,
+        draw_mask=hourly_draw_mask,
+    )
+    band_plot_data = TimeSeriesBandPlotData(
+        label=plot_data.label,
+        times=np.arange(24),
+        lower_values=hourly_values - hourly_std_values,
+        upper_values=hourly_values + hourly_std_values,
+        units=plot_data.units,
+        site_label=plot_data.site_label,
+        vertical_label=plot_data.vertical_label,
+        value_axis=plot_data.value_axis,
+        draw_mask=hourly_draw_mask,
+    )
+    return mean_plot_data, band_plot_data
 
 
 def _compute_local_hours(

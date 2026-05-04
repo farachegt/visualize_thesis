@@ -19,6 +19,7 @@ from .geometry import (
 )
 from .plot_data import (
     HorizontalFieldPlotData,
+    TimeSeriesBandPlotData,
     TimeSeriesPlotData,
     TimeVerticalSectionPlotData,
     VerticalCrossSectionPlotData,
@@ -404,6 +405,62 @@ class DataAdapter:
             ),
         )
 
+    def to_time_series_mean_std_plot_data(
+        self,
+        *,
+        variable_name: str,
+        request: TimeSeriesRequest,
+    ) -> tuple[TimeSeriesPlotData, TimeSeriesBandPlotData]:
+        """Build mean and mean-plus/minus-std time-series plot data.
+
+        The requested source may keep one or more sample dimensions after the
+        time axis, for example a small grid-point stencil. The returned line is
+        the mean across those sample dimensions at each timestamp, and the band
+        is mean +/- one population standard deviation.
+        """
+        self._validate_requested_variable(variable_name)
+        prepared = self._prepare_time_series_dataset(
+            self._build_required_variable_names(variable_name),
+            request,
+        )
+        values = self._resolve_variable(prepared, variable_name, {})
+        time_name = self._resolve_axis_name(prepared, "time")
+        if time_name is None:
+            raise ValueError(
+                "TimeSeriesPlotData requires a resolved time axis."
+            )
+
+        values, times = self._prepare_time_series_values_and_times(
+            prepared,
+            values,
+            time_name,
+            request,
+            preserve_sample_dimensions=True,
+        )
+        mean_values, std_values = self._mean_and_std_over_samples(values)
+        units = self._extract_units(values)
+        vertical_label = self._format_vertical_label(
+            request.vertical_selection
+        )
+        mean_plot_data = TimeSeriesPlotData(
+            label=self.source_specification.label,
+            times=times,
+            values=mean_values,
+            units=units,
+            site_label=self.source_specification.site_label,
+            vertical_label=vertical_label,
+        )
+        band_plot_data = TimeSeriesBandPlotData(
+            label=self.source_specification.label,
+            times=times,
+            lower_values=mean_values - std_values,
+            upper_values=mean_values + std_values,
+            units=units,
+            site_label=self.source_specification.site_label,
+            vertical_label=vertical_label,
+        )
+        return mean_plot_data, band_plot_data
+
     def to_time_vertical_section_plot_data(
         self,
         *,
@@ -781,6 +838,8 @@ class DataAdapter:
         values: xr.DataArray,
         time_name: str,
         request: TimeSeriesRequest,
+        *,
+        preserve_sample_dimensions: bool = False,
     ) -> tuple[xr.DataArray, np.ndarray]:
         """Return time-series values and a matching 1D datetime axis.
 
@@ -790,6 +849,17 @@ class DataAdapter:
         1D valid-time series here, after the geometry handler has selected the
         point or region.
         """
+        if preserve_sample_dimensions and time_name in values.dims:
+            ordered_dimensions = (time_name,) + tuple(
+                dimension
+                for dimension in values.dims
+                if dimension != time_name
+            )
+            return (
+                values.transpose(*ordered_dimensions),
+                self._to_datetime64_array(dataset[time_name].values),
+            )
+
         if time_name in values.dims:
             extra_dimensions = tuple(
                 dimension
@@ -930,6 +1000,46 @@ class DataAdapter:
             name=values.name,
         )
         return result, selected_times
+
+    def _mean_and_std_over_samples(
+        self,
+        values: xr.DataArray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return mean and population std across non-time dimensions."""
+        value_array = np.asarray(values.values, dtype=float)
+        if value_array.ndim == 0:
+            raise ValueError(
+                "Time-series statistics require at least a time dimension."
+            )
+        if value_array.ndim == 1:
+            return value_array, np.zeros_like(value_array, dtype=float)
+
+        sample_axes = tuple(range(1, value_array.ndim))
+        valid_mask = np.isfinite(value_array)
+        valid_counts = np.sum(valid_mask, axis=sample_axes)
+        sample_sums = np.nansum(value_array, axis=sample_axes)
+        mean_values = np.divide(
+            sample_sums,
+            valid_counts,
+            out=np.full(sample_sums.shape, np.nan, dtype=float),
+            where=valid_counts > 0,
+        )
+
+        mean_for_samples = mean_values.reshape(
+            mean_values.shape + (1,) * (value_array.ndim - 1)
+        )
+        squared_differences = np.where(
+            valid_mask,
+            (value_array - mean_for_samples) ** 2,
+            0.0,
+        )
+        variance_values = np.divide(
+            np.sum(squared_differences, axis=sample_axes),
+            valid_counts,
+            out=np.full(mean_values.shape, np.nan, dtype=float),
+            where=valid_counts > 0,
+        )
+        return mean_values, np.sqrt(variance_values)
 
     def _resolve_vertical_axis_values(
         self,

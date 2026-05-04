@@ -623,6 +623,11 @@ class GriddedGeometryHandler(GeometryHandler):
             request,
         )
         if request.bbox is not None:
+            if request.point_sample_pattern != "nearest":
+                raise ValueError(
+                    "Point sample patterns are only supported with "
+                    "gridded point time-series requests."
+                )
             prepared = self._select_bbox(
                 prepared,
                 source_specification,
@@ -701,6 +706,18 @@ class GriddedGeometryHandler(GeometryHandler):
             raise ValueError(
                 "Gridded time series require either `bbox` or both "
                 "`point_lat` and `point_lon`."
+            )
+        elif request.point_sample_pattern == "cross_5":
+            prepared = self._select_cross_5_grid_points(
+                prepared,
+                source_specification,
+                request.point_lat,
+                request.point_lon,
+            )
+        elif request.point_sample_pattern != "nearest":
+            raise ValueError(
+                "Unsupported gridded point sample pattern: "
+                f"{request.point_sample_pattern!r}."
             )
         else:
             prepared = self._select_nearest_grid_point(
@@ -862,6 +879,86 @@ class GriddedGeometryHandler(GeometryHandler):
                 longitude_name: normalized_point_lon,
             },
             method="nearest",
+        )
+
+    def _select_cross_5_grid_points(
+        self,
+        dataset: xr.Dataset,
+        source_specification: SourceSpecification,
+        point_lat: float,
+        point_lon: float,
+    ) -> xr.Dataset:
+        """Select center plus direct N/S/E/W neighbours from a grid."""
+        latitude_name = self._resolve_axis_name(
+            dataset,
+            source_specification,
+            "latitude",
+        )
+        longitude_name = self._resolve_axis_name(
+            dataset,
+            source_specification,
+            "longitude",
+        )
+        if latitude_name is None or longitude_name is None:
+            raise ValueError(
+                "Latitude and longitude are required for point selection."
+            )
+
+        dataset = self._ensure_coordinate(dataset, latitude_name)
+        dataset = self._ensure_coordinate(dataset, longitude_name)
+        latitude_values = np.asarray(dataset[latitude_name].values)
+        longitude_values = np.asarray(dataset[longitude_name].values)
+
+        if latitude_values.ndim != 1 or longitude_values.ndim != 1:
+            raise NotImplementedError(
+                "The MVP supports cross-5 point selection only for 1D "
+                "latitude and longitude coordinates."
+            )
+
+        normalized_point_lon = self._normalize_longitude_to_dataset(
+            point_lon,
+            longitude_values,
+            source_specification,
+        )
+        latitude_index = self._nearest_index(latitude_values, point_lat)
+        longitude_index = self._nearest_index(
+            longitude_values,
+            normalized_point_lon,
+        )
+        if (
+            latitude_index == 0
+            or latitude_index == latitude_values.size - 1
+            or longitude_index == 0
+            or longitude_index == longitude_values.size - 1
+        ):
+            raise ValueError(
+                "Cannot build a cross-5 point sample at the grid edge."
+            )
+
+        sample_dimension = "__point_sample"
+        sample_specs = (
+            ("center", latitude_index, longitude_index),
+            ("north", latitude_index + 1, longitude_index),
+            ("south", latitude_index - 1, longitude_index),
+            ("east", latitude_index, longitude_index + 1),
+            ("west", latitude_index, longitude_index - 1),
+        )
+        sampled_datasets = [
+            dataset.isel(
+                {
+                    latitude_name: sample_latitude_index,
+                    longitude_name: sample_longitude_index,
+                }
+            )
+            for _, sample_latitude_index, sample_longitude_index
+            in sample_specs
+        ]
+        return xr.concat(
+            sampled_datasets,
+            dim=xr.IndexVariable(
+                sample_dimension,
+                [label for label, _, _ in sample_specs],
+            ),
         )
 
     def _select_bbox(

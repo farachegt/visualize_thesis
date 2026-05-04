@@ -6,7 +6,7 @@ from typing import Any, Sequence, Union
 from matplotlib.figure import Figure
 
 from ..adapter import DataAdapter
-from ..plot_data import TimeSeriesPlotData
+from ..plot_data import TimeSeriesBandPlotData, TimeSeriesPlotData
 from ..rendering import (
     FigureSpecification,
     PlotLayer,
@@ -60,7 +60,7 @@ class PreparedTimeSeriesLayerInput:
         not already defined there.
     """
 
-    plot_data: TimeSeriesPlotData
+    plot_data: TimeSeriesPlotData | TimeSeriesBandPlotData
     render_specification: RenderSpecification
     legend_label: str | None = None
 

@@ -10,18 +10,26 @@ from matplotlib.figure import Figure
 
 from .plot_data import (
     HorizontalFieldPlotData,
+    TimeSeriesBandPlotData,
     TimeSeriesPlotData,
     TimeVerticalSectionPlotData,
     VerticalCrossSectionPlotData,
     VerticalProfilePlotData,
 )
 
-ArtistMethod = Literal["plot", "contourf", "contour", "pcolormesh"]
+ArtistMethod = Literal[
+    "plot",
+    "fill_between",
+    "contourf",
+    "contour",
+    "pcolormesh",
+]
 PlotDataType = Union[
     VerticalProfilePlotData,
     HorizontalFieldPlotData,
     VerticalCrossSectionPlotData,
     TimeSeriesPlotData,
+    TimeSeriesBandPlotData,
     TimeVerticalSectionPlotData,
 ]
 
@@ -103,6 +111,7 @@ class SpecializedPlotter:
     _SUPPORTED_METHODS = {
         VerticalProfilePlotData: {"plot"},
         TimeSeriesPlotData: {"plot"},
+        TimeSeriesBandPlotData: {"fill_between"},
         HorizontalFieldPlotData: {"contourf", "contour", "pcolormesh"},
         VerticalCrossSectionPlotData: {"contourf", "contour", "pcolormesh"},
         TimeVerticalSectionPlotData: {"contourf", "contour", "pcolormesh"},
@@ -292,6 +301,13 @@ class SpecializedPlotter:
         if isinstance(plot_data, TimeSeriesPlotData):
             return (plot_data.times, plot_data.values)
 
+        if isinstance(plot_data, TimeSeriesBandPlotData):
+            return (
+                plot_data.times,
+                plot_data.lower_values,
+                plot_data.upper_values,
+            )
+
         if isinstance(plot_data, HorizontalFieldPlotData):
             return (
                 plot_data.longitude,
@@ -407,6 +423,9 @@ class SpecializedPlotter:
             return ("transect", plot_data.vertical_axis)
 
         if isinstance(plot_data, TimeSeriesPlotData):
+            return ("time", plot_data.value_axis)
+
+        if isinstance(plot_data, TimeSeriesBandPlotData):
             return ("time", plot_data.value_axis)
 
         if isinstance(plot_data, TimeVerticalSectionPlotData):
