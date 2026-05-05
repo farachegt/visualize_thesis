@@ -310,6 +310,16 @@ VERTICAL_PROFILE_COMPARISON_PANELS = (
     ("wind_speed", "Wind speed", "m/s"),
 )
 VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
+VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA = 1000.0
+VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA = 700.0
+VERTICAL_PROFILE_COMPARISON_PRESSURE_TICKS_HPA = np.arange(
+    VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA,
+    VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA + 1.0,
+    100.0,
+)
+VERTICAL_PROFILE_COMPARISON_UTC_OFFSET_HOURS = (
+    TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS
+)
 VERTICAL_PROFILE_STD_BAND_ALPHA = 0.18
 
 
@@ -4006,6 +4016,9 @@ def build_vertical_profile_comparison_full_inputs(
                             if row_index == 0 and column_index == 0
                             else None
                         ),
+                        axes_calls=(
+                            _build_vertical_profile_pressure_axes_calls()
+                        ),
                     )
                 )
     finally:
@@ -4177,13 +4190,31 @@ def _build_vertical_profile_panel_axes_set_kwargs(
         axes_set_kwargs["title"] = panel_label
     if column_index == 0:
         axes_set_kwargs["ylabel"] = (
-            f"{_format_synoptic_hour_label(target_time)} UTC\n"
+            f"{_format_synoptic_local_hour_label(target_time)} LT\n"
             "Pressure [hPa]"
         )
     if row_index == len(VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS) - 1:
         axes_set_kwargs["xlabel"] = f"{panel_label} [{x_units}]"
 
     return axes_set_kwargs
+
+
+def _build_vertical_profile_pressure_axes_calls() -> list[dict[str, object]]:
+    """Return pressure-axis calls for the 1000-700 hPa profile layer."""
+    return [
+        {"method": "invert_yaxis"},
+        {
+            "method": "set_ylim",
+            "args": [
+                VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA,
+                VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA,
+            ],
+        },
+        {
+            "method": "set_yticks",
+            "args": [VERTICAL_PROFILE_COMPARISON_PRESSURE_TICKS_HPA],
+        },
+    ]
 
 
 def _build_vertical_profile_comparison_target_times(
@@ -4235,12 +4266,15 @@ def _build_vertical_profile_comparison_title(
     )
 
 
-def _format_synoptic_hour_label(time_value: np.datetime64) -> str:
-    """Return a two-digit UTC hour for one target datetime."""
-    hour_value = (
+def _format_synoptic_local_hour_label(time_value: np.datetime64) -> str:
+    """Return a two-digit local hour for one UTC target datetime."""
+    utc_hour_value = (
         np.datetime64(time_value, "h").astype("datetime64[h]").astype(int) % 24
     )
-    return f"{int(hour_value):02d}"
+    local_hour_value = (
+        utc_hour_value + VERTICAL_PROFILE_COMPARISON_UTC_OFFSET_HOURS
+    ) % 24
+    return f"{int(local_hour_value):02d}"
 
 
 def _surface_flux_time_series_has_observation(init_date: object) -> bool:
