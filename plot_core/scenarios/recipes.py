@@ -309,6 +309,11 @@ VERTICAL_PROFILE_COMPARISON_PANELS = (
     ("qv", "Specific humidity", "g/kg"),
     ("wind_speed", "Wind speed", "m/s"),
 )
+VERTICAL_PROFILE_COMPARISON_X_LIMITS = {
+    "theta": (285.0, 320.0),
+    "qv": (7.0, 20.0),
+    "wind_speed": (0.0, 15.0),
+}
 VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
 VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA = 1000.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA = 700.0
@@ -4005,6 +4010,7 @@ def build_vertical_profile_comparison_full_inputs(
                             _build_vertical_profile_panel_axes_set_kwargs(
                                 row_index=row_index,
                                 column_index=column_index,
+                                variable_name=variable_name,
                                 target_time=target_time,
                                 panel_label=panel_label,
                                 x_units=x_units,
@@ -4180,12 +4186,15 @@ def _build_vertical_profile_panel_axes_set_kwargs(
     *,
     row_index: int,
     column_index: int,
+    variable_name: str,
     target_time: np.datetime64,
     panel_label: str,
     x_units: str,
 ) -> dict[str, object]:
     """Build axis labels for one profile subplot."""
-    axes_set_kwargs: dict[str, object] = {}
+    axes_set_kwargs: dict[str, object] = {
+        "xlim": VERTICAL_PROFILE_COMPARISON_X_LIMITS[variable_name],
+    }
     if row_index == 0:
         axes_set_kwargs["title"] = panel_label
     if column_index == 0:
