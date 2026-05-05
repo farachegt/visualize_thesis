@@ -315,6 +315,7 @@ VERTICAL_PROFILE_COMPARISON_X_LIMITS = {
     "wind_speed": (0.0, 15.0),
 }
 VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
+VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER = (1, 2, 3, 0)
 VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA = 1000.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA = 700.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TICKS_HPA = np.arange(
@@ -3977,7 +3978,10 @@ def build_vertical_profile_comparison_full_inputs(
             for target_time in target_times
         ]
         panels: list[PanelInput] = []
-        for row_index, target_time in enumerate(target_times):
+        display_target_times = target_times[
+            list(VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER)
+        ]
+        for row_index, target_time in enumerate(display_target_times):
             nearest_request = build_vertical_profile_comparison_gridded_request(
                 time_value=target_time,
             )
