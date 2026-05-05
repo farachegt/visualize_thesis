@@ -36,8 +36,8 @@ def derive_theta_from_pressure_temperature(
     """
     mpcalc, units = _require_metpy()
     theta_quantity = mpcalc.potential_temperature(
-        _to_quantity(pressure, units.pascal),
-        _to_quantity(temperature, units.kelvin),
+        _to_quantity_with_metadata_units(pressure, units.pascal, units),
+        _to_quantity_with_metadata_units(temperature, units.kelvin, units),
     )
     return _wrap_result(
         template=temperature,
@@ -288,14 +288,44 @@ def derive_specific_humidity_from_dewpoint_surface_pressure(
     """
     mpcalc, units = _require_metpy()
     specific_humidity_quantity = mpcalc.specific_humidity_from_dewpoint(
-        _to_quantity(surface_pressure, units.pascal),
-        _to_quantity(dewpoint_temperature, units.kelvin),
+        _to_quantity_with_metadata_units(
+            surface_pressure,
+            units.pascal,
+            units,
+        ),
+        _to_quantity_with_metadata_units(
+            dewpoint_temperature,
+            units.kelvin,
+            units,
+        ),
     ).to("g/kg")
     return _wrap_result(
         template=dewpoint_temperature,
         values=specific_humidity_quantity.magnitude,
         units_text="g kg-1",
         long_name="Specific humidity at 2 m",
+    )
+
+
+def derive_specific_humidity_from_dewpoint_pressure(
+    pressure: ArrayLike,
+    dewpoint_temperature: ArrayLike,
+) -> ArrayLike:
+    """Derive profile specific humidity from pressure and dewpoint."""
+    mpcalc, units = _require_metpy()
+    specific_humidity_quantity = mpcalc.specific_humidity_from_dewpoint(
+        _to_quantity_with_metadata_units(pressure, units.pascal, units),
+        _to_quantity_with_metadata_units(
+            dewpoint_temperature,
+            units.kelvin,
+            units,
+        ),
+    ).to("g/kg")
+    return _wrap_result(
+        template=dewpoint_temperature,
+        values=specific_humidity_quantity.magnitude,
+        units_text="g kg-1",
+        long_name="Specific humidity",
     )
 
 
@@ -439,6 +469,11 @@ DERIVATION_REGISTRY: Dict[str, Dict[str, Any]] = {
         "function": derive_specific_humidity_from_dewpoint_surface_pressure,
         "accepted_options": (),
     },
+    "specific_humidity_from_dewpoint_pressure": {
+        "dependencies": ("pressure", "dewpoint_temperature"),
+        "function": derive_specific_humidity_from_dewpoint_pressure,
+        "accepted_options": (),
+    },
     "specific_humidity_from_temperature_relative_humidity_surface_pressure": {
         "dependencies": ("temperature_2m", "rh", "surface_pressure"),
         "function": (
@@ -525,6 +560,21 @@ def _to_quantity(values: ArrayLike, units_obj: Any) -> Any:
     Any
         Pint quantity built from the input values.
     """
+    return _to_numpy(values) * units_obj
+
+
+def _to_quantity_with_metadata_units(
+    values: ArrayLike,
+    default_units_obj: Any,
+    units_registry: Any,
+) -> Any:
+    """Convert array-like input using attrs units when available."""
+    units_text = _extract_units(values)
+    units_obj = (
+        units_registry(units_text)
+        if units_text is not None
+        else default_units_obj
+    )
     return _to_numpy(values) * units_obj
 
 

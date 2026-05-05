@@ -5,6 +5,7 @@ import numpy as np
 from plot_core.adapter import DataAdapter
 from plot_core.requests import (
     HorizontalFieldRequest,
+    PointSamplePattern,
     TimeSeriesRequest,
     VerticalProfileRequest,
 )
@@ -18,6 +19,8 @@ TIME_SERIES_COMPARISON_INIT_DATE = np.datetime64("2014-10-02T00:00:00")
 TIME_SERIES_COMPARISON_DURATION_DAYS = 5
 TIME_SERIES_COMPARISON_POINT_LAT = -3.21297
 TIME_SERIES_COMPARISON_POINT_LON = -60.5981
+VERTICAL_PROFILE_COMPARISON_POINT_LAT = -3.21
+VERTICAL_PROFILE_COMPARISON_POINT_LON = -60.6
 
 
 def build_model_single_time_request(adapter: DataAdapter) -> np.ndarray:
@@ -175,6 +178,32 @@ def build_time_series_comparison_station_request(
     """Build the 5-day fixed-point station request."""
     return TimeSeriesRequest(
         times=_build_time_series_comparison_times(init_date),
+    )
+
+
+def build_vertical_profile_comparison_gridded_request(
+    *,
+    time_value: object,
+    point_sample_pattern: PointSamplePattern = "nearest",
+) -> VerticalProfileRequest:
+    """Build a gridded profile request at the GoAmazon reference point."""
+    return VerticalProfileRequest(
+        times=np.asarray([time_value], dtype="datetime64[ns]"),
+        vertical_axis="pressure",
+        point_lat=VERTICAL_PROFILE_COMPARISON_POINT_LAT,
+        point_lon=VERTICAL_PROFILE_COMPARISON_POINT_LON,
+        point_sample_pattern=point_sample_pattern,
+    )
+
+
+def build_vertical_profile_comparison_radiosonde_request(
+    *,
+    time_value: object,
+) -> VerticalProfileRequest:
+    """Build a moving-point radiosonde profile request."""
+    return VerticalProfileRequest(
+        times=np.asarray([time_value], dtype="datetime64[ns]"),
+        vertical_axis="pressure",
     )
 
 

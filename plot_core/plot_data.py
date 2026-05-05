@@ -21,6 +21,18 @@ class VerticalProfilePlotData:
 
 
 @dataclass
+class VerticalProfileBandPlotData:
+    label: str
+    lower_values: np.ndarray
+    upper_values: np.ndarray
+    vertical_values: np.ndarray
+    vertical_axis: VerticalAxis
+    units: str | None = None
+    auxiliary_vertical_values: np.ndarray | None = None
+    draw_mask: np.ndarray | None = None
+
+
+@dataclass
 class HorizontalFieldPlotData:
     label: str
     field: np.ndarray

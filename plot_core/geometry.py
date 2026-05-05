@@ -594,6 +594,19 @@ class GriddedGeometryHandler(GeometryHandler):
             source_specification,
             request,
         )
+        if request.point_sample_pattern == "cross_5":
+            return self._select_cross_5_grid_points(
+                prepared,
+                source_specification,
+                request.point_lat,
+                request.point_lon,
+            )
+        if request.point_sample_pattern != "nearest":
+            raise ValueError(
+                "Unsupported gridded point sample pattern: "
+                f"{request.point_sample_pattern!r}."
+            )
+
         return self._select_nearest_grid_point(
             prepared,
             source_specification,
@@ -623,11 +636,6 @@ class GriddedGeometryHandler(GeometryHandler):
             request,
         )
         if request.bbox is not None:
-            if request.point_sample_pattern != "nearest":
-                raise ValueError(
-                    "Point sample patterns are only supported with "
-                    "gridded point time-series requests."
-                )
             prepared = self._select_bbox(
                 prepared,
                 source_specification,

@@ -10,7 +10,12 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from plot_core.adapter import DataAdapter
-from plot_core.plot_data import TimeSeriesBandPlotData, TimeSeriesPlotData
+from plot_core.plot_data import (
+    TimeSeriesBandPlotData,
+    TimeSeriesPlotData,
+    VerticalProfileBandPlotData,
+    VerticalProfilePlotData,
+)
 from plot_core.recipes.cross_sections import (
     CrossSectionLayerInput,
     CrossSectionPanelInput,
@@ -47,6 +52,7 @@ from plot_core.recipes.maps import (
 )
 from plot_core.recipes.profiles import (
     PanelInput,
+    PreparedVerticalProfileLayerInput,
     VerticalProfileCloudHatchInput,
     VerticalProfileLayerInput,
     VerticalProfileSourceInput,
@@ -82,6 +88,7 @@ from .adapters import (
     build_surface_flux_time_series_era5_adapter,
     build_surface_flux_time_series_mynn_adapter,
     build_surface_flux_time_series_shoc_adapter,
+    build_goamazon_radiosonde_profile_adapter,
     build_legacy_e3sm_adapter,
     build_legacy_monan_e3sm_adapter,
     build_legacy_mynn_monan_adapter,
@@ -92,6 +99,9 @@ from .adapters import (
     build_time_series_goamazon_surface_station_adapter,
     build_time_series_mynn_adapter,
     build_time_series_shoc_adapter,
+    build_vertical_profile_era5_adapter,
+    build_vertical_profile_mynn_adapter,
+    build_vertical_profile_shoc_adapter,
 )
 from .paths import (
     build_time_series_init_datetime_string,
@@ -106,6 +116,10 @@ from .requests import (
     build_legacy_chile_coast_vertical_profile_request,
     build_model_vertical_profile_request,
     build_radiosonde_vertical_profile_request,
+    build_vertical_profile_comparison_gridded_request,
+    build_vertical_profile_comparison_radiosonde_request,
+    VERTICAL_PROFILE_COMPARISON_POINT_LAT,
+    VERTICAL_PROFILE_COMPARISON_POINT_LON,
 )
 
 LEGACY_PROFILE_VARIABLE_NAMES = (
@@ -284,6 +298,19 @@ SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS = (
     ("latent_heat_flux", "Latent heat flux [W/m²]"),
 )
 SURFACE_FLUX_TIME_SERIES_NO_OBSERVATION_INIT_DATES = {"20140216"}
+VERTICAL_PROFILE_COMPARISON_SOURCE_STYLES = (
+    ("SHOC", "blue"),
+    ("MYNN", "orange"),
+    ("ERA5", "gray"),
+    ("Observation", "black"),
+)
+VERTICAL_PROFILE_COMPARISON_PANELS = (
+    ("theta", "Potential temperature", "K"),
+    ("qv", "Specific humidity", "g/kg"),
+    ("wind_speed", "Wind speed", "m/s"),
+)
+VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
+VERTICAL_PROFILE_STD_BAND_ALPHA = 0.18
 
 
 # ============================================================================
@@ -3883,6 +3910,337 @@ def build_surface_flux_time_series_comparison_figure(
         panels=panels,
         figure_specification=figure_specification,
     )
+
+
+def build_vertical_profile_comparison_adapters(
+    *,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+) -> list[DataAdapter]:
+    """Build SHOC, MYNN and ERA5 adapters for profile comparison."""
+    return [
+        build_vertical_profile_shoc_adapter(init_date=init_date),
+        build_vertical_profile_mynn_adapter(init_date=init_date),
+        build_vertical_profile_era5_adapter(init_date=init_date),
+    ]
+
+
+def build_vertical_profile_comparison_full_inputs(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+    forecast_day_index: int = 0,
+) -> tuple[list[PanelInput], FigureSpecification]:
+    """Build panel inputs and layout for one full-mode profile figure."""
+    start_time = np.datetime64(
+        build_time_series_init_datetime_string(init_date),
+        "ns",
+    )
+    if adapters is None:
+        source_adapters = build_vertical_profile_comparison_adapters(
+            init_date=start_time
+        )
+    else:
+        source_adapters = list(adapters)
+
+    expected_source_count = 3
+    if len(source_adapters) != expected_source_count:
+        raise ValueError(
+            "Expected 3 adapters in SHOC/MYNN/ERA5 order."
+        )
+
+    target_times = _build_vertical_profile_comparison_target_times(
+        start_time=start_time,
+        forecast_day_index=forecast_day_index,
+    )
+    radiosonde_adapters: list[DataAdapter] = []
+    try:
+        radiosonde_adapters = [
+            build_goamazon_radiosonde_profile_adapter(
+                target_time=target_time,
+                init_date=init_date,
+            )
+            for target_time in target_times
+        ]
+        panels: list[PanelInput] = []
+        for row_index, target_time in enumerate(target_times):
+            nearest_request = build_vertical_profile_comparison_gridded_request(
+                time_value=target_time,
+            )
+            cross_5_request = build_vertical_profile_comparison_gridded_request(
+                time_value=target_time,
+                point_sample_pattern="cross_5",
+            )
+            radiosonde_request = (
+                build_vertical_profile_comparison_radiosonde_request(
+                    time_value=target_time
+                )
+            )
+            for column_index, (
+                variable_name,
+                panel_label,
+                x_units,
+            ) in enumerate(VERTICAL_PROFILE_COMPARISON_PANELS):
+                layers = _build_vertical_profile_comparison_layers(
+                    variable_name=variable_name,
+                    source_adapters=source_adapters,
+                    radiosonde_adapter=radiosonde_adapters[row_index],
+                    nearest_request=nearest_request,
+                    cross_5_request=cross_5_request,
+                    radiosonde_request=radiosonde_request,
+                )
+                panels.append(
+                    PanelInput(
+                        layers=layers,
+                        axes_set_kwargs=(
+                            _build_vertical_profile_panel_axes_set_kwargs(
+                                row_index=row_index,
+                                column_index=column_index,
+                                target_time=target_time,
+                                panel_label=panel_label,
+                                x_units=x_units,
+                            )
+                        ),
+                        grid_kwargs={"visible": True, "alpha": 0.3},
+                        legend_kwargs=(
+                            {"loc": "best", "fontsize": 8}
+                            if row_index == 0 and column_index == 0
+                            else None
+                        ),
+                    )
+                )
+    finally:
+        for adapter in radiosonde_adapters:
+            adapter.close()
+
+    figure_specification = FigureSpecification(
+        nrows=len(VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS),
+        ncols=len(VERTICAL_PROFILE_COMPARISON_PANELS),
+        suptitle=_build_vertical_profile_comparison_title(
+            init_date=init_date,
+            forecast_day_index=forecast_day_index,
+        ),
+        suptitle_kwargs={"fontsize": 13},
+        figure_kwargs={
+            "figsize": (13, 13),
+            "constrained_layout": True,
+            "sharey": True,
+        },
+    )
+    return panels, figure_specification
+
+
+def build_vertical_profile_comparison_full_figure(
+    *,
+    adapters: Sequence[DataAdapter] | None = None,
+    init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+    forecast_day_index: int = 0,
+) -> Figure:
+    """Build one 4x3 full-mode vertical-profile comparison figure."""
+    panels, figure_specification = build_vertical_profile_comparison_full_inputs(
+        adapters=adapters,
+        init_date=init_date,
+        forecast_day_index=forecast_day_index,
+    )
+    return plot_vertical_profiles_panel(
+        panels=panels,
+        figure_specification=figure_specification,
+    )
+
+
+def _build_vertical_profile_comparison_layers(
+    *,
+    variable_name: str,
+    source_adapters: Sequence[DataAdapter],
+    radiosonde_adapter: DataAdapter,
+    nearest_request: VerticalProfileRequest,
+    cross_5_request: VerticalProfileRequest,
+    radiosonde_request: VerticalProfileRequest,
+) -> list[PreparedVerticalProfileLayerInput]:
+    """Build prepared layers for one profile subplot."""
+    layers: list[PreparedVerticalProfileLayerInput] = []
+    for source_index, (
+        source_label,
+        source_color,
+    ) in enumerate(VERTICAL_PROFILE_COMPARISON_SOURCE_STYLES):
+        line_render_specification = _build_vertical_profile_line_render_spec(
+            source_color
+        )
+        if _is_monan_time_series_source(source_label):
+            mean_plot_data, std_band_plot_data = (
+                source_adapters[source_index]
+                .to_vertical_profile_mean_std_plot_data(
+                    variable_name=variable_name,
+                    request=cross_5_request,
+                )
+            )
+            _append_vertical_profile_mean_std_layers(
+                layers,
+                mean_plot_data=mean_plot_data,
+                std_band_plot_data=std_band_plot_data,
+                line_render_specification=line_render_specification,
+                source_color=source_color,
+                source_label=source_label,
+            )
+        elif source_label == "ERA5":
+            plot_data = source_adapters[source_index].to_vertical_profile_plot_data(
+                variable_name=variable_name,
+                request=nearest_request,
+            )
+            layers.append(
+                PreparedVerticalProfileLayerInput(
+                    plot_data=plot_data,
+                    render_specification=line_render_specification,
+                    legend_label=source_label,
+                )
+            )
+        else:
+            plot_data = radiosonde_adapter.to_vertical_profile_plot_data(
+                variable_name=variable_name,
+                request=radiosonde_request,
+            )
+            layers.append(
+                PreparedVerticalProfileLayerInput(
+                    plot_data=plot_data,
+                    render_specification=line_render_specification,
+                    legend_label=source_label,
+                )
+            )
+
+    return layers
+
+
+def _append_vertical_profile_mean_std_layers(
+    layers: list[PreparedVerticalProfileLayerInput],
+    *,
+    mean_plot_data: VerticalProfilePlotData,
+    std_band_plot_data: VerticalProfileBandPlotData,
+    line_render_specification: RenderSpecification,
+    source_color: str,
+    source_label: str,
+) -> None:
+    """Append std band and mean line profile layers in render order."""
+    layers.append(
+        PreparedVerticalProfileLayerInput(
+            plot_data=std_band_plot_data,
+            render_specification=_build_vertical_profile_std_band_render_spec(
+                source_color
+            ),
+        )
+    )
+    layers.append(
+        PreparedVerticalProfileLayerInput(
+            plot_data=mean_plot_data,
+            render_specification=line_render_specification,
+            legend_label=source_label,
+        )
+    )
+
+
+def _build_vertical_profile_line_render_spec(
+    source_color: str,
+) -> RenderSpecification:
+    """Build a standard vertical-profile line render spec."""
+    return RenderSpecification(
+        artist_method="plot",
+        artist_kwargs={
+            "color": source_color,
+            "linewidth": 1.4,
+        },
+    )
+
+
+def _build_vertical_profile_std_band_render_spec(
+    source_color: str,
+) -> RenderSpecification:
+    """Build the unlabeled render spec for a profile std band."""
+    return RenderSpecification(
+        artist_method="fill_betweenx",
+        artist_kwargs={
+            "color": source_color,
+            "alpha": VERTICAL_PROFILE_STD_BAND_ALPHA,
+            "linewidth": 0.0,
+        },
+    )
+
+
+def _build_vertical_profile_panel_axes_set_kwargs(
+    *,
+    row_index: int,
+    column_index: int,
+    target_time: np.datetime64,
+    panel_label: str,
+    x_units: str,
+) -> dict[str, object]:
+    """Build axis labels for one profile subplot."""
+    axes_set_kwargs: dict[str, object] = {}
+    if row_index == 0:
+        axes_set_kwargs["title"] = panel_label
+    if column_index == 0:
+        axes_set_kwargs["ylabel"] = (
+            f"{_format_synoptic_hour_label(target_time)} UTC\n"
+            "Pressure [hPa]"
+        )
+    if row_index == len(VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS) - 1:
+        axes_set_kwargs["xlabel"] = f"{panel_label} [{x_units}]"
+
+    return axes_set_kwargs
+
+
+def _build_vertical_profile_comparison_target_times(
+    *,
+    start_time: np.datetime64,
+    forecast_day_index: int,
+) -> np.ndarray:
+    """Return the four target synoptic times for one forecast day."""
+    if forecast_day_index < 0 or forecast_day_index >= (
+        TIME_SERIES_COMPARISON_DURATION_DAYS
+    ):
+        raise ValueError(
+            "forecast_day_index must be between 0 and "
+            f"{TIME_SERIES_COMPARISON_DURATION_DAYS - 1}."
+        )
+
+    day_start = start_time + np.timedelta64(forecast_day_index, "D")
+    return np.asarray(
+        [
+            day_start + np.timedelta64(hour, "h")
+            for hour in VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS
+        ],
+        dtype="datetime64[ns]",
+    )
+
+
+def _build_vertical_profile_comparison_title(
+    *,
+    init_date: object,
+    forecast_day_index: int,
+) -> str:
+    """Return the figure title for one full-mode profile comparison."""
+    compact_date = normalize_time_series_init_date(init_date)
+    init_date_label = (
+        f"{compact_date[:4]}-{compact_date[4:6]}-{compact_date[6:]}"
+    )
+    start_time = np.datetime64(
+        build_time_series_init_datetime_string(init_date),
+        "ns",
+    )
+    forecast_day = start_time + np.timedelta64(forecast_day_index, "D")
+    forecast_day_label = np.datetime_as_string(forecast_day, unit="D")
+    return (
+        "SHOC, MYNN, ERA5 and Radiosonde Vertical-Profile Comparison - "
+        f"{build_time_series_season_label(init_date)} "
+        f"(init {init_date_label}, {forecast_day_label}, "
+        f"{VERTICAL_PROFILE_COMPARISON_POINT_LAT:.2f}°, "
+        f"{VERTICAL_PROFILE_COMPARISON_POINT_LON:.1f}°)"
+    )
+
+
+def _format_synoptic_hour_label(time_value: np.datetime64) -> str:
+    """Return a two-digit UTC hour for one target datetime."""
+    hour_value = (
+        np.datetime64(time_value, "h").astype("datetime64[h]").astype(int) % 24
+    )
+    return f"{int(hour_value):02d}"
 
 
 def _surface_flux_time_series_has_observation(init_date: object) -> bool:

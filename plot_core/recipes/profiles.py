@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
 
 import numpy as np
 from matplotlib.figure import Figure
 
 from ..adapter import DataAdapter
+from ..plot_data import VerticalProfileBandPlotData, VerticalProfilePlotData
 from ..rendering import (
     PlotLayer,
     PlotPanel,
@@ -42,6 +43,21 @@ class VerticalProfileLayerInput:
     variable_name: str
     render_specification: RenderSpecification
     legend_label: str | None = None
+
+
+@dataclass
+class PreparedVerticalProfileLayerInput:
+    """Describe one precomputed vertical-profile layer."""
+
+    plot_data: VerticalProfilePlotData | VerticalProfileBandPlotData
+    render_specification: RenderSpecification
+    legend_label: str | None = None
+
+
+VerticalProfileLayerDefinition = Union[
+    VerticalProfileLayerInput,
+    PreparedVerticalProfileLayerInput,
+]
 
 
 @dataclass
@@ -121,7 +137,7 @@ class PanelInput:
         are drawn.
     """
 
-    layers: Sequence[VerticalProfileLayerInput]
+    layers: Sequence[VerticalProfileLayerDefinition]
     axes_set_kwargs: dict[str, Any] = field(default_factory=dict)
     grid_kwargs: dict[str, Any] | None = None
     legend_kwargs: dict[str, Any] | None = None
@@ -186,7 +202,7 @@ def plot_vertical_profiles_panel_at_point(
     panel_axes_set_kwargs: Sequence[dict[str, Any] | None] | None = None,
     cloud_hatches: Sequence[VerticalProfileCloudHatchInput] | None = None,
     panel_extra_layers: Sequence[
-        Sequence[VerticalProfileLayerInput]
+        Sequence[VerticalProfileLayerDefinition]
     ] | None = None,
     figure_specification: FigureSpecification | None = None,
     plotter: SpecializedPlotter | None = None,
@@ -383,7 +399,7 @@ def _build_plot_panel(panel_input: PanelInput) -> PlotPanel:
         raise ValueError("Each PanelInput must contain at least one layer.")
 
     vertical_axis_names = {
-        layer_input.request.vertical_axis
+        _vertical_axis_from_layer_input(layer_input)
         for layer_input in panel_input.layers
     }
     if len(vertical_axis_names) != 1:
@@ -405,7 +421,7 @@ def _build_plot_panel(panel_input: PanelInput) -> PlotPanel:
     )
 
 
-def _build_plot_layer(layer_input: VerticalProfileLayerInput) -> PlotLayer:
+def _build_plot_layer(layer_input: VerticalProfileLayerDefinition) -> PlotLayer:
     """Resolve one recipe layer input into a `PlotLayer`.
 
     Parameters
@@ -419,10 +435,13 @@ def _build_plot_layer(layer_input: VerticalProfileLayerInput) -> PlotLayer:
         Layer containing resolved `VerticalProfilePlotData` and rendering
         instructions.
     """
-    plot_data = layer_input.adapter.to_vertical_profile_plot_data(
-        variable_name=layer_input.variable_name,
-        request=layer_input.request,
-    )
+    if isinstance(layer_input, VerticalProfileLayerInput):
+        plot_data = layer_input.adapter.to_vertical_profile_plot_data(
+            variable_name=layer_input.variable_name,
+            request=layer_input.request,
+        )
+    else:
+        plot_data = layer_input.plot_data
     render_specification = _build_render_specification(layer_input)
     return PlotLayer(
         plot_data=plot_data,
@@ -431,7 +450,7 @@ def _build_plot_layer(layer_input: VerticalProfileLayerInput) -> PlotLayer:
 
 
 def _build_render_specification(
-    layer_input: VerticalProfileLayerInput,
+    layer_input: VerticalProfileLayerDefinition,
 ) -> RenderSpecification:
     """Return the layer render specification with optional legend label."""
     artist_kwargs = dict(layer_input.render_specification.artist_kwargs)
@@ -448,6 +467,16 @@ def _build_render_specification(
     )
 
 
+def _vertical_axis_from_layer_input(
+    layer_input: VerticalProfileLayerDefinition,
+) -> str:
+    """Return the vertical-axis semantics for one layer input."""
+    if isinstance(layer_input, VerticalProfileLayerInput):
+        return layer_input.request.vertical_axis
+
+    return layer_input.plot_data.vertical_axis
+
+
 def _build_axes_calls(panel_input: PanelInput) -> list[dict[str, Any]]:
     """Return panel axis calls with automatic pressure-axis inversion.
 
@@ -462,7 +491,7 @@ def _build_axes_calls(panel_input: PanelInput) -> list[dict[str, Any]]:
         Axis calls to be stored in the final `PlotPanel`.
     """
     axes_calls = [dict(axis_call) for axis_call in panel_input.axes_calls]
-    vertical_axis = panel_input.layers[0].request.vertical_axis
+    vertical_axis = _vertical_axis_from_layer_input(panel_input.layers[0])
     if vertical_axis == "pressure" and not _has_invert_yaxis_call(axes_calls):
         axes_calls.append({"method": "invert_yaxis"})
 
@@ -503,10 +532,10 @@ def _resolve_profile_time_reduce(
 
 def _normalize_panel_extra_layers(
     panel_extra_layers: Sequence[
-        Sequence[VerticalProfileLayerInput]
+        Sequence[VerticalProfileLayerDefinition]
     ] | None,
     panel_count: int,
-) -> list[list[VerticalProfileLayerInput]]:
+) -> list[list[VerticalProfileLayerDefinition]]:
     """Return one mutable extra-layer list per panel."""
     if panel_extra_layers is None:
         return [[] for _ in range(panel_count)]

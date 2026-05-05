@@ -218,6 +218,16 @@ def build_surface_flux_time_series_shoc_source_specification(
     )
 
 
+def build_vertical_profile_mynn_source_specification() -> SourceSpecification:
+    """Build the MYNN MONAN source spec for profile comparison."""
+    return _build_vertical_profile_monan_source_specification(label="MYNN")
+
+
+def build_vertical_profile_shoc_source_specification() -> SourceSpecification:
+    """Build the SHOC MONAN source spec for profile comparison."""
+    return _build_vertical_profile_monan_source_specification(label="SHOC")
+
+
 def build_time_series_era5_source_specification() -> SourceSpecification:
     """Build the ERA5 source specification for surface time-series panels."""
     return SourceSpecification(
@@ -304,6 +314,51 @@ def build_surface_flux_time_series_era5_source_specification(
     )
 
 
+def build_vertical_profile_era5_source_specification() -> SourceSpecification:
+    """Build the ERA5 pressure-level source spec for profile comparison."""
+    return SourceSpecification(
+        label="ERA5",
+        time_name="time",
+        vertical_name="isobaricInhPa",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        longitude_convention="-180_180",
+        variables={
+            "pressure": VariableSpecification(
+                source_name="isobaricInhPa",
+                input_units="hPa",
+                target_units="hPa",
+            ),
+            "temperature": VariableSpecification(
+                source_name="t",
+                input_units="K",
+                target_units="K",
+            ),
+            "theta": VariableSpecification(
+                derivation_kind="theta_from_pressure_temperature",
+                target_units="K",
+            ),
+            "qv": VariableSpecification(
+                source_name="q",
+                input_units="kg kg-1",
+                target_units="g kg-1",
+            ),
+            "u_wind": VariableSpecification(
+                source_name="u",
+                input_units="m s-1",
+            ),
+            "v_wind": VariableSpecification(
+                source_name="v",
+                input_units="m s-1",
+            ),
+            "wind_speed": VariableSpecification(
+                derivation_kind="wind_speed_from_uv",
+                target_units="m s-1",
+            ),
+        },
+    )
+
+
 def build_time_series_goamazon_surface_station_source_specification(
 ) -> SourceSpecification:
     """Build the GoAmazon surface-station source specification."""
@@ -345,7 +400,7 @@ def build_time_series_goamazon_surface_station_source_specification(
 
 def build_surface_flux_goamazon_eddy_correlation_source_specification(
 ) -> SourceSpecification:
-    """Build the GoAmazon eddy-correlation flux source specification."""
+    """Build the corrected GoAmazon C1 eddy-correlation flux source spec."""
     return SourceSpecification(
         label="Observation",
         time_name="time",
@@ -353,12 +408,53 @@ def build_surface_flux_goamazon_eddy_correlation_source_specification(
         site_longitude=-60.5981,
         variables={
             "sensible_heat_flux": VariableSpecification(
-                source_name="h",
+                source_name="corrected_sensible_heat_flux",
                 input_units="W m^-2",
             ),
             "latent_heat_flux": VariableSpecification(
-                source_name="lv_e",
+                source_name="corrected_latent_heat_flux",
                 input_units="W m^-2",
+            ),
+        },
+    )
+
+
+def build_goamazon_radiosonde_profile_source_specification(
+) -> SourceSpecification:
+    """Build the moving-point GoAmazon radiosonde source specification."""
+    return SourceSpecification(
+        label="Observation",
+        time_name="time",
+        latitude_name="lat",
+        longitude_name="lon",
+        variables={
+            "pressure": VariableSpecification(
+                source_name="pres",
+                input_units="hPa",
+                target_units="hPa",
+            ),
+            "temperature": VariableSpecification(
+                source_name="tdry",
+                input_units="degC",
+                target_units="K",
+            ),
+            "dewpoint_temperature": VariableSpecification(
+                source_name="dp",
+                input_units="degC",
+                target_units="K",
+            ),
+            "theta": VariableSpecification(
+                derivation_kind="theta_from_pressure_temperature",
+                target_units="K",
+            ),
+            "qv": VariableSpecification(
+                derivation_kind="specific_humidity_from_dewpoint_pressure",
+                target_units="g kg-1",
+            ),
+            "wind_speed": VariableSpecification(
+                source_name="wspd",
+                input_units="m s-1",
+                target_units="m s-1",
             ),
         },
     )
@@ -444,6 +540,50 @@ def _build_legacy_monan_source_specification(
             "precipitation": VariableSpecification(
                 derivation_kind="precipitation_from_rainc_rainnc",
                 target_units="mm",
+            ),
+        },
+    )
+
+
+def _build_vertical_profile_monan_source_specification(
+    *,
+    label: str,
+) -> SourceSpecification:
+    """Build shared MONAN mappings for profile comparison."""
+    return SourceSpecification(
+        label=label,
+        time_name="Time",
+        vertical_name="level",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        longitude_convention="-180_180",
+        variables={
+            "pressure": VariableSpecification(
+                source_name="pressure",
+                input_units="Pa",
+                target_units="hPa",
+            ),
+            "theta": VariableSpecification(
+                source_name="theta",
+                input_units="K",
+                target_units="K",
+            ),
+            "qv": VariableSpecification(
+                source_name="qv",
+                input_units="kg kg-1",
+                target_units="g kg-1",
+            ),
+            "u_wind": VariableSpecification(
+                source_name="u",
+                input_units="m s-1",
+            ),
+            "v_wind": VariableSpecification(
+                source_name="v",
+                input_units="m s-1",
+            ),
+            "wind_speed": VariableSpecification(
+                derivation_kind="wind_speed_from_uv",
+                target_units="m s-1",
             ),
         },
     )

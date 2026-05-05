@@ -12,15 +12,21 @@ from .paths import (
     OBS_RADIOSONDA_U_PATH,
     TIME_SERIES_DEFAULT_INIT_DATE,
     build_surface_flux_goamazon_eddy_correlation_glob_patterns,
+    build_vertical_profile_era5_path,
+    find_nearest_goamazon_radiosonde_path,
     build_time_series_era5_path,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
 )
 from .source_specifications import (
+    build_goamazon_radiosonde_profile_source_specification,
     build_surface_flux_goamazon_eddy_correlation_source_specification,
     build_surface_flux_time_series_era5_source_specification,
     build_surface_flux_time_series_mynn_source_specification,
     build_surface_flux_time_series_shoc_source_specification,
+    build_vertical_profile_era5_source_specification,
+    build_vertical_profile_mynn_source_specification,
+    build_vertical_profile_shoc_source_specification,
     build_ceilometro_source_specification,
     build_legacy_e3sm_source_specification,
     build_legacy_monan_e3sm_source_specification,
@@ -318,7 +324,7 @@ def build_surface_flux_goamazon_eddy_correlation_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> DataAdapter:
-    """Build the GoAmazon eddy-correlation adapter for flux time series."""
+    """Build the corrected GoAmazon C1 flux adapter for time series."""
     return DataAdapter(
         glob_patterns=(
             build_surface_flux_goamazon_eddy_correlation_glob_patterns(
@@ -329,6 +335,82 @@ def build_surface_flux_goamazon_eddy_correlation_adapter(
         geometry_type="fixed_point",
         source_specification=(
             build_surface_flux_goamazon_eddy_correlation_source_specification()
+        ),
+        reader_options={},
+    )
+
+
+def build_vertical_profile_mynn_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the MYNN MONAN adapter for vertical-profile comparison."""
+    return DataAdapter(
+        glob_pattern=build_time_series_monan_glob_pattern(
+            scheme="mynn",
+            init_date=init_date,
+        ),
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_vertical_profile_mynn_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_vertical_profile_shoc_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the SHOC MONAN adapter for vertical-profile comparison."""
+    return DataAdapter(
+        glob_pattern=build_time_series_monan_glob_pattern(
+            scheme="shoc",
+            init_date=init_date,
+        ),
+        file_format="netcdf",
+        geometry_type="gridded",
+        source_specification=build_vertical_profile_shoc_source_specification(),
+        reader_options={
+            "combine": "nested",
+            "concat_dim": "Time",
+            "parallel": True,
+        },
+    )
+
+
+def build_vertical_profile_era5_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the ERA5 pressure-level adapter for profile comparison."""
+    return DataAdapter(
+        path=build_vertical_profile_era5_path(init_date),
+        file_format="grib",
+        geometry_type="gridded",
+        source_specification=build_vertical_profile_era5_source_specification(),
+        reader_options={"engine": "cfgrib"},
+    )
+
+
+def build_goamazon_radiosonde_profile_adapter(
+    *,
+    target_time: object,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build a radiosonde adapter for the nearest sounding launch."""
+    return DataAdapter(
+        path=find_nearest_goamazon_radiosonde_path(
+            target_time=target_time,
+            init_date=init_date,
+        ),
+        file_format="netcdf",
+        geometry_type="moving_point",
+        source_specification=(
+            build_goamazon_radiosonde_profile_source_specification()
         ),
         reader_options={},
     )

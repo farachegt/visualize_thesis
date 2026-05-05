@@ -11,6 +11,7 @@ CANONICAL_VARIABLE_NAMES = {
     "qc",
     "qv",
     "temperature",
+    "dewpoint_temperature",
     "tke",
     "tke_pbl",
     "sensible_heat_flux",

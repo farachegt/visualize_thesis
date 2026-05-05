@@ -13,6 +13,7 @@ from .plot_data import (
     TimeSeriesBandPlotData,
     TimeSeriesPlotData,
     TimeVerticalSectionPlotData,
+    VerticalProfileBandPlotData,
     VerticalCrossSectionPlotData,
     VerticalProfilePlotData,
 )
@@ -20,12 +21,14 @@ from .plot_data import (
 ArtistMethod = Literal[
     "plot",
     "fill_between",
+    "fill_betweenx",
     "contourf",
     "contour",
     "pcolormesh",
 ]
 PlotDataType = Union[
     VerticalProfilePlotData,
+    VerticalProfileBandPlotData,
     HorizontalFieldPlotData,
     VerticalCrossSectionPlotData,
     TimeSeriesPlotData,
@@ -110,6 +113,7 @@ class SpecializedPlotter:
 
     _SUPPORTED_METHODS = {
         VerticalProfilePlotData: {"plot"},
+        VerticalProfileBandPlotData: {"fill_betweenx"},
         TimeSeriesPlotData: {"plot"},
         TimeSeriesBandPlotData: {"fill_between"},
         HorizontalFieldPlotData: {"contourf", "contour", "pcolormesh"},
@@ -298,6 +302,13 @@ class SpecializedPlotter:
         if isinstance(plot_data, VerticalProfilePlotData):
             return (plot_data.values, plot_data.vertical_values)
 
+        if isinstance(plot_data, VerticalProfileBandPlotData):
+            return (
+                plot_data.vertical_values,
+                plot_data.lower_values,
+                plot_data.upper_values,
+            )
+
         if isinstance(plot_data, TimeSeriesPlotData):
             return (plot_data.times, plot_data.values)
 
@@ -414,6 +425,9 @@ class SpecializedPlotter:
             Semantic labels for the x and y axes.
         """
         if isinstance(plot_data, VerticalProfilePlotData):
+            return ("value", plot_data.vertical_axis)
+
+        if isinstance(plot_data, VerticalProfileBandPlotData):
             return ("value", plot_data.vertical_axis)
 
         if isinstance(plot_data, HorizontalFieldPlotData):

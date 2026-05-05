@@ -23,6 +23,7 @@ from .plot_data import (
     TimeSeriesPlotData,
     TimeVerticalSectionPlotData,
     VerticalCrossSectionPlotData,
+    VerticalProfileBandPlotData,
     VerticalProfilePlotData,
 )
 from .readers import CSVFileFormatReader, FileFormatReader
@@ -210,6 +211,67 @@ class DataAdapter:
             vertical_axis=request.vertical_axis,
             units=self._extract_units(values),
         )
+
+    def to_vertical_profile_mean_std_plot_data(
+        self,
+        *,
+        variable_name: str,
+        request: VerticalProfileRequest,
+    ) -> tuple[VerticalProfilePlotData, VerticalProfileBandPlotData]:
+        """Build mean and std-band vertical-profile plot data.
+
+        This supports profile requests that preserve a sample dimension, such
+        as the gridded cross-5 point stencil. The mean and population standard
+        deviation are computed across non-vertical dimensions at each vertical
+        level.
+        """
+        self._validate_requested_variable(variable_name)
+        required_variable_names = self._build_required_variable_names(
+            variable_name,
+            request.vertical_axis,
+        )
+        prepared = self._prepare_vertical_profile_dataset(
+            required_variable_names,
+            request,
+        )
+        resolved_variables: dict[str, xr.DataArray] = {}
+        values = self._resolve_variable(
+            prepared,
+            variable_name,
+            resolved_variables,
+        )
+        vertical_values = self._resolve_vertical_axis_values(
+            prepared,
+            request.vertical_axis,
+            resolved_variables,
+        )
+        vertical_name = self._resolve_vertical_axis_name(
+            prepared,
+            request.vertical_axis,
+            resolved_variables,
+        )
+        mean_values, std_values = self._profile_mean_and_std_over_samples(
+            values,
+            vertical_name,
+        )
+        vertical_axis_values = self._to_numpy_1d(vertical_values)
+        units = self._extract_units(values)
+        mean_plot_data = VerticalProfilePlotData(
+            label=self.source_specification.label,
+            values=mean_values,
+            vertical_values=vertical_axis_values,
+            vertical_axis=request.vertical_axis,
+            units=units,
+        )
+        band_plot_data = VerticalProfileBandPlotData(
+            label=self.source_specification.label,
+            lower_values=mean_values - std_values,
+            upper_values=mean_values + std_values,
+            vertical_values=vertical_axis_values,
+            vertical_axis=request.vertical_axis,
+            units=units,
+        )
+        return mean_plot_data, band_plot_data
 
     def to_horizontal_field_plot_data(
         self,
@@ -1025,6 +1087,55 @@ class DataAdapter:
             where=valid_counts > 0,
         )
 
+        mean_for_samples = mean_values.reshape(
+            mean_values.shape + (1,) * (value_array.ndim - 1)
+        )
+        squared_differences = np.where(
+            valid_mask,
+            (value_array - mean_for_samples) ** 2,
+            0.0,
+        )
+        variance_values = np.divide(
+            np.sum(squared_differences, axis=sample_axes),
+            valid_counts,
+            out=np.full(mean_values.shape, np.nan, dtype=float),
+            where=valid_counts > 0,
+        )
+        return mean_values, np.sqrt(variance_values)
+
+    def _profile_mean_and_std_over_samples(
+        self,
+        values: xr.DataArray,
+        vertical_dimension: str,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return profile mean/std across non-vertical dimensions."""
+        if vertical_dimension not in values.dims:
+            raise ValueError(
+                "The requested vertical dimension "
+                f"{vertical_dimension!r} is not present in the profile "
+                "values."
+            )
+
+        ordered_dimensions = (vertical_dimension,) + tuple(
+            dimension
+            for dimension in values.dims
+            if dimension != vertical_dimension
+        )
+        ordered_values = values.transpose(*ordered_dimensions)
+        value_array = np.asarray(ordered_values.values, dtype=float)
+        if value_array.ndim == 1:
+            return value_array, np.zeros_like(value_array, dtype=float)
+
+        sample_axes = tuple(range(1, value_array.ndim))
+        valid_mask = np.isfinite(value_array)
+        valid_counts = np.sum(valid_mask, axis=sample_axes)
+        sample_sums = np.nansum(value_array, axis=sample_axes)
+        mean_values = np.divide(
+            sample_sums,
+            valid_counts,
+            out=np.full(sample_sums.shape, np.nan, dtype=float),
+            where=valid_counts > 0,
+        )
         mean_for_samples = mean_values.reshape(
             mean_values.shape + (1,) * (value_array.ndim - 1)
         )

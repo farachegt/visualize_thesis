@@ -38,6 +38,7 @@ from .maps import (
 )
 from .profiles import (
     PanelInput,
+    PreparedVerticalProfileLayerInput,
     VerticalProfileCloudHatchInput,
     VerticalProfileSourceInput,
     VerticalProfileLayerInput,
@@ -79,6 +80,7 @@ __all__ = [
     "PreparedMapLayerInput",
     "PreparedTimeSeriesLayerInput",
     "PanelInput",
+    "PreparedVerticalProfileLayerInput",
     "TimeSeriesLayerInput",
     "TimeSeriesPanelInput",
     "VerticalProfileCloudHatchInput",

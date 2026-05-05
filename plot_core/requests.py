@@ -43,6 +43,7 @@ class VerticalProfileRequest(BaseRequest):
     vertical_axis: VerticalAxis = "pressure"
     point_lat: float | None = None
     point_lon: float | None = None
+    point_sample_pattern: PointSamplePattern = "nearest"
 
 
 @dataclass

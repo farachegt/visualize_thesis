@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from glob import glob
 from pathlib import Path
+import re
 from typing import Literal
+
+import numpy as np
 
 SCENARIOS_DIR = Path(__file__).resolve().parent
 PLOT_CORE_DIR = SCENARIOS_DIR.parent
@@ -62,7 +66,14 @@ TIME_SERIES_GOAMAZON_SURFACE_STATION_DIR = (
 )
 TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
-    "b1 (Quality Control applied)/Eddy Correlation Flux"
+    "c1 (Derived products)/mao30qcecorM1.c1"
+)
+VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR = (
+    "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
+    "b1 (Quality Control applied)/Radiosonde"
+)
+GOAMAZON_RADIOSONDE_FILENAME_RE = re.compile(
+    r"maosondewnpnM1\.b1\.(\d{8})\.(\d{4,6})\.cdf$"
 )
 
 
@@ -129,6 +140,14 @@ def build_time_series_era5_path(
     return f"{TIME_SERIES_ERA5_DIR}/sl_{compact_date}.grib"
 
 
+def build_vertical_profile_era5_path(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> str:
+    """Return the ERA5 pressure-level GRIB path for one profile case."""
+    compact_date = normalize_time_series_init_date(init_date)
+    return f"{TIME_SERIES_ERA5_DIR}/pl_{compact_date}.grib"
+
+
 def build_time_series_goamazon_surface_station_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
@@ -148,17 +167,84 @@ def build_time_series_goamazon_surface_station_glob_patterns(
 def build_surface_flux_goamazon_eddy_correlation_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
-    """Return exact daily GoAmazon eddy-correlation globs."""
+    """Return exact daily corrected GoAmazon C1 eddy-correlation globs."""
     compact_date = normalize_time_series_init_date(init_date)
     start_date = datetime.strptime(compact_date, "%Y%m%d").date()
     return tuple(
         (
             f"{TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_DIR}/"
-            f"mao30ecorM1.b1."
-            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}*.cdf"
+            "mao30qcecorM1.c1."
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}*.nc"
         )
         for day_offset in range(TIME_SERIES_FORECAST_DAYS)
     )
+
+
+def build_goamazon_radiosonde_glob_patterns(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact daily radiosonde globs for the 5-day window."""
+    compact_date = normalize_time_series_init_date(init_date)
+    start_date = datetime.strptime(compact_date, "%Y%m%d").date()
+    return tuple(
+        (
+            f"{VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR}/"
+            "maosondewnpnM1.b1."
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.*.cdf"
+        )
+        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
+def parse_goamazon_radiosonde_launch_datetime(path: str | Path) -> datetime:
+    """Parse the launch datetime encoded in one radiosonde filename."""
+    match = GOAMAZON_RADIOSONDE_FILENAME_RE.search(Path(path).name)
+    if match is None:
+        raise ValueError(
+            "Could not parse GoAmazon radiosonde launch time from "
+            f"{path!r}."
+        )
+
+    date_text, time_text = match.groups()
+    if len(time_text) == 4:
+        time_text = f"{time_text}00"
+
+    return datetime.strptime(f"{date_text}{time_text}", "%Y%m%d%H%M%S")
+
+
+def find_nearest_goamazon_radiosonde_path(
+    *,
+    target_time: object,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> str:
+    """Return the radiosonde file nearest to one target datetime."""
+    target_datetime = _datetime64_to_datetime(
+        np.datetime64(target_time, "ns")
+    )
+    candidates: list[tuple[float, str]] = []
+    for glob_pattern in build_goamazon_radiosonde_glob_patterns(init_date):
+        for path in glob(glob_pattern):
+            launch_datetime = parse_goamazon_radiosonde_launch_datetime(path)
+            candidates.append(
+                (abs((launch_datetime - target_datetime).total_seconds()), path)
+            )
+
+    if not candidates:
+        raise FileNotFoundError(
+            "No GoAmazon radiosonde files matched the configured 5-day "
+            f"window for init date {init_date!r}."
+        )
+
+    _, nearest_path = min(candidates, key=lambda item: item[0])
+    return nearest_path
+
+
+def _datetime64_to_datetime(value: np.datetime64) -> datetime:
+    """Convert a numpy datetime64 value into a Python datetime."""
+    seconds_since_epoch = (
+        np.datetime64(value, "s") - np.datetime64("1970-01-01T00:00:00", "s")
+    ).astype(int)
+    return datetime.utcfromtimestamp(int(seconds_since_epoch))
 
 
 TIME_SERIES_MONAN_MYNN_GLOB_PATTERN = build_time_series_monan_glob_pattern(
