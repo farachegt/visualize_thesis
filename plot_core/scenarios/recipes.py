@@ -310,9 +310,12 @@ VERTICAL_PROFILE_COMPARISON_PANELS = (
     ("wind_speed", "Wind speed", "m/s"),
 )
 VERTICAL_PROFILE_COMPARISON_X_LIMITS = {
-    "theta": (285.0, 320.0),
-    "qv": (7.0, 20.0),
+    "theta": (295.0, 315.0),
+    "qv": (5.0, 20.0),
     "wind_speed": (0.0, 15.0),
+}
+VERTICAL_PROFILE_COMPARISON_X_TICKS = {
+    "theta": (295.0, 300.0, 305.0, 310.0, 315.0),
 }
 VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
 VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER = (1, 2, 3, 0)
@@ -321,7 +324,7 @@ VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA = 700.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TICKS_HPA = np.arange(
     VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA,
     VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA + 1.0,
-    100.0,
+    50.0,
 )
 VERTICAL_PROFILE_COMPARISON_UTC_OFFSET_HOURS = (
     TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS
@@ -4042,9 +4045,8 @@ def build_vertical_profile_comparison_full_inputs(
             init_date=init_date,
             forecast_day_index=forecast_day_index,
         ),
-        suptitle_kwargs={"fontsize": 13},
         figure_kwargs={
-            "figsize": (13, 13),
+            "figsize": (7, 10),
             "constrained_layout": True,
             "sharey": True,
         },
@@ -4199,8 +4201,10 @@ def _build_vertical_profile_panel_axes_set_kwargs(
     axes_set_kwargs: dict[str, object] = {
         "xlim": VERTICAL_PROFILE_COMPARISON_X_LIMITS[variable_name],
     }
-    if row_index == 0:
-        axes_set_kwargs["title"] = panel_label
+    if variable_name in VERTICAL_PROFILE_COMPARISON_X_TICKS:
+        axes_set_kwargs["xticks"] = (
+            VERTICAL_PROFILE_COMPARISON_X_TICKS[variable_name]
+        )
     if column_index == 0:
         axes_set_kwargs["ylabel"] = (
             f"{_format_synoptic_local_hour_label(target_time)} LT\n"
