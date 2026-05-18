@@ -194,7 +194,7 @@ def build_time_series_goamazon_ceilometer_pbl_height_glob_patterns(
         (
             f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
             "maoceilpblhtM1.a0."
-            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.HH*.cdf"
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}*.cdf"
         )
         for day_offset in range(TIME_SERIES_FORECAST_DAYS)
     )
