@@ -15,10 +15,12 @@ from .paths import (
     build_vertical_profile_era5_path,
     find_nearest_goamazon_radiosonde_path,
     build_time_series_era5_path,
+    build_time_series_goamazon_ceilometer_pbl_height_glob_patterns,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
 )
 from .source_specifications import (
+    build_time_series_goamazon_ceilometer_pbl_height_source_specification,
     build_goamazon_radiosonde_profile_source_specification,
     build_surface_flux_goamazon_eddy_correlation_source_specification,
     build_surface_flux_time_series_era5_source_specification,
@@ -246,6 +248,26 @@ def build_time_series_goamazon_surface_station_adapter(
         geometry_type="fixed_point",
         source_specification=(
             build_time_series_goamazon_surface_station_source_specification()
+        ),
+        reader_options={},
+    )
+
+
+def build_time_series_goamazon_ceilometer_pbl_height_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the GoAmazon ceilometer PBL-height adapter for time series."""
+    return DataAdapter(
+        glob_patterns=(
+            build_time_series_goamazon_ceilometer_pbl_height_glob_patterns(
+                init_date=init_date
+            )
+        ),
+        file_format="netcdf",
+        geometry_type="fixed_point",
+        source_specification=(
+            build_time_series_goamazon_ceilometer_pbl_height_source_specification()
         ),
         reader_options={},
     )

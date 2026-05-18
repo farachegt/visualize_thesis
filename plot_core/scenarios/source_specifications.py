@@ -270,6 +270,10 @@ def build_time_series_era5_source_specification() -> SourceSpecification:
                 ),
                 target_units="g kg-1",
             ),
+            "hpbl": VariableSpecification(
+                source_name="blh",
+                input_units="m",
+            ),
         },
     )
 
@@ -393,6 +397,24 @@ def build_time_series_goamazon_surface_station_source_specification(
                 source_name="wspd_arith_mean",
                 input_units="m s-1",
                 target_units="m s-1",
+            ),
+        },
+    )
+
+
+def build_time_series_goamazon_ceilometer_pbl_height_source_specification(
+) -> SourceSpecification:
+    """Build the GoAmazon ceilometer PBL-height source specification."""
+    return SourceSpecification(
+        label="Observation",
+        time_name="time",
+        site_label="Observation",
+        site_latitude=-3.21297,
+        site_longitude=-60.5981,
+        variables={
+            "hpbl": VariableSpecification(
+                source_name="bl_height_1",
+                input_units="m",
             ),
         },
     )
@@ -622,6 +644,10 @@ def _build_time_series_monan_surface_source_specification(
             "wind_speed_10m": VariableSpecification(
                 derivation_kind="wind_speed_from_uv",
                 target_units="m s-1",
+            ),
+            "hpbl": VariableSpecification(
+                source_name="hpbl",
+                input_units="m",
             ),
         },
     )
