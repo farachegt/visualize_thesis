@@ -191,17 +191,17 @@ def build_surface_flux_goamazon_eddy_correlation_glob_patterns(
 def build_time_series_goamazon_rain_gauge_precipitation_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
-    """Return exact hourly rain-gauge globs for the 5-day window."""
+    """Return exact daily rain-gauge globs for the 5-day window."""
     compact_date = normalize_time_series_init_date(init_date)
-    start_datetime = datetime.strptime(compact_date, "%Y%m%d")
+    start_date = datetime.strptime(compact_date, "%Y%m%d").date()
     return tuple(
         (
             f"{TIME_SERIES_GOAMAZON_RAIN_GAUGE_DIR}/"
             f"maoraintbS10.b1."
-            f"{(start_datetime + timedelta(hours=hour_offset)):%Y%m%d%H}"
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}"
             ".*.cdf"
         )
-        for hour_offset in range(TIME_SERIES_FORECAST_DAYS * 24)
+        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
     )
 
 
