@@ -278,6 +278,24 @@ def build_time_series_era5_source_specification() -> SourceSpecification:
     )
 
 
+def build_time_series_era5_precipitation_source_specification(
+) -> SourceSpecification:
+    """Build the ERA5 source specification for precipitation time series."""
+    return SourceSpecification(
+        label="ERA5",
+        time_name="time",
+        latitude_name="latitude",
+        longitude_name="longitude",
+        longitude_convention="-180_180",
+        variables={
+            "precipitation": VariableSpecification(
+                source_name="tp",
+                input_units="m h^-1",
+            ),
+        },
+    )
+
+
 def build_surface_flux_time_series_era5_source_specification(
 ) -> SourceSpecification:
     """Build the ERA5 source specification for surface-flux time series."""
@@ -397,6 +415,25 @@ def build_time_series_goamazon_surface_station_source_specification(
                 source_name="wspd_arith_mean",
                 input_units="m s-1",
                 target_units="m s-1",
+            ),
+        },
+    )
+
+
+def build_time_series_goamazon_rain_gauge_precipitation_source_specification(
+) -> SourceSpecification:
+    """Build the GoAmazon rain-gauge precipitation source specification."""
+    return SourceSpecification(
+        label="Observation",
+        time_name="time",
+        site_label="Observation",
+        site_latitude=-3.21297,
+        site_longitude=-60.5981,
+        variables={
+            "precipitation": VariableSpecification(
+                source_name="rain_rate",
+                input_units="mm hr^-1",
+                target_units="mm h^-1",
             ),
         },
     )
@@ -644,6 +681,18 @@ def _build_time_series_monan_surface_source_specification(
             "wind_speed_10m": VariableSpecification(
                 derivation_kind="wind_speed_from_uv",
                 target_units="m s-1",
+            ),
+            "rainnc": VariableSpecification(
+                source_name="rainnc",
+                input_units="mm",
+            ),
+            "rainc": VariableSpecification(
+                source_name="rainc",
+                input_units="mm",
+            ),
+            "precipitation": VariableSpecification(
+                derivation_kind="precipitation_from_rainc_rainnc",
+                target_units="mm",
             ),
             "hpbl": VariableSpecification(
                 source_name="hpbl",

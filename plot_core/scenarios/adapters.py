@@ -16,11 +16,14 @@ from .paths import (
     find_nearest_goamazon_radiosonde_path,
     build_time_series_era5_path,
     build_time_series_goamazon_ceilometer_pbl_height_glob_patterns,
+    build_time_series_goamazon_rain_gauge_precipitation_glob_patterns,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
 )
 from .source_specifications import (
+    build_time_series_era5_precipitation_source_specification,
     build_time_series_goamazon_ceilometer_pbl_height_source_specification,
+    build_time_series_goamazon_rain_gauge_precipitation_source_specification,
     build_goamazon_radiosonde_profile_source_specification,
     build_surface_flux_goamazon_eddy_correlation_source_specification,
     build_surface_flux_time_series_era5_source_specification,
@@ -235,6 +238,29 @@ def build_time_series_era5_adapter(
     )
 
 
+def build_time_series_era5_precipitation_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the ERA5 precipitation adapter for time-series comparison."""
+    return DataAdapter(
+        path=build_time_series_era5_path(init_date),
+        file_format="grib",
+        geometry_type="gridded",
+        source_specification=(
+            build_time_series_era5_precipitation_source_specification()
+        ),
+        reader_options={
+            "engine": "cfgrib",
+            "backend_kwargs": {
+                "filter_by_keys": {
+                    "shortName": "tp",
+                },
+            },
+        },
+    )
+
+
 def build_time_series_goamazon_surface_station_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
@@ -248,6 +274,26 @@ def build_time_series_goamazon_surface_station_adapter(
         geometry_type="fixed_point",
         source_specification=(
             build_time_series_goamazon_surface_station_source_specification()
+        ),
+        reader_options={},
+    )
+
+
+def build_time_series_goamazon_rain_gauge_precipitation_adapter(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> DataAdapter:
+    """Build the GoAmazon rain-gauge precipitation adapter."""
+    return DataAdapter(
+        glob_patterns=(
+            build_time_series_goamazon_rain_gauge_precipitation_glob_patterns(
+                init_date=init_date
+            )
+        ),
+        file_format="netcdf",
+        geometry_type="fixed_point",
+        source_specification=(
+            build_time_series_goamazon_rain_gauge_precipitation_source_specification()
         ),
         reader_options={},
     )

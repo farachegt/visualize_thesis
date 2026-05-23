@@ -17,7 +17,7 @@ def generate_time_series_comparison_figure(
     mode: str = "full",
     init_date: str = DEFAULT_INIT_DATE,
 ) -> Path:
-    """Generate and save the 3-panel SHOC/MYNN/ERA5/station comparison."""
+    """Generate and save the SHOC/MYNN/ERA5/observation comparison."""
     import matplotlib.pyplot as plt
 
     from plot_core.scenarios import (

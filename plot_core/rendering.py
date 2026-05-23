@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from .plot_data import (
     HorizontalFieldPlotData,
     TimeSeriesBandPlotData,
+    TimeSeriesBarPlotData,
     TimeSeriesPlotData,
     TimeVerticalSectionPlotData,
     VerticalProfileBandPlotData,
@@ -20,6 +21,7 @@ from .plot_data import (
 
 ArtistMethod = Literal[
     "plot",
+    "bar",
     "fill_between",
     "fill_betweenx",
     "contourf",
@@ -32,6 +34,7 @@ PlotDataType = Union[
     HorizontalFieldPlotData,
     VerticalCrossSectionPlotData,
     TimeSeriesPlotData,
+    TimeSeriesBarPlotData,
     TimeSeriesBandPlotData,
     TimeVerticalSectionPlotData,
 ]
@@ -115,6 +118,7 @@ class SpecializedPlotter:
         VerticalProfilePlotData: {"plot"},
         VerticalProfileBandPlotData: {"fill_betweenx"},
         TimeSeriesPlotData: {"plot"},
+        TimeSeriesBarPlotData: {"bar"},
         TimeSeriesBandPlotData: {"fill_between"},
         HorizontalFieldPlotData: {"contourf", "contour", "pcolormesh"},
         VerticalCrossSectionPlotData: {"contourf", "contour", "pcolormesh"},
@@ -312,6 +316,9 @@ class SpecializedPlotter:
         if isinstance(plot_data, TimeSeriesPlotData):
             return (plot_data.times, plot_data.values)
 
+        if isinstance(plot_data, TimeSeriesBarPlotData):
+            return (plot_data.times, plot_data.values)
+
         if isinstance(plot_data, TimeSeriesBandPlotData):
             return (
                 plot_data.times,
@@ -437,6 +444,9 @@ class SpecializedPlotter:
             return ("transect", plot_data.vertical_axis)
 
         if isinstance(plot_data, TimeSeriesPlotData):
+            return ("time", plot_data.value_axis)
+
+        if isinstance(plot_data, TimeSeriesBarPlotData):
             return ("time", plot_data.value_axis)
 
         if isinstance(plot_data, TimeSeriesBandPlotData):

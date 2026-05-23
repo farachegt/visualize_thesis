@@ -64,6 +64,10 @@ TIME_SERIES_GOAMAZON_SURFACE_STATION_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "b1 (Quality Control applied)/MET"
 )
+TIME_SERIES_GOAMAZON_RAIN_GAUGE_DIR = (
+    "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
+    "b1 (Quality Control applied)/Rain Gauge"
+)
 TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "c1 (Derived products)/mao30qcecorM1.c1"
@@ -181,6 +185,23 @@ def build_surface_flux_goamazon_eddy_correlation_glob_patterns(
             f"{(start_date + timedelta(days=day_offset)):%Y%m%d}*.nc"
         )
         for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
+def build_time_series_goamazon_rain_gauge_precipitation_glob_patterns(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact hourly rain-gauge globs for the 5-day window."""
+    compact_date = normalize_time_series_init_date(init_date)
+    start_datetime = datetime.strptime(compact_date, "%Y%m%d")
+    return tuple(
+        (
+            f"{TIME_SERIES_GOAMAZON_RAIN_GAUGE_DIR}/"
+            f"maoraintbS10.b1."
+            f"{(start_datetime + timedelta(hours=hour_offset)):%Y%m%d%H}"
+            ".000000.cdf"
+        )
+        for hour_offset in range(TIME_SERIES_FORECAST_DAYS * 24)
     )
 
 
