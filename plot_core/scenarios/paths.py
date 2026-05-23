@@ -199,7 +199,7 @@ def build_time_series_goamazon_rain_gauge_precipitation_glob_patterns(
             f"{TIME_SERIES_GOAMAZON_RAIN_GAUGE_DIR}/"
             f"maoraintbS10.b1."
             f"{(start_datetime + timedelta(hours=hour_offset)):%Y%m%d%H}"
-            ".000000.cdf"
+            ".*.cdf"
         )
         for hour_offset in range(TIME_SERIES_FORECAST_DAYS * 24)
     )

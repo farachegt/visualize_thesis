@@ -289,7 +289,7 @@ TIME_SERIES_COMPARISON_MONAN_SOURCE_LABELS = {"SHOC", "MYNN"}
 TIME_SERIES_COMPARISON_STD_BAND_ALPHA = 0.18
 TIME_SERIES_COMPARISON_PANELS = (
     ("temperature_2m", "2 m temperature [°C]"),
-    ("specific_humidity_2m", "Specific humidity [g/kg]"),
+    ("specific_humidity_2m", "2 m specific humidity [g/kg]"),
     ("wind_speed_10m", "10 m wind speed [m/s]"),
 )
 TIME_SERIES_COMPARISON_PRECIPITATION_PANEL = (
