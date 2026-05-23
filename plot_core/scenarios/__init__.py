@@ -9,6 +9,8 @@ The scenario modules mirror the main integration flow:
 - `recipes.py`: ready-to-use builders for high-level recipes
 """
 
+import importlib
+
 from .adapters import (
     build_surface_flux_goamazon_eddy_correlation_adapter,
     build_surface_flux_time_series_era5_adapter,
@@ -79,45 +81,67 @@ from .requests import (
     VERTICAL_PROFILE_COMPARISON_POINT_LAT,
     VERTICAL_PROFILE_COMPARISON_POINT_LON,
 )
-from .recipes import (
-    build_hpbl_time_series_comparison_adapters,
-    build_hpbl_time_series_comparison_figure,
-    build_hpbl_time_series_comparison_inputs,
-    build_surface_flux_time_series_comparison_adapters,
-    build_surface_flux_time_series_comparison_figure,
-    build_surface_flux_time_series_comparison_inputs,
-    build_surface_nwp_reanalysis_time_series_comparison_figure,
-    build_surface_nwp_reanalysis_time_series_comparison_inputs,
-    build_time_series_comparison_adapters,
-    build_legacy_monan_e3sm_cross_section_figure,
-    build_legacy_monan_e3sm_cross_section_inputs,
-    build_legacy_monan_e3sm_diurnal_amplitude_figure,
-    build_legacy_monan_e3sm_diurnal_amplitude_inputs,
-    build_legacy_monan_e3sm_diurnal_amplitude_panel_figure,
-    build_legacy_monan_e3sm_diurnal_amplitude_panel_inputs,
-    build_monan_e3sm_diurnal_extrema_panel_figure,
-    build_monan_e3sm_diurnal_extrema_panel_inputs,
-    build_legacy_monan_e3sm_diurnal_peak_phase_figure,
-    build_legacy_monan_e3sm_diurnal_peak_phase_inputs,
-    build_legacy_monan_e3sm_hourly_mean_figure,
-    build_legacy_monan_e3sm_hourly_mean_inputs,
-    build_legacy_monan_e3sm_hourly_mean_region_map_figure,
-    build_legacy_monan_e3sm_paper_grade_figure,
-    build_legacy_monan_e3sm_paper_grade_inputs,
-    build_legacy_monan_e3sm_side_by_side_figure,
-    build_legacy_monan_e3sm_side_by_side_inputs,
-    build_legacy_monan_precipitation_figure,
-    build_legacy_main_vertical_profile_recipe_panels,
-    build_legacy_vertical_profiles_panel_at_point_figure,
-    build_legacy_vertical_profile_figure_specification,
-    build_legacy_vertical_profile_recipe_panels,
-    build_vertical_profile_recipe_figure,
-    build_vertical_profile_recipe_figure_specification,
-    build_vertical_profile_recipe_panel_input,
-    build_vertical_profile_comparison_adapters,
-    build_vertical_profile_comparison_full_figure,
-    build_vertical_profile_comparison_full_inputs,
+_RECIPE_EXPORT_NAMES = (
+    "build_hpbl_time_series_comparison_adapters",
+    "build_hpbl_time_series_comparison_figure",
+    "build_hpbl_time_series_comparison_inputs",
+    "build_surface_flux_time_series_comparison_adapters",
+    "build_surface_flux_time_series_comparison_figure",
+    "build_surface_flux_time_series_comparison_inputs",
+    "build_surface_nwp_reanalysis_time_series_comparison_figure",
+    "build_surface_nwp_reanalysis_time_series_comparison_inputs",
+    "build_time_series_comparison_adapters",
+    "build_legacy_monan_e3sm_cross_section_figure",
+    "build_legacy_monan_e3sm_cross_section_inputs",
+    "build_legacy_monan_e3sm_diurnal_amplitude_figure",
+    "build_legacy_monan_e3sm_diurnal_amplitude_inputs",
+    "build_legacy_monan_e3sm_diurnal_amplitude_panel_figure",
+    "build_legacy_monan_e3sm_diurnal_amplitude_panel_inputs",
+    "build_monan_e3sm_diurnal_extrema_panel_figure",
+    "build_monan_e3sm_diurnal_extrema_panel_inputs",
+    "build_legacy_monan_e3sm_diurnal_peak_phase_figure",
+    "build_legacy_monan_e3sm_diurnal_peak_phase_inputs",
+    "build_legacy_monan_e3sm_hourly_mean_figure",
+    "build_legacy_monan_e3sm_hourly_mean_inputs",
+    "build_legacy_monan_e3sm_hourly_mean_region_map_figure",
+    "build_legacy_monan_e3sm_paper_grade_figure",
+    "build_legacy_monan_e3sm_paper_grade_inputs",
+    "build_legacy_monan_e3sm_side_by_side_figure",
+    "build_legacy_monan_e3sm_side_by_side_inputs",
+    "build_legacy_monan_precipitation_figure",
+    "build_legacy_main_vertical_profile_recipe_panels",
+    "build_legacy_vertical_profiles_panel_at_point_figure",
+    "build_legacy_vertical_profile_figure_specification",
+    "build_legacy_vertical_profile_recipe_panels",
+    "build_vertical_profile_recipe_figure",
+    "build_vertical_profile_recipe_figure_specification",
+    "build_vertical_profile_recipe_panel_input",
+    "build_vertical_profile_comparison_adapters",
+    "build_vertical_profile_comparison_full_figure",
+    "build_vertical_profile_comparison_full_inputs",
 )
+
+try:
+    _recipes_module = importlib.import_module(".recipes", __name__)
+except ModuleNotFoundError as recipes_import_error:
+    if recipes_import_error.name not in {"cartopy", "cartopy.crs"}:
+        raise
+
+    def _missing_recipe_dependency(
+        *_args: object,
+        _error: ModuleNotFoundError = recipes_import_error,
+        **_kwargs: object,
+    ) -> None:
+        raise ModuleNotFoundError(
+            "plot_core.scenarios recipe builders require optional "
+            "dependency 'cartopy'."
+        ) from _error
+
+    for _recipe_name in _RECIPE_EXPORT_NAMES:
+        globals()[_recipe_name] = _missing_recipe_dependency
+else:
+    for _recipe_name in _RECIPE_EXPORT_NAMES:
+        globals()[_recipe_name] = getattr(_recipes_module, _recipe_name)
 from .source_specifications import (
     build_surface_flux_goamazon_eddy_correlation_source_specification,
     build_surface_flux_time_series_era5_source_specification,

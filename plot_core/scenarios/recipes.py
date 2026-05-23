@@ -314,6 +314,7 @@ TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSETS = (
 )
 TIME_SERIES_COMPARISON_PRECIP_FULL_XLIM_PADDING = np.timedelta64(30, "m")
 TIME_SERIES_COMPARISON_PRECIP_BAR_ALPHA = 0.55
+TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_Y_LIMITS = (0.0, 2.0)
 SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS = (
     ("sensible_heat_flux", "Sensible heat flux [W/m²]"),
     ("latent_heat_flux", "Latent heat flux [W/m²]"),
@@ -3547,6 +3548,10 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     utc_offset_hours=local_utc_offset_hours,
                 )
                 panel_axes_set_kwargs = {"ylabel": y_axis_label}
+                if series_mode == "hourly_mean":
+                    panel_axes_set_kwargs["ylim"] = (
+                        TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_Y_LIMITS
+                    )
             else:
                 layers = []
                 for source_index, (
