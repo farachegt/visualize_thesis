@@ -99,7 +99,6 @@ from .adapters import (
     build_time_series_era5_adapter,
     build_time_series_era5_precipitation_adapter,
     build_time_series_goamazon_ceilometer_pbl_height_adapter,
-    build_time_series_goamazon_rain_gauge_precipitation_adapter,
     build_time_series_goamazon_surface_station_adapter,
     build_time_series_mynn_adapter,
     build_time_series_shoc_adapter,
@@ -303,17 +302,15 @@ TIME_SERIES_COMPARISON_Y_LIMITS = {
 }
 TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_WIDTH = np.timedelta64(12, "m")
 TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_OFFSETS_MINUTES = (
-    -18,
-    -6,
-    6,
-    18,
+    -12,
+    0,
+    12,
 )
 TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_WIDTH = 0.18
 TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSETS = (
-    -0.27,
-    -0.09,
-    0.09,
-    0.27,
+    -0.18,
+    0.0,
+    0.18,
 )
 TIME_SERIES_COMPARISON_PRECIP_FULL_XLIM_PADDING = np.timedelta64(30, "m")
 TIME_SERIES_COMPARISON_PRECIP_BAR_ALPHA = 0.55
@@ -3459,17 +3456,12 @@ def build_time_series_comparison_adapters(
     ]
 
 
-def _build_time_series_precipitation_adapters(
+def _build_time_series_precipitation_adapter(
     *,
     init_date: object,
-) -> tuple[DataAdapter, DataAdapter]:
+) -> DataAdapter:
     """Build internal precipitation-only adapters for the comparison panel."""
-    return (
-        build_time_series_era5_precipitation_adapter(init_date=init_date),
-        build_time_series_goamazon_rain_gauge_precipitation_adapter(
-            init_date=init_date
-        ),
-    )
+    return build_time_series_era5_precipitation_adapter(init_date=init_date)
 
 
 def build_surface_nwp_reanalysis_time_series_comparison_inputs(
@@ -3529,10 +3521,9 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             tick_step_hours=tick_step_hours,
         )
 
-    (
-        precipitation_era5_adapter,
-        precipitation_observation_adapter,
-    ) = _build_time_series_precipitation_adapters(init_date=start_time)
+    precipitation_era5_adapter = _build_time_series_precipitation_adapter(
+        init_date=start_time
+    )
     try:
         panel_definitions = (
             *TIME_SERIES_COMPARISON_PANELS,
@@ -3549,9 +3540,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                 layers = _build_precipitation_bar_layers(
                     monan_source_adapters=source_adapters[:2],
                     era5_adapter=precipitation_era5_adapter,
-                    observed_adapter=precipitation_observation_adapter,
                     gridded_request=gridded_request,
-                    station_request=station_request,
                     start_time=start_time,
                     end_time_exclusive=end_time_exclusive,
                     series_mode=series_mode,
@@ -3705,7 +3694,6 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             )
     finally:
         precipitation_era5_adapter.close()
-        precipitation_observation_adapter.close()
 
     figsize = (13, 10) if series_mode == "full" else (10, 10)
     figure_specification = FigureSpecification(
@@ -4816,15 +4804,13 @@ def _build_precipitation_bar_layers(
     *,
     monan_source_adapters: Sequence[DataAdapter],
     era5_adapter: DataAdapter,
-    observed_adapter: DataAdapter,
     gridded_request: TimeSeriesRequest,
-    station_request: TimeSeriesRequest,
     start_time: np.datetime64,
     end_time_exclusive: np.datetime64,
     series_mode: TimeSeriesComparisonMode,
     utc_offset_hours: int,
 ) -> list[PreparedTimeSeriesLayerInput]:
-    """Build precipitation bar layers in SHOC/MYNN/ERA5/Observation order."""
+    """Build precipitation bar layers in SHOC/MYNN/ERA5 order."""
     if len(monan_source_adapters) != 2:
         raise ValueError(
             "Expected SHOC and MYNN adapters for precipitation panel "
@@ -4843,10 +4829,6 @@ def _build_precipitation_bar_layers(
         variable_name="precipitation",
         request=gridded_request,
     )
-    observed_raw = observed_adapter.to_time_series_plot_data(
-        variable_name="precipitation",
-        request=station_request,
-    )
 
     hourly_plot_data_by_source = [
         _build_monan_hourly_precipitation_rate_plot_data(
@@ -4861,11 +4843,6 @@ def _build_precipitation_bar_layers(
         ),
         _build_era5_hourly_precipitation_rate_plot_data(
             era5_raw,
-            start_time=start_time,
-            end_time_exclusive=end_time_exclusive,
-        ),
-        _build_observed_hourly_precipitation_rate_plot_data(
-            observed_raw,
             start_time=start_time,
             end_time_exclusive=end_time_exclusive,
         ),
@@ -4886,7 +4863,7 @@ def _build_precipitation_bar_layers(
     for source_index, (
         source_label,
         source_color,
-    ) in enumerate(TIME_SERIES_COMPARISON_SOURCE_STYLES):
+    ) in enumerate(TIME_SERIES_COMPARISON_SOURCE_STYLES[:3]):
         base_plot_data = hourly_plot_data_by_source[source_index]
         base_values = np.asarray(base_plot_data.values, dtype=float)
         bar_values = np.where(np.isfinite(base_values), base_values, np.nan)
@@ -5010,33 +4987,6 @@ def _build_era5_hourly_precipitation_rate_plot_data(
         label=plot_data.label,
         times=hourly_times,
         values=hourly_rates,
-        units="mm h^-1",
-        site_label=plot_data.site_label,
-        vertical_label=plot_data.vertical_label,
-        value_axis=plot_data.value_axis,
-        draw_mask=hourly_draw_mask,
-    )
-
-
-def _build_observed_hourly_precipitation_rate_plot_data(
-    plot_data: TimeSeriesPlotData,
-    *,
-    start_time: np.datetime64,
-    end_time_exclusive: np.datetime64,
-) -> TimeSeriesPlotData:
-    """Average minute rain-gauge rate samples to hourly mm/h rates."""
-    hourly_times, hourly_values, hourly_draw_mask = (
-        _build_hourly_binned_time_series(
-            plot_data,
-            start_time=start_time,
-            end_time_exclusive=end_time_exclusive,
-            aggregation="mean",
-        )
-    )
-    return TimeSeriesPlotData(
-        label=plot_data.label,
-        times=hourly_times,
-        values=hourly_values,
         units="mm h^-1",
         site_label=plot_data.site_label,
         vertical_label=plot_data.vertical_label,
