@@ -11,6 +11,7 @@ from plot_core.scenarios.paths import (
 
 
 METEOROLOGICAL_RECIPE_FAMILY = "meteorological_time_series"
+HPBL_RECIPE_FAMILY = "hpbl_time_series"
 SURFACE_FLUX_RECIPE_FAMILY = "surface_flux_time_series"
 
 REFERENCE_OBSERVATION = "Observation"
@@ -29,6 +30,7 @@ VARIABLE_LABELS = {
     "specific_humidity_2m": "2 m specific humidity",
     "wind_speed_10m": "10 m wind speed",
     "precipitation": "Precipitation",
+    "hpbl": "PBL height",
     "sensible_heat_flux": "Sensible heat flux",
     "latent_heat_flux": "Latent heat flux",
 }
@@ -38,6 +40,7 @@ VARIABLE_UNITS = {
     "specific_humidity_2m": "g kg^-1",
     "wind_speed_10m": "m s^-1",
     "precipitation": "mm h^-1",
+    "hpbl": "m",
     "sensible_heat_flux": "W m^-2",
     "latent_heat_flux": "W m^-2",
 }
@@ -49,6 +52,7 @@ RECIPE_FAMILY_VARIABLES = {
         "wind_speed_10m",
         "precipitation",
     ),
+    HPBL_RECIPE_FAMILY: ("hpbl",),
     SURFACE_FLUX_RECIPE_FAMILY: (
         "sensible_heat_flux",
         "latent_heat_flux",
@@ -80,6 +84,7 @@ def iter_recipe_variable_pairs() -> tuple[tuple[str, str], ...]:
     pairs: list[tuple[str, str]] = []
     for recipe_family in (
         METEOROLOGICAL_RECIPE_FAMILY,
+        HPBL_RECIPE_FAMILY,
         SURFACE_FLUX_RECIPE_FAMILY,
     ):
         for variable_name in RECIPE_FAMILY_VARIABLES[recipe_family]:
@@ -97,6 +102,9 @@ def select_reference_source(
     if recipe_family == METEOROLOGICAL_RECIPE_FAMILY:
         if variable_name == "precipitation":
             return REFERENCE_ERA5
+        return REFERENCE_OBSERVATION
+
+    if recipe_family == HPBL_RECIPE_FAMILY:
         return REFERENCE_OBSERVATION
 
     if recipe_family == SURFACE_FLUX_RECIPE_FAMILY:
@@ -150,6 +158,7 @@ def build_reference_summary_lines(case: CaseMetadata) -> tuple[str, ...]:
         "specific_humidity_2m reference: Observation",
         "wind_speed_10m reference: Observation",
         "precipitation reference: ERA5 (Observation unavailable)",
+        "hpbl reference: Observation",
         f"surface flux reference: {flux_note}",
     )
 
@@ -176,6 +185,7 @@ def metric_units(
 __all__ = [
     "BASE_METRIC_NAMES",
     "CaseMetadata",
+    "HPBL_RECIPE_FAMILY",
     "METEOROLOGICAL_RECIPE_FAMILY",
     "PRECIPITATION_TOTAL_METRIC_NAMES",
     "REFERENCE_ERA5",

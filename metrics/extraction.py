@@ -13,6 +13,7 @@ from plot_core.scenarios.adapters import (
     build_surface_flux_time_series_shoc_adapter,
     build_time_series_era5_adapter,
     build_time_series_era5_precipitation_adapter,
+    build_time_series_goamazon_ceilometer_pbl_height_adapter,
     build_time_series_goamazon_surface_station_adapter,
     build_time_series_mynn_adapter,
     build_time_series_shoc_adapter,
@@ -37,6 +38,7 @@ from .processing import (
     build_monan_hourly_precipitation_rate_plot_data,
 )
 from .registry import (
+    HPBL_RECIPE_FAMILY,
     METEOROLOGICAL_RECIPE_FAMILY,
     SURFACE_FLUX_RECIPE_FAMILY,
 )
@@ -52,6 +54,11 @@ def extract_hourly_series_by_source(
     compact_date = normalize_time_series_init_date(init_date)
     if recipe_family == METEOROLOGICAL_RECIPE_FAMILY:
         return _extract_meteorological_hourly_series_by_source(
+            variable_name=variable_name,
+            init_date=compact_date,
+        )
+    if recipe_family == HPBL_RECIPE_FAMILY:
+        return _extract_hpbl_hourly_series_by_source(
             variable_name=variable_name,
             init_date=compact_date,
         )
@@ -131,6 +138,74 @@ def _extract_meteorological_hourly_series_by_source(
             mynn_plot_data.label: mynn_plot_data,
             era5_plot_data.label: era5_plot_data,
             station_plot_data.label: station_plot_data,
+        }
+    finally:
+        _close_adapters(adapters)
+
+
+def _extract_hpbl_hourly_series_by_source(
+    *,
+    variable_name: str,
+    init_date: str,
+) -> dict[str, TimeSeriesPlotData]:
+    """Extract hourly HPBL series for SHOC, MYNN, ERA5 and ceilometer."""
+    if variable_name != "hpbl":
+        raise ValueError(
+            f"Unsupported HPBL metrics variable {variable_name!r}."
+        )
+
+    start_time, end_time_exclusive = _build_time_window(init_date)
+    gridded_request = build_time_series_comparison_gridded_request(
+        init_date=init_date
+    )
+    cross_5_request = build_cross_5_time_series_request(gridded_request)
+    station_request = build_time_series_comparison_station_request(
+        init_date=init_date
+    )
+
+    adapters = _build_hpbl_time_series_comparison_adapters(
+        init_date=init_date
+    )
+    shoc_adapter, mynn_adapter, era5_adapter, ceilometer_adapter = adapters
+    try:
+        shoc_plot_data = _extract_monan_hourly_mean_cross_5_plot_data(
+            adapter=shoc_adapter,
+            variable_name=variable_name,
+            request=cross_5_request,
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+        )
+        mynn_plot_data = _extract_monan_hourly_mean_cross_5_plot_data(
+            adapter=mynn_adapter,
+            variable_name=variable_name,
+            request=cross_5_request,
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+        )
+        era5_raw = era5_adapter.to_time_series_plot_data(
+            variable_name=variable_name,
+            request=gridded_request,
+        )
+        era5_plot_data = build_hourly_last_plot_data(
+            era5_raw,
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+        )
+        ceilometer_raw = ceilometer_adapter.to_time_series_plot_data(
+            variable_name=variable_name,
+            request=station_request,
+        )
+        ceilometer_plot_data = build_hourly_nearest_station_plot_data(
+            ceilometer_raw,
+            start_time=start_time,
+            end_time_exclusive=end_time_exclusive,
+        )
+
+        return {
+            shoc_plot_data.label: shoc_plot_data,
+            mynn_plot_data.label: mynn_plot_data,
+            era5_plot_data.label: era5_plot_data,
+            ceilometer_plot_data.label: ceilometer_plot_data,
         }
     finally:
         _close_adapters(adapters)
@@ -343,6 +418,21 @@ def _build_surface_flux_time_series_comparison_adapters(
             )
         )
     return adapters
+
+
+def _build_hpbl_time_series_comparison_adapters(
+    *,
+    init_date: str,
+) -> list[DataAdapter]:
+    """Build SHOC, MYNN, ERA5 and ceilometer adapters for HPBL metrics."""
+    return [
+        build_time_series_shoc_adapter(init_date=init_date),
+        build_time_series_mynn_adapter(init_date=init_date),
+        build_time_series_era5_adapter(init_date=init_date),
+        build_time_series_goamazon_ceilometer_pbl_height_adapter(
+            init_date=init_date
+        ),
+    ]
 
 
 __all__ = ["extract_hourly_series_by_source"]

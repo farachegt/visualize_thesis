@@ -33,9 +33,11 @@ from metrics.scores import (
 from metrics.tables import (
     LONG_FIELDNAMES,
     WIDE_FIELDNAMES,
+    build_latex_metrics_table,
     build_long_rows_from_wide_rows,
     default_output_paths,
     write_csv,
+    write_text,
 )
 
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
@@ -137,8 +139,8 @@ def resolve_output_paths(
     *,
     output_dir: Path | None,
     season_slug: str,
-) -> tuple[Path, Path]:
-    """Resolve long/wide CSV output paths from an output directory."""
+) -> tuple[Path, Path, Path]:
+    """Resolve long/wide CSV and LaTeX output paths."""
     output_root = DEFAULT_OUTPUT_ROOT if output_dir is None else output_dir
     return default_output_paths(
         output_root=output_root,
@@ -147,7 +149,7 @@ def resolve_output_paths(
 
 
 def main() -> None:
-    """Compute and write CSV error metrics for one supported case."""
+    """Compute and write CSV and LaTeX error metrics for one case."""
     parser = argparse.ArgumentParser(
         description=(
             "Compute SHOC/MYNN/ERA5 error metrics against Observation or "
@@ -166,7 +168,7 @@ def main() -> None:
         type=Path,
         default=None,
         help=(
-            "Output directory for default long/wide filenames. Default: "
+            "Output directory for default long/wide/table filenames. Default: "
             "tests/output/metrics/."
         ),
     )
@@ -179,8 +181,12 @@ def main() -> None:
     long_rows, wide_rows, metadata = compute_error_metrics(
         init_date=args.init_date
     )
-    long_path, wide_path = resolve_output_paths(
+    long_path, wide_path, latex_path = resolve_output_paths(
         output_dir=args.output_dir,
+        season_slug=metadata["season_slug"],
+    )
+    latex_table = build_latex_metrics_table(
+        wide_rows=wide_rows,
         season_slug=metadata["season_slug"],
     )
 
@@ -194,9 +200,11 @@ def main() -> None:
         fieldnames=WIDE_FIELDNAMES,
         rows=wide_rows,
     )
+    write_text(path=latex_path, text=latex_table)
 
     print(f"wrote long: {long_path}")
     print(f"wrote wide: {wide_path}")
+    print(f"wrote table: {latex_path}")
 
 
 if __name__ == "__main__":

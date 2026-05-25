@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from pathlib import Path
 
 from .registry import (
@@ -43,6 +44,17 @@ WIDE_FIELDNAMES = (
     "relative_total_bias_percent",
 )
 
+LATEX_TABLE_SOURCES = ("SHOC", "MYNN")
+LATEX_TABLE_EXCLUDED_VARIABLES = ("precipitation",)
+LATEX_UNIT_LABELS = {
+    "degC": r"$^\circ$C",
+    "g kg^-1": r"g kg$^{-1}$",
+    "m s^-1": r"m s$^{-1}$",
+    "mm h^-1": r"mm h$^{-1}$",
+    "m": "m",
+    "W m^-2": r"W m$^{-2}$",
+}
+
 
 def build_long_rows_from_wide_rows(
     wide_rows: list[dict[str, object]],
@@ -81,6 +93,73 @@ def build_long_rows_from_wide_rows(
     return long_rows
 
 
+def build_latex_metrics_table(
+    *,
+    wide_rows: list[dict[str, object]],
+    season_slug: str,
+) -> str:
+    """Return the publication table LaTeX from wide metric rows."""
+    season_label = season_slug.replace("_", " ")
+    label_suffix = season_slug.replace("_", "-")
+    source_rows = _group_latex_rows_by_source(wide_rows)
+
+    lines = [
+        r"% Requires \usepackage{multirow}",
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\scriptsize",
+        (
+            r"\caption{Surface and PBL-height error metrics for "
+            f"{season_label}."
+            r"}"
+        ),
+        rf"\label{{tab:error-metrics-sfc-{label_suffix}}}",
+        r"\begin{tabular}{lllrrrr}",
+        r"\hline",
+        r"Source & Variable & Unit & Bias & MAE & RMSE & $r$ \\",
+        r"\hline",
+    ]
+
+    for source_index, source_label in enumerate(LATEX_TABLE_SOURCES):
+        rows = source_rows.get(source_label, [])
+        if not rows:
+            continue
+        if source_index > 0:
+            lines.append(r"\hline")
+
+        row_count = len(rows)
+        for row_index, row in enumerate(rows):
+            source_cell = (
+                rf"\multirow{{{row_count}}}{{*}}{{{source_label}}}"
+                if row_index == 0
+                else ""
+            )
+            lines.append(
+                " & ".join(
+                    (
+                        source_cell,
+                        _latex_escape(row["variable_label"]),
+                        _latex_unit_label(row["units"]),
+                        _format_latex_metric_value(row["bias"]),
+                        _format_latex_metric_value(row["mae"]),
+                        _format_latex_metric_value(row["rmse"]),
+                        _format_latex_metric_value(row["corr"]),
+                    )
+                )
+                + r" \\"
+            )
+
+    lines.extend(
+        [
+            r"\hline",
+            r"\end{tabular}",
+            r"\end{table}",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def write_csv(
     *,
     path: Path,
@@ -99,22 +178,91 @@ def write_csv(
         writer.writerows(rows)
 
 
+def write_text(
+    *,
+    path: Path,
+    text: str,
+) -> None:
+    """Write text output with a trailing newline."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text.rstrip() + "\n", encoding="utf-8")
+
+
 def default_output_paths(
     *,
     output_root: Path,
     season_slug: str,
-) -> tuple[Path, Path]:
-    """Return default long/wide output paths for one season."""
+) -> tuple[Path, Path, Path]:
+    """Return default long/wide/table output paths for one season."""
     return (
         output_root / f"error_metrics_sfc_{season_slug}_long.csv",
         output_root / f"error_metrics_sfc_{season_slug}_wide.csv",
+        output_root / f"error_metrics_sfc_{season_slug}_table.tex",
+    )
+
+
+def _group_latex_rows_by_source(
+    wide_rows: list[dict[str, object]],
+) -> dict[str, list[dict[str, object]]]:
+    selected_rows = [
+        row
+        for row in wide_rows
+        if row.get("source") in LATEX_TABLE_SOURCES
+        and row.get("variable") not in LATEX_TABLE_EXCLUDED_VARIABLES
+    ]
+
+    variable_order: dict[str, int] = {}
+    for row in selected_rows:
+        variable_name = str(row["variable"])
+        if variable_name not in variable_order:
+            variable_order[variable_name] = len(variable_order)
+
+    grouped_rows: dict[str, list[dict[str, object]]] = {
+        source_label: [] for source_label in LATEX_TABLE_SOURCES
+    }
+    for row in selected_rows:
+        grouped_rows[str(row["source"])].append(row)
+
+    for rows in grouped_rows.values():
+        rows.sort(key=lambda row: variable_order[str(row["variable"])])
+
+    return grouped_rows
+
+
+def _format_latex_metric_value(value: object) -> str:
+    if value is None or value == "":
+        return r"--"
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return _latex_escape(value)
+    if not math.isfinite(numeric_value):
+        return r"--"
+    return f"{numeric_value:.2f}"
+
+
+def _latex_unit_label(unit: object) -> str:
+    unit_text = str(unit)
+    return LATEX_UNIT_LABELS.get(unit_text, _latex_escape(unit_text))
+
+
+def _latex_escape(value: object) -> str:
+    text = str(value)
+    return (
+        text.replace("\\", r"\textbackslash{}")
+        .replace("&", r"\&")
+        .replace("%", r"\%")
+        .replace("_", r"\_")
+        .replace("#", r"\#")
     )
 
 
 __all__ = [
     "LONG_FIELDNAMES",
     "WIDE_FIELDNAMES",
+    "build_latex_metrics_table",
     "build_long_rows_from_wide_rows",
     "default_output_paths",
     "write_csv",
+    "write_text",
 ]
