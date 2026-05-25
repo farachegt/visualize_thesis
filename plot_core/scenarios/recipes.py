@@ -4322,6 +4322,10 @@ def build_vertical_profile_comparison_full_inputs(
         display_target_times = target_times[
             list(VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER)
         ]
+        display_radiosonde_adapters = [
+            radiosonde_adapters[source_row_index]
+            for source_row_index in VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER
+        ]
         for row_index, target_time in enumerate(display_target_times):
             nearest_request = build_vertical_profile_comparison_gridded_request(
                 time_value=target_time,
@@ -4343,7 +4347,7 @@ def build_vertical_profile_comparison_full_inputs(
                 layers = _build_vertical_profile_comparison_layers(
                     variable_name=variable_name,
                     source_adapters=source_adapters,
-                    radiosonde_adapter=radiosonde_adapters[row_index],
+                    radiosonde_adapter=display_radiosonde_adapters[row_index],
                     nearest_request=nearest_request,
                     cross_5_request=cross_5_request,
                     radiosonde_request=radiosonde_request,
