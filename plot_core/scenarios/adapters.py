@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from plot_core.adapter import DataAdapter
 
 from .paths import (
@@ -470,11 +472,20 @@ def build_goamazon_radiosonde_profile_adapter(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> DataAdapter:
     """Build a radiosonde adapter for the nearest sounding launch."""
+    selected_path = find_nearest_goamazon_radiosonde_path(
+        target_time=target_time,
+        init_date=init_date,
+    )
+    target_label = np.datetime_as_string(
+        np.datetime64(target_time, "s"),
+        unit="s",
+    )
+    print(
+        "GoAmazon radiosonde selection: "
+        f"target_time={target_label} path={selected_path}"
+    )
     return DataAdapter(
-        path=find_nearest_goamazon_radiosonde_path(
-            target_time=target_time,
-            init_date=init_date,
-        ),
+        path=selected_path,
         file_format="netcdf",
         geometry_type="moving_point",
         source_specification=(

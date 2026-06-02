@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from glob import glob
 from pathlib import Path
 import re
 from typing import Literal
@@ -83,6 +82,74 @@ VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR = (
 GOAMAZON_RADIOSONDE_FILENAME_RE = re.compile(
     r"maosondewnpnM1\.b1\.(\d{8})\.(\d{4,6})\.cdf$"
 )
+GOAMAZON_RADIOSONDE_SELECTED_FILENAMES = {
+    "20141002": {
+        "2014-10-02T00:00:00": "maosondewnpnM1.b1.20141001.234200.cdf",
+        "2014-10-02T06:00:00": "maosondewnpnM1.b1.20141002.052800.cdf",
+        "2014-10-02T12:00:00": "maosondewnpnM1.b1.20141002.120000.cdf",
+        "2014-10-02T18:00:00": "maosondewnpnM1.b1.20141002.172800.cdf",
+        "2014-10-03T00:00:00": "maosondewnpnM1.b1.20141002.232800.cdf",
+        "2014-10-03T06:00:00": "maosondewnpnM1.b1.20141003.052600.cdf",
+        "2014-10-03T12:00:00": "maosondewnpnM1.b1.20141003.113900.cdf",
+        "2014-10-03T18:00:00": "maosondewnpnM1.b1.20141003.172700.cdf",
+        "2014-10-04T00:00:00": "maosondewnpnM1.b1.20141003.232900.cdf",
+        "2014-10-04T06:00:00": "maosondewnpnM1.b1.20141004.052600.cdf",
+        "2014-10-04T12:00:00": "maosondewnpnM1.b1.20141004.112900.cdf",
+        "2014-10-04T18:00:00": "maosondewnpnM1.b1.20141004.174600.cdf",
+        "2014-10-05T00:00:00": "maosondewnpnM1.b1.20141004.233000.cdf",
+        "2014-10-05T06:00:00": "maosondewnpnM1.b1.20141005.053000.cdf",
+        "2014-10-05T12:00:00": "maosondewnpnM1.b1.20141005.113600.cdf",
+        "2014-10-05T18:00:00": "maosondewnpnM1.b1.20141005.172800.cdf",
+        "2014-10-06T00:00:00": "maosondewnpnM1.b1.20141005.232900.cdf",
+        "2014-10-06T06:00:00": "maosondewnpnM1.b1.20141006.052500.cdf",
+        "2014-10-06T12:00:00": "maosondewnpnM1.b1.20141006.113300.cdf",
+        "2014-10-06T18:00:00": "maosondewnpnM1.b1.20141006.173000.cdf",
+    },
+    "20140802": {
+        "2014-08-02T00:00:00": "maosondewnpnM1.b1.20140801.232800.cdf",
+        "2014-08-02T06:00:00": "maosondewnpnM1.b1.20140802.053000.cdf",
+        "2014-08-02T12:00:00": "maosondewnpnM1.b1.20140802.112800.cdf",
+        "2014-08-02T18:00:00": "maosondewnpnM1.b1.20140802.172700.cdf",
+        "2014-08-03T00:00:00": "maosondewnpnM1.b1.20140802.233000.cdf",
+        "2014-08-03T06:00:00": "maosondewnpnM1.b1.20140803.052700.cdf",
+        "2014-08-03T12:00:00": "maosondewnpnM1.b1.20140803.113100.cdf",
+        "2014-08-03T18:00:00": "maosondewnpnM1.b1.20140803.172400.cdf",
+        "2014-08-04T00:00:00": "maosondewnpnM1.b1.20140803.233000.cdf",
+        "2014-08-04T06:00:00": "maosondewnpnM1.b1.20140804.052900.cdf",
+        "2014-08-04T12:00:00": "maosondewnpnM1.b1.20140804.113600.cdf",
+        "2014-08-04T18:00:00": "maosondewnpnM1.b1.20140804.172800.cdf",
+        "2014-08-05T00:00:00": "maosondewnpnM1.b1.20140804.233000.cdf",
+        "2014-08-05T06:00:00": "maosondewnpnM1.b1.20140805.052800.cdf",
+        "2014-08-05T12:00:00": "maosondewnpnM1.b1.20140805.113400.cdf",
+        "2014-08-05T18:00:00": "maosondewnpnM1.b1.20140805.172900.cdf",
+        "2014-08-06T00:00:00": "maosondewnpnM1.b1.20140805.233000.cdf",
+        "2014-08-06T06:00:00": "maosondewnpnM1.b1.20140806.053000.cdf",
+        "2014-08-06T12:00:00": "maosondewnpnM1.b1.20140806.113700.cdf",
+        "2014-08-06T18:00:00": "maosondewnpnM1.b1.20140806.172900.cdf",
+    },
+    "20140216": {
+        "2014-02-16T00:00:00": "maosondewnpnM1.b1.20140215.232900.cdf",
+        "2014-02-16T06:00:00": "maosondewnpnM1.b1.20140216.052800.cdf",
+        "2014-02-16T12:00:00": "maosondewnpnM1.b1.20140216.112600.cdf",
+        "2014-02-16T18:00:00": "maosondewnpnM1.b1.20140216.172800.cdf",
+        "2014-02-17T00:00:00": "maosondewnpnM1.b1.20140216.232900.cdf",
+        "2014-02-17T06:00:00": "maosondewnpnM1.b1.20140217.052900.cdf",
+        "2014-02-17T12:00:00": "maosondewnpnM1.b1.20140217.113300.cdf",
+        "2014-02-17T18:00:00": "maosondewnpnM1.b1.20140217.172800.cdf",
+        "2014-02-18T00:00:00": "maosondewnpnM1.b1.20140217.232900.cdf",
+        "2014-02-18T06:00:00": "maosondewnpnM1.b1.20140218.053000.cdf",
+        "2014-02-18T12:00:00": "maosondewnpnM1.b1.20140218.112600.cdf",
+        "2014-02-18T18:00:00": "maosondewnpnM1.b1.20140218.172600.cdf",
+        "2014-02-19T00:00:00": "maosondewnpnM1.b1.20140218.232900.cdf",
+        "2014-02-19T06:00:00": "maosondewnpnM1.b1.20140219.052900.cdf",
+        "2014-02-19T12:00:00": "maosondewnpnM1.b1.20140219.113400.cdf",
+        "2014-02-19T18:00:00": "maosondewnpnM1.b1.20140219.113400.cdf",
+        "2014-02-20T00:00:00": "maosondewnpnM1.b1.20140220.052900.cdf",
+        "2014-02-20T06:00:00": "maosondewnpnM1.b1.20140220.052900.cdf",
+        "2014-02-20T12:00:00": "maosondewnpnM1.b1.20140220.112700.cdf",
+        "2014-02-20T18:00:00": "maosondewnpnM1.b1.20140220.174500.cdf",
+    },
+}
 
 
 def normalize_time_series_init_date(
@@ -224,7 +291,12 @@ def build_time_series_goamazon_ceilometer_pbl_height_glob_patterns(
 def build_goamazon_radiosonde_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
-    """Return exact daily radiosonde globs for the 5-day window."""
+    """Return radiosonde globs covering candidate launches for an init date.
+
+    Profile comparison uses `GOAMAZON_RADIOSONDE_SELECTED_FILENAMES` instead
+    of inferring from these globs. This helper is kept for diagnostics and for
+    rebuilding the manifest when needed.
+    """
     compact_date = normalize_time_series_init_date(init_date)
     start_date = datetime.strptime(compact_date, "%Y%m%d").date()
     return tuple(
@@ -233,7 +305,7 @@ def build_goamazon_radiosonde_glob_patterns(
             "maosondewnpnM1.b1."
             f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.*.cdf"
         )
-        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+        for day_offset in range(-1, TIME_SERIES_FORECAST_DAYS)
     )
 
 
@@ -253,40 +325,63 @@ def parse_goamazon_radiosonde_launch_datetime(path: str | Path) -> datetime:
     return datetime.strptime(f"{date_text}{time_text}", "%Y%m%d%H%M%S")
 
 
+def find_selected_goamazon_radiosonde_path(
+    *,
+    target_time: object,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> str:
+    """Return the manifest-selected radiosonde path for a target."""
+    compact_date = normalize_time_series_init_date(init_date)
+    target_key = str(
+        np.datetime_as_string(
+            np.datetime64(target_time, "s"),
+            unit="s",
+        )
+    )
+    selected_filenames = GOAMAZON_RADIOSONDE_SELECTED_FILENAMES.get(
+        compact_date
+    )
+    if selected_filenames is None:
+        raise KeyError(
+            "No configured GoAmazon radiosonde manifest exists for "
+            f"init date {compact_date!r}."
+        )
+
+    selected_filename = selected_filenames.get(target_key)
+    if selected_filename is None:
+        raise KeyError(
+            "No configured GoAmazon radiosonde file exists for "
+            f"init date {compact_date!r} and target time {target_key!r}."
+        )
+
+    selected_path = (
+        Path(VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR) / selected_filename
+    )
+    if not selected_path.exists():
+        raise FileNotFoundError(
+            "The configured GoAmazon radiosonde file is missing for "
+            f"init date {compact_date!r} and target time {target_key!r}: "
+            f"{selected_path}"
+        )
+    return str(selected_path)
+
+
 def find_nearest_goamazon_radiosonde_path(
     *,
     target_time: object,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> str:
-    """Return the radiosonde file nearest to one target datetime."""
-    target_datetime = _datetime64_to_datetime(
-        np.datetime64(target_time, "ns")
+    """Return the selected radiosonde file for one target datetime.
+
+    Profile-comparison target times use the deterministic
+    `GOAMAZON_RADIOSONDE_SELECTED_FILENAMES` manifest. Missing manifest
+    entries or files are treated as configuration errors; this function does
+    not infer a replacement from nearby files.
+    """
+    return find_selected_goamazon_radiosonde_path(
+        target_time=target_time,
+        init_date=init_date,
     )
-    candidates: list[tuple[float, str]] = []
-    for glob_pattern in build_goamazon_radiosonde_glob_patterns(init_date):
-        for path in glob(glob_pattern):
-            launch_datetime = parse_goamazon_radiosonde_launch_datetime(path)
-            candidates.append(
-                (abs((launch_datetime - target_datetime).total_seconds()), path)
-            )
-
-    if not candidates:
-        raise FileNotFoundError(
-            "No GoAmazon radiosonde files matched the configured 5-day "
-            f"window for init date {init_date!r}."
-        )
-
-    _, nearest_path = min(candidates, key=lambda item: item[0])
-    return nearest_path
-
-
-def _datetime64_to_datetime(value: np.datetime64) -> datetime:
-    """Convert a numpy datetime64 value into a Python datetime."""
-    seconds_since_epoch = (
-        np.datetime64(value, "s") - np.datetime64("1970-01-01T00:00:00", "s")
-    ).astype(int)
-    return datetime.utcfromtimestamp(int(seconds_since_epoch))
-
 
 TIME_SERIES_MONAN_MYNN_GLOB_PATTERN = build_time_series_monan_glob_pattern(
     scheme="mynn"
