@@ -13,6 +13,7 @@ from plot_core.scenarios.paths import (
 METEOROLOGICAL_RECIPE_FAMILY = "meteorological_time_series"
 HPBL_RECIPE_FAMILY = "hpbl_time_series"
 SURFACE_FLUX_RECIPE_FAMILY = "surface_flux_time_series"
+VERTICAL_PROFILE_METRIC_FAMILY = "vertical_profile"
 
 REFERENCE_OBSERVATION = "Observation"
 REFERENCE_ERA5 = "ERA5"
@@ -33,6 +34,9 @@ VARIABLE_LABELS = {
     "hpbl": "PBL height",
     "sensible_heat_flux": "Sensible heat flux",
     "latent_heat_flux": "Latent heat flux",
+    "theta": "Potential temperature",
+    "qv": "Specific humidity",
+    "wind_speed": "Wind speed",
 }
 
 VARIABLE_UNITS = {
@@ -43,6 +47,9 @@ VARIABLE_UNITS = {
     "hpbl": "m",
     "sensible_heat_flux": "W m^-2",
     "latent_heat_flux": "W m^-2",
+    "theta": "K",
+    "qv": "g kg^-1",
+    "wind_speed": "m s^-1",
 }
 
 RECIPE_FAMILY_VARIABLES = {
@@ -56,6 +63,11 @@ RECIPE_FAMILY_VARIABLES = {
     SURFACE_FLUX_RECIPE_FAMILY: (
         "sensible_heat_flux",
         "latent_heat_flux",
+    ),
+    VERTICAL_PROFILE_METRIC_FAMILY: (
+        "theta",
+        "qv",
+        "wind_speed",
     ),
 }
 
@@ -196,6 +208,7 @@ __all__ = [
     "TIME_SERIES_SUPPORTED_INIT_DATES",
     "VARIABLE_LABELS",
     "VARIABLE_UNITS",
+    "VERTICAL_PROFILE_METRIC_FAMILY",
     "build_case_metadata",
     "build_reference_summary_lines",
     "iter_recipe_variable_pairs",
