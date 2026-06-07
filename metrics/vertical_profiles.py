@@ -55,6 +55,14 @@ VERTICAL_PROFILE_SYNOPTIC_HOURS = tuple(
 VERTICAL_PROFILE_PRESSURE_BOTTOM_HPA = 1000.0
 VERTICAL_PROFILE_PRESSURE_TOP_HPA = 700.0
 DEFAULT_RADIOSONDE_TOLERANCE = timedelta(hours=3)
+VERTICAL_PROFILE_METRIC_EXCLUDED_TARGET_TIMES = {
+    "20140216": frozenset(
+        (
+            "2014-02-19T18:00:00",
+            "2014-02-20T00:00:00",
+        )
+    ),
+}
 
 AlignmentLogger = Callable[[str], None]
 
@@ -114,6 +122,20 @@ def compute_vertical_profile_metric_rows(
 
     try:
         for target_time in target_times:
+            if _is_metric_excluded_target_time(
+                target_time=target_time,
+                init_date=case.init_date,
+            ):
+                _log_alignment(
+                    alignment_logger,
+                    target_time=target_time,
+                    launch_datetime=None,
+                    delta_seconds=None,
+                    status="skipped",
+                    reason="configured unavailable radiosonde target",
+                )
+                continue
+
             accepted_launch = find_accepted_radiosonde_launch(
                 target_time=target_time,
                 init_date=case.init_date,
@@ -170,6 +192,27 @@ def build_vertical_profile_target_times(
 ) -> np.ndarray:
     """Return all local-day full-mode vertical-profile target times."""
     return build_vertical_profile_all_local_day_target_times(init_date)
+
+
+def _is_metric_excluded_target_time(
+    *,
+    target_time: object,
+    init_date: object,
+) -> bool:
+    compact_date = normalize_time_series_init_date(init_date)
+    target_key = str(
+        np.datetime_as_string(
+            np.datetime64(target_time, "s"),
+            unit="s",
+        )
+    )
+    return (
+        target_key
+        in VERTICAL_PROFILE_METRIC_EXCLUDED_TARGET_TIMES.get(
+            compact_date,
+            frozenset(),
+        )
+    )
 
 
 def find_accepted_radiosonde_launch(
