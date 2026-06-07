@@ -109,7 +109,9 @@ from .adapters import (
 from .paths import (
     build_time_series_init_datetime_string,
     build_time_series_season_label,
+    build_vertical_profile_local_day_target_times,
     normalize_time_series_init_date,
+    VERTICAL_PROFILE_LOCAL_HOURS_LT,
 )
 from .requests import (
     TIME_SERIES_COMPARISON_DURATION_DAYS,
@@ -350,8 +352,7 @@ VERTICAL_PROFILE_COMPARISON_X_LIMITS = {
 VERTICAL_PROFILE_COMPARISON_X_TICKS = {
     "theta": (295.0, 300.0, 305.0, 310.0, 315.0),
 }
-VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS = (0, 6, 12, 18)
-VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER = (1, 2, 3, 0)
+VERTICAL_PROFILE_COMPARISON_LOCAL_HOURS_LT = VERTICAL_PROFILE_LOCAL_HOURS_LT
 VERTICAL_PROFILE_COMPARISON_PRESSURE_BOTTOM_HPA = 1000.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TOP_HPA = 700.0
 VERTICAL_PROFILE_COMPARISON_PRESSURE_TICKS_HPA = np.arange(
@@ -4319,14 +4320,7 @@ def build_vertical_profile_comparison_full_inputs(
             for target_time in target_times
         ]
         panels: list[PanelInput] = []
-        display_target_times = target_times[
-            list(VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER)
-        ]
-        display_radiosonde_adapters = [
-            radiosonde_adapters[source_row_index]
-            for source_row_index in VERTICAL_PROFILE_COMPARISON_DISPLAY_ROW_ORDER
-        ]
-        for row_index, target_time in enumerate(display_target_times):
+        for row_index, target_time in enumerate(target_times):
             nearest_request = build_vertical_profile_comparison_gridded_request(
                 time_value=target_time,
             )
@@ -4347,7 +4341,7 @@ def build_vertical_profile_comparison_full_inputs(
                 layers = _build_vertical_profile_comparison_layers(
                     variable_name=variable_name,
                     source_adapters=source_adapters,
-                    radiosonde_adapter=display_radiosonde_adapters[row_index],
+                    radiosonde_adapter=radiosonde_adapters[row_index],
                     nearest_request=nearest_request,
                     cross_5_request=cross_5_request,
                     radiosonde_request=radiosonde_request,
@@ -4381,7 +4375,7 @@ def build_vertical_profile_comparison_full_inputs(
             adapter.close()
 
     figure_specification = FigureSpecification(
-        nrows=len(VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS),
+        nrows=len(VERTICAL_PROFILE_COMPARISON_LOCAL_HOURS_LT),
         ncols=len(VERTICAL_PROFILE_COMPARISON_PANELS),
         suptitle=_build_vertical_profile_comparison_title(
             init_date=init_date,
@@ -4552,7 +4546,7 @@ def _build_vertical_profile_panel_axes_set_kwargs(
             f"{_format_synoptic_local_hour_label(target_time)} LT\n"
             "Pressure [hPa]"
         )
-    if row_index == len(VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS) - 1:
+    if row_index == len(VERTICAL_PROFILE_COMPARISON_LOCAL_HOURS_LT) - 1:
         axes_set_kwargs["xlabel"] = f"{panel_label} [{x_units}]"
 
     return axes_set_kwargs
@@ -4581,22 +4575,10 @@ def _build_vertical_profile_comparison_target_times(
     start_time: np.datetime64,
     forecast_day_index: int,
 ) -> np.ndarray:
-    """Return the four target synoptic times for one forecast day."""
-    if forecast_day_index < 0 or forecast_day_index >= (
-        TIME_SERIES_COMPARISON_DURATION_DAYS
-    ):
-        raise ValueError(
-            "forecast_day_index must be between 0 and "
-            f"{TIME_SERIES_COMPARISON_DURATION_DAYS - 1}."
-        )
-
-    day_start = start_time + np.timedelta64(forecast_day_index, "D")
-    return np.asarray(
-        [
-            day_start + np.timedelta64(hour, "h")
-            for hour in VERTICAL_PROFILE_COMPARISON_SYNOPTIC_HOURS
-        ],
-        dtype="datetime64[ns]",
+    """Return target times for one GMT-4 local forecast day."""
+    return build_vertical_profile_local_day_target_times(
+        init_date=start_time,
+        forecast_day_index=forecast_day_index,
     )
 
 

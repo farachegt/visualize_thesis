@@ -16,8 +16,8 @@ from plot_core.scenarios.adapters import (
 )
 from plot_core.scenarios.paths import (
     TIME_SERIES_DEFAULT_INIT_DATE,
-    TIME_SERIES_FORECAST_DAYS,
-    build_time_series_init_datetime_string,
+    VERTICAL_PROFILE_LOCAL_HOURS_LT as SCENARIO_VERTICAL_PROFILE_LOCAL_HOURS_LT,
+    build_vertical_profile_all_local_day_target_times,
     find_nearest_goamazon_radiosonde_path,
     normalize_time_series_init_date,
     parse_goamazon_radiosonde_launch_datetime,
@@ -48,7 +48,10 @@ from .scores import (
 
 VERTICAL_PROFILE_VARIABLES = ("theta", "qv", "wind_speed")
 VERTICAL_PROFILE_SOURCE_LABELS = ("SHOC", "MYNN")
-VERTICAL_PROFILE_SYNOPTIC_HOURS = (0, 6, 12, 18)
+VERTICAL_PROFILE_LOCAL_HOURS_LT = SCENARIO_VERTICAL_PROFILE_LOCAL_HOURS_LT
+VERTICAL_PROFILE_SYNOPTIC_HOURS = tuple(
+    (local_hour + 4) % 24 for local_hour in VERTICAL_PROFILE_LOCAL_HOURS_LT
+)
 VERTICAL_PROFILE_PRESSURE_BOTTOM_HPA = 1000.0
 VERTICAL_PROFILE_PRESSURE_TOP_HPA = 700.0
 DEFAULT_RADIOSONDE_TOLERANCE = timedelta(hours=3)
@@ -58,7 +61,7 @@ AlignmentLogger = Callable[[str], None]
 
 @dataclass(frozen=True)
 class AcceptedRadiosondeLaunch:
-    """Nearest radiosonde launch accepted for one target time."""
+    """Manifest-selected radiosonde launch accepted for one target time."""
 
     target_time: np.datetime64
     launch_datetime: datetime
@@ -123,7 +126,7 @@ def compute_vertical_profile_metric_rows(
                     launch_datetime=None,
                     delta_seconds=None,
                     status="skipped",
-                    reason="outside tolerance or unavailable",
+                    reason="outside tolerance",
                 )
                 continue
 
@@ -165,17 +168,8 @@ def build_vertical_profile_target_times(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> np.ndarray:
-    """Return all full-mode vertical-profile target times for one case."""
-    start_time = np.datetime64(
-        build_time_series_init_datetime_string(init_date),
-        "ns",
-    )
-    target_times = []
-    for forecast_day_index in range(TIME_SERIES_FORECAST_DAYS):
-        day_start = start_time + np.timedelta64(forecast_day_index, "D")
-        for synoptic_hour in VERTICAL_PROFILE_SYNOPTIC_HOURS:
-            target_times.append(day_start + np.timedelta64(synoptic_hour, "h"))
-    return np.asarray(target_times, dtype="datetime64[ns]")
+    """Return all local-day full-mode vertical-profile target times."""
+    return build_vertical_profile_all_local_day_target_times(init_date)
 
 
 def find_accepted_radiosonde_launch(
@@ -184,16 +178,13 @@ def find_accepted_radiosonde_launch(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
     tolerance: timedelta = DEFAULT_RADIOSONDE_TOLERANCE,
 ) -> AcceptedRadiosondeLaunch | None:
-    """Return the nearest radiosonde launch if it is within tolerance."""
+    """Return the selected radiosonde launch if it is within tolerance."""
     compact_date = normalize_time_series_init_date(init_date)
     target_datetime = _datetime64_to_datetime(np.datetime64(target_time, "ns"))
-    try:
-        path = find_nearest_goamazon_radiosonde_path(
-            target_time=target_time,
-            init_date=compact_date,
-        )
-    except FileNotFoundError:
-        return None
+    path = find_nearest_goamazon_radiosonde_path(
+        target_time=target_time,
+        init_date=compact_date,
+    )
 
     launch_datetime = parse_goamazon_radiosonde_launch_datetime(path)
     delta_seconds = abs((launch_datetime - target_datetime).total_seconds())
@@ -294,7 +285,7 @@ def _accumulate_target_profile_samples(
     radiosonde_adapter: DataAdapter,
     target_time: np.datetime64,
 ) -> None:
-    synoptic_hour = _synoptic_hour(target_time)
+    local_hour = _local_hour_lt(target_time)
     candidate_request = build_vertical_profile_comparison_gridded_request(
         time_value=target_time,
         point_sample_pattern="cross_5",
@@ -319,7 +310,7 @@ def _accumulate_target_profile_samples(
                 candidate_profile=candidate_profile,
                 reference_profile=reference_profile,
             )
-            accumulators[(source_label, variable_name, synoptic_hour)].add(
+            accumulators[(source_label, variable_name, local_hour)].add(
                 samples
             )
 
@@ -329,8 +320,8 @@ def _build_profile_accumulators(
     accumulators: dict[tuple[str, str, int], ProfileAccumulator] = {}
     for source_label in VERTICAL_PROFILE_SOURCE_LABELS:
         for variable_name in VERTICAL_PROFILE_VARIABLES:
-            for synoptic_hour in VERTICAL_PROFILE_SYNOPTIC_HOURS:
-                accumulators[(source_label, variable_name, synoptic_hour)] = (
+            for local_hour in VERTICAL_PROFILE_LOCAL_HOURS_LT:
+                accumulators[(source_label, variable_name, local_hour)] = (
                     ProfileAccumulator(candidate_values=[], reference_values=[])
                 )
     return accumulators
@@ -344,14 +335,15 @@ def _build_wide_rows_from_accumulators(
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for source_label in VERTICAL_PROFILE_SOURCE_LABELS:
-        for synoptic_hour in VERTICAL_PROFILE_SYNOPTIC_HOURS:
+        for local_hour in VERTICAL_PROFILE_LOCAL_HOURS_LT:
             for variable_name in VERTICAL_PROFILE_VARIABLES:
                 accumulator = accumulators[
-                    (source_label, variable_name, synoptic_hour)
+                    (source_label, variable_name, local_hour)
                 ]
                 candidate_da, reference_da = _build_sample_dataarrays(
                     accumulator
                 )
+                synoptic_hour = _synoptic_hour_utc_from_local_hour(local_hour)
                 rows.append(
                     {
                         "case_init_date": init_date,
@@ -361,6 +353,7 @@ def _build_wide_rows_from_accumulators(
                         "variable_label": VARIABLE_LABELS[variable_name],
                         "source": source_label,
                         "reference_source": REFERENCE_OBSERVATION,
+                        "local_hour_lt": f"{local_hour:02d}",
                         "synoptic_hour_utc": f"{synoptic_hour:02d}",
                         "units": VARIABLE_UNITS[variable_name],
                         "n_samples": paired_finite_sample_count(
@@ -441,11 +434,15 @@ def _log_alignment(
         )
 
 
-def _synoptic_hour(target_time: np.datetime64) -> int:
+def _local_hour_lt(target_time: np.datetime64) -> int:
     return int(
         np.datetime64(target_time, "h").astype("datetime64[h]").astype(int)
-        % 24
-    )
+        - 4
+    ) % 24
+
+
+def _synoptic_hour_utc_from_local_hour(local_hour: int) -> int:
+    return (local_hour + 4) % 24
 
 
 def _datetime64_to_datetime(value: np.datetime64) -> datetime:
@@ -457,6 +454,7 @@ __all__ = [
     "DEFAULT_RADIOSONDE_TOLERANCE",
     "VERTICAL_PROFILE_PRESSURE_BOTTOM_HPA",
     "VERTICAL_PROFILE_PRESSURE_TOP_HPA",
+    "VERTICAL_PROFILE_LOCAL_HOURS_LT",
     "VERTICAL_PROFILE_SYNOPTIC_HOURS",
     "VERTICAL_PROFILE_VARIABLES",
     "align_profile_to_nearest_pressure",

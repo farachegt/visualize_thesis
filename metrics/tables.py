@@ -52,6 +52,7 @@ VERTICAL_PROFILE_LONG_FIELDNAMES = (
     "variable_label",
     "source",
     "reference_source",
+    "local_hour_lt",
     "synoptic_hour_utc",
     "metric",
     "value",
@@ -68,6 +69,7 @@ VERTICAL_PROFILE_WIDE_FIELDNAMES = (
     "variable_label",
     "source",
     "reference_source",
+    "local_hour_lt",
     "synoptic_hour_utc",
     "units",
     "n_samples",
@@ -215,6 +217,7 @@ def build_vertical_profile_long_rows_from_wide_rows(
                     "variable_label": wide_row["variable_label"],
                     "source": wide_row["source"],
                     "reference_source": wide_row["reference_source"],
+                    "local_hour_lt": wide_row["local_hour_lt"],
                     "synoptic_hour_utc": wide_row["synoptic_hour_utc"],
                     "metric": metric_name,
                     "value": wide_row.get(metric_name),
@@ -245,7 +248,7 @@ def build_vertical_profile_latex_metrics_table(
     ]
     selected_rows.sort(
         key=lambda row: (
-            int(row["synoptic_hour_utc"]),
+            int(row["local_hour_lt"]),
             LATEX_TABLE_SOURCES.index(str(row["source"])),
             str(row["variable"]),
         )
@@ -262,19 +265,22 @@ def build_vertical_profile_latex_metrics_table(
             r"}"
         ),
         rf"\label{{tab:error-metrics-vp-{label_suffix}}}",
-        r"\begin{tabular}{llllrrrr}",
+        r"\begin{tabular}{lllllrrrr}",
         r"\hline",
-        r"Synoptic hour (UTC) & Source & Variable & Unit & Bias & MAE & RMSE & $r$ \\",
+        (
+            r"Local hour (LT) & UTC hour & Source & Variable & Unit & "
+            r"Bias & MAE & RMSE & $r$ \\"
+        ),
         r"\hline",
     ]
 
     grouped_rows: dict[tuple[int, str], list[dict[str, object]]] = {}
     for row in selected_rows:
-        key = (int(row["synoptic_hour_utc"]), str(row["source"]))
+        key = (int(row["local_hour_lt"]), str(row["source"]))
         grouped_rows.setdefault(key, []).append(row)
 
     previous_hour: int | None = None
-    for hour in (0, 6, 12, 18):
+    for hour in (2, 8, 14, 20):
         hour_has_rows = False
         for source_label in LATEX_TABLE_SOURCES:
             rows = grouped_rows.get((hour, source_label), [])
@@ -285,9 +291,15 @@ def build_vertical_profile_latex_metrics_table(
             previous_hour = hour
             hour_has_rows = True
             row_count = len(rows)
+            utc_hour = str(rows[0]["synoptic_hour_utc"])
             for row_index, row in enumerate(rows):
                 hour_cell = (
                     rf"\multirow{{{row_count}}}{{*}}{{{hour:02d}}}"
+                    if row_index == 0
+                    else ""
+                )
+                utc_hour_cell = (
+                    rf"\multirow{{{row_count}}}{{*}}{{{utc_hour}}}"
                     if row_index == 0
                     else ""
                 )
@@ -300,6 +312,7 @@ def build_vertical_profile_latex_metrics_table(
                     " & ".join(
                         (
                             hour_cell,
+                            utc_hour_cell,
                             source_cell,
                             _latex_escape(row["variable_label"]),
                             _vertical_profile_latex_unit_label(row["units"]),

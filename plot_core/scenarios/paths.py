@@ -52,6 +52,8 @@ TIME_SERIES_INIT_DATE_TO_MONAN_SEASON = {
     "20140216": "wet_season",
 }
 TIME_SERIES_FORECAST_DAYS = 5
+VERTICAL_PROFILE_LOCAL_HOURS_LT = (2, 8, 14, 20)
+VERTICAL_PROFILE_TARGET_UTC_OFFSETS_HOURS = (6, 12, 18, 24)
 TIME_SERIES_MONAN_DATAOUT_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/"
     "dataout"
@@ -104,6 +106,7 @@ GOAMAZON_RADIOSONDE_SELECTED_FILENAMES = {
         "2014-10-06T06:00:00": "maosondewnpnM1.b1.20141006.052500.cdf",
         "2014-10-06T12:00:00": "maosondewnpnM1.b1.20141006.113300.cdf",
         "2014-10-06T18:00:00": "maosondewnpnM1.b1.20141006.173000.cdf",
+        "2014-10-07T00:00:00": "maosondewnpnM1.b1.20141006.233000.cdf",
     },
     "20140802": {
         "2014-08-02T00:00:00": "maosondewnpnM1.b1.20140801.232800.cdf",
@@ -126,6 +129,7 @@ GOAMAZON_RADIOSONDE_SELECTED_FILENAMES = {
         "2014-08-06T06:00:00": "maosondewnpnM1.b1.20140806.053000.cdf",
         "2014-08-06T12:00:00": "maosondewnpnM1.b1.20140806.113700.cdf",
         "2014-08-06T18:00:00": "maosondewnpnM1.b1.20140806.172900.cdf",
+        "2014-08-07T00:00:00": "maosondewnpnM1.b1.20140806.233000.cdf",
     },
     "20140216": {
         "2014-02-16T00:00:00": "maosondewnpnM1.b1.20140215.232900.cdf",
@@ -143,11 +147,12 @@ GOAMAZON_RADIOSONDE_SELECTED_FILENAMES = {
         "2014-02-19T00:00:00": "maosondewnpnM1.b1.20140218.232900.cdf",
         "2014-02-19T06:00:00": "maosondewnpnM1.b1.20140219.052900.cdf",
         "2014-02-19T12:00:00": "maosondewnpnM1.b1.20140219.113400.cdf",
-        "2014-02-19T18:00:00": "maosondewnpnM1.b1.20140219.113400.cdf",
-        "2014-02-20T00:00:00": "maosondewnpnM1.b1.20140220.052900.cdf",
+        "2014-02-19T18:00:00": "maosondewnpnM1.b1.20140219.180000.cdf",
+        "2014-02-20T00:00:00": "maosondewnpnM1.b1.20140220.000000.cdf",
         "2014-02-20T06:00:00": "maosondewnpnM1.b1.20140220.052900.cdf",
         "2014-02-20T12:00:00": "maosondewnpnM1.b1.20140220.112700.cdf",
         "2014-02-20T18:00:00": "maosondewnpnM1.b1.20140220.174500.cdf",
+        "2014-02-21T00:00:00": "maosondewnpnM1.b1.20140220.233000.cdf",
     },
 }
 
@@ -180,6 +185,46 @@ def build_time_series_init_datetime_string(
     return (
         f"{compact_date[:4]}-{compact_date[4:6]}-"
         f"{compact_date[6:]}T00:00:00"
+    )
+
+
+def build_vertical_profile_local_day_target_times(
+    *,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    forecast_day_index: int,
+) -> np.ndarray:
+    """Return target times for one GMT-4 local forecast day."""
+    if forecast_day_index < 0 or forecast_day_index >= TIME_SERIES_FORECAST_DAYS:
+        raise ValueError(
+            "forecast_day_index must be between 0 and "
+            f"{TIME_SERIES_FORECAST_DAYS - 1}."
+        )
+
+    local_day_start = (
+        np.datetime64(build_time_series_init_datetime_string(init_date), "ns")
+        + np.timedelta64(forecast_day_index, "D")
+    )
+    return np.asarray(
+        [
+            local_day_start + np.timedelta64(hour_offset, "h")
+            for hour_offset in VERTICAL_PROFILE_TARGET_UTC_OFFSETS_HOURS
+        ],
+        dtype="datetime64[ns]",
+    )
+
+
+def build_vertical_profile_all_local_day_target_times(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> np.ndarray:
+    """Return all profile target times for the five GMT-4 local days."""
+    return np.concatenate(
+        [
+            build_vertical_profile_local_day_target_times(
+                init_date=init_date,
+                forecast_day_index=forecast_day_index,
+            )
+            for forecast_day_index in range(TIME_SERIES_FORECAST_DAYS)
+        ]
     )
 
 
