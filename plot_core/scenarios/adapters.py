@@ -17,7 +17,7 @@ from .paths import (
     build_vertical_profile_era5_path,
     find_nearest_goamazon_radiosonde_path,
     build_time_series_era5_path,
-    build_time_series_goamazon_ceilometer_pbl_height_glob_patterns,
+    build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths,
     build_time_series_goamazon_rain_gauge_precipitation_glob_patterns,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
@@ -305,10 +305,10 @@ def build_time_series_goamazon_ceilometer_pbl_height_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> DataAdapter:
-    """Build the GoAmazon ceilometer PBL-height adapter for time series."""
+    """Build the preprocessed GoAmazon ceilometer PBL-height adapter."""
     return DataAdapter(
         glob_patterns=(
-            build_time_series_goamazon_ceilometer_pbl_height_glob_patterns(
+            build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
                 init_date=init_date
             )
         ),

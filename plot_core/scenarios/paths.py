@@ -77,6 +77,10 @@ TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "a0 (Derived Minimal Quality Control)/maoceilpblhtM1.a0"
 )
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_HOURLY_NEAREST_5MIN_DIR = (
+    f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
+    "hourly_nearest_5min"
+)
 VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "b1 (Quality Control applied)/Radiosonde"
@@ -333,6 +337,25 @@ def build_time_series_goamazon_ceilometer_pbl_height_glob_patterns(
     )
 
 
+def build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact daily preprocessed ceilometer PBL-height paths."""
+    compact_date = normalize_time_series_init_date(init_date)
+    start_date = datetime.strptime(compact_date, "%Y%m%d").date()
+    processed_dir = (
+        TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_HOURLY_NEAREST_5MIN_DIR
+    )
+    return tuple(
+        (
+            f"{processed_dir}/"
+            "maoceilpblhtM1.a0."
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.cdf"
+        )
+        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
 def build_goamazon_radiosonde_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
@@ -446,4 +469,7 @@ TIME_SERIES_GOAMAZON_EDDY_CORRELATION_FLUX_GLOB_PATTERNS = (
 )
 TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_GLOB_PATTERNS = (
     build_time_series_goamazon_ceilometer_pbl_height_glob_patterns()
+)
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_HOURLY_NEAREST_5MIN_PATHS = (
+    build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths()
 )

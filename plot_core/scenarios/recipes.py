@@ -4115,14 +4115,9 @@ def build_hpbl_time_series_comparison_inputs(
                 },
             )
             if source_index == observation_source_index:
-                raw_station_plot_data = adapter.to_time_series_plot_data(
+                prepared_plot_data = adapter.to_time_series_plot_data(
                     variable_name=variable_name,
                     request=station_request,
-                )
-                prepared_plot_data = _build_hourly_nearest_station_plot_data(
-                    raw_station_plot_data,
-                    start_time=start_time,
-                    end_time_exclusive=end_time_exclusive,
                 )
                 if series_mode == "hourly_mean":
                     prepared_plot_data = (
