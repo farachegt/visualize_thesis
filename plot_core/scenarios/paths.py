@@ -81,6 +81,14 @@ TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_HOURLY_NEAREST_5MIN_DIR = (
     f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
     "hourly_nearest_5min"
 )
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEAN_30MIN_DIR = (
+    f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
+    "rolling_mean_30min"
+)
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEDIAN_30MIN_DIR = (
+    f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
+    "rolling_median_30min"
+)
 VERTICAL_PROFILE_GOAMAZON_RADIOSONDE_DIR = (
     "/lustre/projetos/monan_atm/guilherme.farache/GoAmazon_ATTO_data/"
     "b1 (Quality Control applied)/Radiosonde"
@@ -356,6 +364,32 @@ def build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
     )
 
 
+def build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
+    *,
+    method: Literal["mean", "median"],
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact daily rolling-statistic ceilometer PBL-height paths."""
+    compact_date = normalize_time_series_init_date(init_date)
+    start_date = datetime.strptime(compact_date, "%Y%m%d").date()
+    if method == "mean":
+        processed_dir = (
+            TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEAN_30MIN_DIR
+        )
+    else:
+        processed_dir = (
+            TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEDIAN_30MIN_DIR
+        )
+    return tuple(
+        (
+            f"{processed_dir}/"
+            "maoceilpblhtM1.a0."
+            f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.cdf"
+        )
+        for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
 def build_goamazon_radiosonde_glob_patterns(
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
 ) -> tuple[str, ...]:
@@ -472,4 +506,14 @@ TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_GLOB_PATTERNS = (
 )
 TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_HOURLY_NEAREST_5MIN_PATHS = (
     build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths()
+)
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEAN_30MIN_PATHS = (
+    build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
+        method="mean"
+    )
+)
+TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEDIAN_30MIN_PATHS = (
+    build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
+        method="median"
+    )
 )
