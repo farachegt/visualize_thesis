@@ -19,10 +19,13 @@ from plot_core.scenarios.adapters import (
     build_time_series_shoc_adapter,
 )
 from plot_core.scenarios.paths import (
+    HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    HpblObservationProcessing,
     TIME_SERIES_DEFAULT_INIT_DATE,
     TIME_SERIES_FORECAST_DAYS,
     TIME_SERIES_INIT_DATE_TO_MONAN_SEASON,
     build_time_series_init_datetime_string,
+    normalize_hpbl_observation_processing,
     normalize_time_series_init_date,
 )
 from plot_core.scenarios.requests import (
@@ -49,9 +52,15 @@ def extract_hourly_series_by_source(
     recipe_family: str,
     variable_name: str,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    hpbl_observation_processing: HpblObservationProcessing = (
+        HPBL_OBSERVATION_PROCESSING_DEFAULT
+    ),
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract and preprocess hourly series by source label."""
     compact_date = normalize_time_series_init_date(init_date)
+    hpbl_processing = normalize_hpbl_observation_processing(
+        hpbl_observation_processing
+    )
     if recipe_family == METEOROLOGICAL_RECIPE_FAMILY:
         return _extract_meteorological_hourly_series_by_source(
             variable_name=variable_name,
@@ -61,6 +70,7 @@ def extract_hourly_series_by_source(
         return _extract_hpbl_hourly_series_by_source(
             variable_name=variable_name,
             init_date=compact_date,
+            observation_processing=hpbl_processing,
         )
     if recipe_family == SURFACE_FLUX_RECIPE_FAMILY:
         return _extract_surface_flux_hourly_series_by_source(
@@ -147,6 +157,7 @@ def _extract_hpbl_hourly_series_by_source(
     *,
     variable_name: str,
     init_date: str,
+    observation_processing: HpblObservationProcessing,
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract hourly HPBL series for SHOC, MYNN, ERA5 and ceilometer."""
     if variable_name != "hpbl":
@@ -164,7 +175,8 @@ def _extract_hpbl_hourly_series_by_source(
     )
 
     adapters = _build_hpbl_time_series_comparison_adapters(
-        init_date=init_date
+        init_date=init_date,
+        observation_processing=observation_processing,
     )
     shoc_adapter, mynn_adapter, era5_adapter, ceilometer_adapter = adapters
     try:
@@ -423,6 +435,7 @@ def _build_surface_flux_time_series_comparison_adapters(
 def _build_hpbl_time_series_comparison_adapters(
     *,
     init_date: str,
+    observation_processing: HpblObservationProcessing,
 ) -> list[DataAdapter]:
     """Build SHOC, MYNN, ERA5 and ceilometer adapters for HPBL metrics."""
     return [
@@ -430,7 +443,8 @@ def _build_hpbl_time_series_comparison_adapters(
         build_time_series_mynn_adapter(init_date=init_date),
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_ceilometer_pbl_height_adapter(
-            init_date=init_date
+            init_date=init_date,
+            observation_processing=observation_processing,
         ),
     ]
 

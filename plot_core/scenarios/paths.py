@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 
@@ -39,6 +39,11 @@ LEGACY_MYNN_MONAN_GLOB_PATTERN = (
 )
 
 TimeSeriesMonanScheme = Literal["mynn", "shoc"]
+HpblObservationProcessing = Literal[
+    "hourly_nearest_5min",
+    "rolling_mean_30min",
+    "rolling_median_30min",
+]
 
 TIME_SERIES_DEFAULT_INIT_DATE = "20141002"
 TIME_SERIES_SUPPORTED_INIT_DATES = (
@@ -51,6 +56,17 @@ TIME_SERIES_INIT_DATE_TO_MONAN_SEASON = {
     "20140802": "transition_season",
     "20140216": "wet_season",
 }
+HPBL_OBSERVATION_PROCESSING_DEFAULT: HpblObservationProcessing = (
+    "hourly_nearest_5min"
+)
+HPBL_OBSERVATION_PROCESSING_OPTIONS: tuple[
+    HpblObservationProcessing,
+    ...,
+] = (
+    "hourly_nearest_5min",
+    "rolling_mean_30min",
+    "rolling_median_30min",
+)
 TIME_SERIES_FORECAST_DAYS = 5
 VERTICAL_PROFILE_LOCAL_HOURS_LT = (2, 8, 14, 20)
 VERTICAL_PROFILE_TARGET_UTC_OFFSETS_HOURS = (6, 12, 18, 24)
@@ -364,6 +380,21 @@ def build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
     )
 
 
+def normalize_hpbl_observation_processing(
+    observation_processing: object = HPBL_OBSERVATION_PROCESSING_DEFAULT,
+) -> HpblObservationProcessing:
+    """Return a supported HPBL observation preprocessing selector."""
+    normalized = str(observation_processing).strip().replace("-", "_")
+    if normalized not in HPBL_OBSERVATION_PROCESSING_OPTIONS:
+        supported_options = ", ".join(HPBL_OBSERVATION_PROCESSING_OPTIONS)
+        raise ValueError(
+            "Unsupported HPBL observation processing "
+            f"{observation_processing!r}. Supported options: "
+            f"{supported_options}."
+        )
+    return cast(HpblObservationProcessing, normalized)
+
+
 def build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
     *,
     method: Literal["mean", "median"],
@@ -376,10 +407,12 @@ def build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
         processed_dir = (
             TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEAN_30MIN_DIR
         )
-    else:
+    elif method == "median":
         processed_dir = (
             TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_ROLLING_MEDIAN_30MIN_DIR
         )
+    else:
+        raise ValueError("Rolling HPBL method must be 'mean' or 'median'.")
     return tuple(
         (
             f"{processed_dir}/"
@@ -387,6 +420,32 @@ def build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
             f"{(start_date + timedelta(days=day_offset)):%Y%m%d}.cdf"
         )
         for day_offset in range(TIME_SERIES_FORECAST_DAYS)
+    )
+
+
+def build_time_series_goamazon_ceilometer_pbl_height_processed_paths(
+    *,
+    observation_processing: object = HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+) -> tuple[str, ...]:
+    """Return exact daily HPBL observation paths for one processing product."""
+    processing = normalize_hpbl_observation_processing(
+        observation_processing
+    )
+    if processing == "hourly_nearest_5min":
+        return (
+            build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
+                init_date=init_date
+            )
+        )
+    if processing == "rolling_mean_30min":
+        return build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
+            method="mean",
+            init_date=init_date,
+        )
+    return build_time_series_goamazon_ceilometer_pbl_height_rolling_paths(
+        method="median",
+        init_date=init_date,
     )
 
 

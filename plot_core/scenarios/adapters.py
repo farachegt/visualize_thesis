@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Sequence
+
 import numpy as np
 
 from plot_core.adapter import DataAdapter
 
 from .paths import (
+    HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    HpblObservationProcessing,
     LEGACY_E3SM_GLOB_PATTERN,
     LEGACY_MONAN_E3SM_GLOB_PATTERN,
     LEGACY_MYNN_MONAN_GLOB_PATTERN,
@@ -17,10 +22,11 @@ from .paths import (
     build_vertical_profile_era5_path,
     find_nearest_goamazon_radiosonde_path,
     build_time_series_era5_path,
-    build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths,
+    build_time_series_goamazon_ceilometer_pbl_height_processed_paths,
     build_time_series_goamazon_rain_gauge_precipitation_glob_patterns,
     build_time_series_goamazon_surface_station_glob_patterns,
     build_time_series_monan_glob_pattern,
+    normalize_hpbl_observation_processing,
 )
 from .source_specifications import (
     build_time_series_era5_precipitation_source_specification,
@@ -304,20 +310,50 @@ def build_time_series_goamazon_rain_gauge_precipitation_adapter(
 def build_time_series_goamazon_ceilometer_pbl_height_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    observation_processing: HpblObservationProcessing = (
+        HPBL_OBSERVATION_PROCESSING_DEFAULT
+    ),
 ) -> DataAdapter:
     """Build the preprocessed GoAmazon ceilometer PBL-height adapter."""
+    processing = normalize_hpbl_observation_processing(
+        observation_processing
+    )
+    paths = build_time_series_goamazon_ceilometer_pbl_height_processed_paths(
+        observation_processing=processing,
+        init_date=init_date,
+    )
+    _require_existing_hpbl_observation_paths(
+        paths,
+        observation_processing=processing,
+    )
     return DataAdapter(
-        glob_patterns=(
-            build_time_series_goamazon_ceilometer_pbl_height_hourly_nearest_paths(
-                init_date=init_date
-            )
-        ),
+        glob_patterns=paths,
         file_format="netcdf",
         geometry_type="fixed_point",
         source_specification=(
             build_time_series_goamazon_ceilometer_pbl_height_source_specification()
         ),
         reader_options={},
+    )
+
+
+def _require_existing_hpbl_observation_paths(
+    paths: Sequence[str],
+    *,
+    observation_processing: HpblObservationProcessing,
+) -> None:
+    """Fail early when an expected processed HPBL observation file is absent."""
+    missing_paths = [path for path in paths if not Path(path).exists()]
+    if not missing_paths:
+        return
+
+    missing_listing = "\n".join(f"  - {path}" for path in missing_paths)
+    raise FileNotFoundError(
+        "Missing preprocessed GoAmazon ceilometer PBL-height files for "
+        f"observation_processing={observation_processing!r}. Run the "
+        "corresponding HPBL observation preprocessing script before plotting "
+        "or computing metrics. Missing files:\n"
+        f"{missing_listing}"
     )
 
 

@@ -107,9 +107,12 @@ from .adapters import (
     build_vertical_profile_shoc_adapter,
 )
 from .paths import (
+    HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    HpblObservationProcessing,
     build_time_series_init_datetime_string,
     build_time_series_season_label,
     build_vertical_profile_local_day_target_times,
+    normalize_hpbl_observation_processing,
     normalize_time_series_init_date,
     VERTICAL_PROFILE_LOCAL_HOURS_LT,
 )
@@ -4025,14 +4028,21 @@ def build_surface_flux_time_series_comparison_figure(
 def build_hpbl_time_series_comparison_adapters(
     *,
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
+    observation_processing: HpblObservationProcessing = (
+        HPBL_OBSERVATION_PROCESSING_DEFAULT
+    ),
 ) -> list[DataAdapter]:
     """Build adapters for the SHOC, MYNN, ERA5 and HPBL observation case."""
+    processing = normalize_hpbl_observation_processing(
+        observation_processing
+    )
     return [
         build_time_series_shoc_adapter(init_date=init_date),
         build_time_series_mynn_adapter(init_date=init_date),
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_ceilometer_pbl_height_adapter(
-            init_date=init_date
+            init_date=init_date,
+            observation_processing=processing,
         ),
     ]
 
@@ -4042,6 +4052,9 @@ def build_hpbl_time_series_comparison_inputs(
     adapters: Sequence[DataAdapter] | None = None,
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     series_mode: TimeSeriesComparisonMode = "full",
+    observation_processing: HpblObservationProcessing = (
+        HPBL_OBSERVATION_PROCESSING_DEFAULT
+    ),
     local_utc_offset_hours: int = TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS,
     tick_step_hours: int = TIME_SERIES_COMPARISON_TICK_STEP_HOURS,
     hourly_mean_tick_step_hours: int = (
@@ -4056,7 +4069,8 @@ def build_hpbl_time_series_comparison_inputs(
     )
     if adapters is None:
         source_adapters = build_hpbl_time_series_comparison_adapters(
-            init_date=start_time
+            init_date=start_time,
+            observation_processing=observation_processing,
         )
     else:
         source_adapters = list(adapters)
@@ -4115,9 +4129,14 @@ def build_hpbl_time_series_comparison_inputs(
                 },
             )
             if source_index == observation_source_index:
-                prepared_plot_data = adapter.to_time_series_plot_data(
+                raw_station_plot_data = adapter.to_time_series_plot_data(
                     variable_name=variable_name,
                     request=station_request,
+                )
+                prepared_plot_data = _build_hourly_nearest_station_plot_data(
+                    raw_station_plot_data,
+                    start_time=start_time,
+                    end_time_exclusive=end_time_exclusive,
                 )
                 if series_mode == "hourly_mean":
                     prepared_plot_data = (
@@ -4252,12 +4271,16 @@ def build_hpbl_time_series_comparison_figure(
     adapters: Sequence[DataAdapter] | None = None,
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     series_mode: TimeSeriesComparisonMode = "full",
+    observation_processing: HpblObservationProcessing = (
+        HPBL_OBSERVATION_PROCESSING_DEFAULT
+    ),
 ) -> Figure:
     """Build the one-panel HPBL SHOC/MYNN/ERA5/Observation comparison."""
     panels, figure_specification = build_hpbl_time_series_comparison_inputs(
         adapters=adapters,
         init_date=init_date,
         series_mode=series_mode,
+        observation_processing=observation_processing,
     )
     return plot_time_series_panels(
         panels=panels,

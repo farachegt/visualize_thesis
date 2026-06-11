@@ -39,6 +39,11 @@ from metrics.tables import (
     write_csv,
     write_text,
 )
+from plot_core.scenarios.paths import (
+    HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    HPBL_OBSERVATION_PROCESSING_OPTIONS,
+    normalize_hpbl_observation_processing,
+)
 
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
 
@@ -46,9 +51,13 @@ DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
 def compute_error_metrics(
     *,
     init_date: str = TIME_SERIES_DEFAULT_INIT_DATE,
+    hpbl_observation_processing: str = HPBL_OBSERVATION_PROCESSING_DEFAULT,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, str]]:
     """Compute all v1 error-metric outputs for one supported case."""
     case = build_case_metadata(init_date)
+    hpbl_processing = normalize_hpbl_observation_processing(
+        hpbl_observation_processing
+    )
     wide_rows: list[dict[str, object]] = []
 
     for recipe_family, variable_name in iter_recipe_variable_pairs():
@@ -62,6 +71,7 @@ def compute_error_metrics(
             recipe_family=recipe_family,
             variable_name=variable_name,
             init_date=case.init_date,
+            hpbl_observation_processing=hpbl_processing,
         )
         available_sources = tuple(series_by_source.keys())
 
@@ -132,6 +142,7 @@ def compute_error_metrics(
     return long_rows, wide_rows, {
         "case_init_date": case.init_date,
         "season_slug": case.season_slug,
+        "hpbl_observation_processing": hpbl_processing,
     }
 
 
@@ -172,14 +183,31 @@ def main() -> None:
             "tests/output/metrics/."
         ),
     )
+    parser.add_argument(
+        "--hpbl-observation-processing",
+        "--observation-processing",
+        dest="hpbl_observation_processing",
+        type=normalize_hpbl_observation_processing,
+        choices=HPBL_OBSERVATION_PROCESSING_OPTIONS,
+        default=HPBL_OBSERVATION_PROCESSING_DEFAULT,
+        help=(
+            "Preprocessed HPBL observation product to use for HPBL metrics. "
+            f"Default: {HPBL_OBSERVATION_PROCESSING_DEFAULT}."
+        ),
+    )
     args = parser.parse_args()
 
     case = build_case_metadata(args.init_date)
     for summary_line in build_reference_summary_lines(case):
         print(summary_line)
+    print(
+        "hpbl observation processing: "
+        f"{args.hpbl_observation_processing}"
+    )
 
     long_rows, wide_rows, metadata = compute_error_metrics(
-        init_date=args.init_date
+        init_date=args.init_date,
+        hpbl_observation_processing=args.hpbl_observation_processing,
     )
     long_path, wide_path, latex_path = resolve_output_paths(
         output_dir=args.output_dir,
