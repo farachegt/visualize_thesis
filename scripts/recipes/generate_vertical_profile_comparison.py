@@ -9,6 +9,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from plot_core.scenarios.paths import (
+    MONAN_PATH_VARIANT_DEFAULT,
+    MONAN_PATH_VARIANTS,
+    build_monan_output_marker,
+    normalize_monan_path_variant,
+)
+
 SUPPORTED_INIT_DATES = ("20141002", "20140802", "20140216")
 DEFAULT_INIT_DATE = "20141002"
 FORECAST_DAYS = 5
@@ -17,6 +24,7 @@ FORECAST_DAYS = 5
 def generate_vertical_profile_comparison_figures(
     output_dir: Path | None = None,
     init_date: str = DEFAULT_INIT_DATE,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> list[Path]:
     """Generate and save full-mode synoptic vertical-profile comparisons."""
     import matplotlib.pyplot as plt
@@ -30,10 +38,15 @@ def generate_vertical_profile_comparison_figures(
 
     season_label = build_time_series_season_label(init_date)
     season_slug = _slugify(season_label)
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
+    marker = build_monan_output_marker(normalized_monan_variant)
     final_output_dir = output_dir or OUTPUT_DIR
     final_output_dir.mkdir(parents=True, exist_ok=True)
 
-    adapters = build_vertical_profile_comparison_adapters(init_date=init_date)
+    adapters = build_vertical_profile_comparison_adapters(
+        init_date=init_date,
+        monan_variant=normalized_monan_variant,
+    )
     saved_paths: list[Path] = []
     try:
         for forecast_day_index in range(FORECAST_DAYS):
@@ -44,7 +57,7 @@ def generate_vertical_profile_comparison_figures(
             output_path = (
                 final_output_dir
                 / (
-                    "vertical_profiles_comparison_"
+                    f"vertical_profiles_comparison{marker}_"
                     f"{season_slug}_full_{forecast_date}.png"
                 )
             )
@@ -52,6 +65,7 @@ def generate_vertical_profile_comparison_figures(
                 adapters=adapters,
                 init_date=init_date,
                 forecast_day_index=forecast_day_index,
+                monan_variant=normalized_monan_variant,
             )
             figure.savefig(output_path, dpi=150, bbox_inches="tight")
             plt.close(figure)
@@ -101,11 +115,21 @@ def main() -> None:
         default=DEFAULT_INIT_DATE,
         help="Forecast initialization date selector.",
     )
+    parser.add_argument(
+        "--monan-variant",
+        choices=MONAN_PATH_VARIANTS,
+        default=MONAN_PATH_VARIANT_DEFAULT,
+        help=(
+            "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
+            "SHOCMF/MYNNMF labels."
+        ),
+    )
     args = parser.parse_args()
 
     saved_paths = generate_vertical_profile_comparison_figures(
         output_dir=args.output_dir,
         init_date=args.init_date,
+        monan_variant=args.monan_variant,
     )
     for saved_path in saved_paths:
         print(f"saved: {saved_path}")

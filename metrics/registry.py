@@ -136,12 +136,17 @@ def select_candidate_sources(
     available_sources: tuple[str, ...],
 ) -> tuple[str, ...]:
     """Return ordered sources to compare against the selected reference."""
+    available_monan_sources = tuple(
+        source
+        for source in ("SHOC", "MYNN", "SHOCMF", "MYNNMF")
+        if source in available_sources
+    )
     if variable_name == "precipitation":
-        ordered_sources = ("SHOC", "MYNN")
+        ordered_sources = available_monan_sources
     elif reference_source == REFERENCE_OBSERVATION:
-        ordered_sources = ("SHOC", "MYNN", "ERA5")
+        ordered_sources = (*available_monan_sources, "ERA5")
     else:
-        ordered_sources = ("SHOC", "MYNN")
+        ordered_sources = available_monan_sources
 
     available_set = set(available_sources)
     return tuple(

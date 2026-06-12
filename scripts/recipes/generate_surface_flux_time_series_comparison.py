@@ -8,6 +8,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from plot_core.scenarios.paths import (
+    MONAN_PATH_VARIANT_DEFAULT,
+    MONAN_PATH_VARIANTS,
+    build_monan_output_marker,
+    normalize_monan_path_variant,
+)
+
 SUPPORTED_INIT_DATES = ("20141002", "20140802", "20140216")
 DEFAULT_INIT_DATE = "20141002"
 
@@ -16,6 +23,7 @@ def generate_surface_flux_time_series_comparison_figure(
     output_path: Path | None = None,
     mode: str = "full",
     init_date: str = DEFAULT_INIT_DATE,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Path:
     """Generate and save the SHOC/MYNN/ERA5/flux-tower comparison."""
     import matplotlib.pyplot as plt
@@ -28,21 +36,25 @@ def generate_surface_flux_time_series_comparison_figure(
     )
 
     series_mode = _normalize_mode(mode)
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
     final_output_path = output_path or _default_output_path(
         OUTPUT_DIR,
         series_mode,
         build_time_series_season_label(init_date),
+        normalized_monan_variant,
     )
     final_output_path.parent.mkdir(parents=True, exist_ok=True)
 
     adapters = build_surface_flux_time_series_comparison_adapters(
-        init_date=init_date
+        init_date=init_date,
+        monan_variant=normalized_monan_variant,
     )
     try:
         figure = build_surface_flux_time_series_comparison_figure(
             adapters=adapters,
             init_date=init_date,
             series_mode=series_mode,
+            monan_variant=normalized_monan_variant,
         )
         figure.savefig(final_output_path, dpi=150, bbox_inches="tight")
         plt.close(figure)
@@ -66,10 +78,15 @@ def _default_output_path(
     output_dir: Path,
     mode: str,
     season_label: str,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Path:
     """Return the default output path for one season and plot mode."""
     season_slug = season_label.lower().replace(" ", "_")
-    return output_dir / f"time_series_comparison_sf_{season_slug}_{mode}.png"
+    marker = build_monan_output_marker(monan_variant)
+    return (
+        output_dir
+        / f"time_series_comparison_sf{marker}_{season_slug}_{mode}.png"
+    )
 
 
 def main() -> None:
@@ -104,12 +121,22 @@ def main() -> None:
         default=DEFAULT_INIT_DATE,
         help="Forecast initialization date selector.",
     )
+    parser.add_argument(
+        "--monan-variant",
+        choices=MONAN_PATH_VARIANTS,
+        default=MONAN_PATH_VARIANT_DEFAULT,
+        help=(
+            "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
+            "SHOCMF/MYNNMF labels."
+        ),
+    )
     args = parser.parse_args()
 
     saved_path = generate_surface_flux_time_series_comparison_figure(
         output_path=args.output,
         mode=args.mode,
         init_date=args.init_date,
+        monan_variant=args.monan_variant,
     )
     print(f"saved: {saved_path}")
 

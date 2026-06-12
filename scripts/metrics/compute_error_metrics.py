@@ -42,7 +42,10 @@ from metrics.tables import (
 from plot_core.scenarios.paths import (
     HPBL_OBSERVATION_PROCESSING_DEFAULT,
     HPBL_OBSERVATION_PROCESSING_OPTIONS,
+    MONAN_PATH_VARIANT_DEFAULT,
+    MONAN_PATH_VARIANTS,
     normalize_hpbl_observation_processing,
+    normalize_monan_path_variant,
 )
 
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
@@ -52,12 +55,14 @@ def compute_error_metrics(
     *,
     init_date: str = TIME_SERIES_DEFAULT_INIT_DATE,
     hpbl_observation_processing: str = HPBL_OBSERVATION_PROCESSING_DEFAULT,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, str]]:
     """Compute all v1 error-metric outputs for one supported case."""
     case = build_case_metadata(init_date)
     hpbl_processing = normalize_hpbl_observation_processing(
         hpbl_observation_processing
     )
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
     wide_rows: list[dict[str, object]] = []
 
     for recipe_family, variable_name in iter_recipe_variable_pairs():
@@ -71,6 +76,7 @@ def compute_error_metrics(
             recipe_family=recipe_family,
             variable_name=variable_name,
             init_date=case.init_date,
+            monan_variant=normalized_monan_variant,
             hpbl_observation_processing=hpbl_processing,
         )
         available_sources = tuple(series_by_source.keys())
@@ -143,6 +149,7 @@ def compute_error_metrics(
         "case_init_date": case.init_date,
         "season_slug": case.season_slug,
         "hpbl_observation_processing": hpbl_processing,
+        "monan_variant": normalized_monan_variant,
     }
 
 
@@ -150,12 +157,14 @@ def resolve_output_paths(
     *,
     output_dir: Path | None,
     season_slug: str,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> tuple[Path, Path, Path]:
     """Resolve long/wide CSV and LaTeX output paths."""
     output_root = DEFAULT_OUTPUT_ROOT if output_dir is None else output_dir
     return default_output_paths(
         output_root=output_root,
         season_slug=season_slug,
+        monan_variant=monan_variant,
     )
 
 
@@ -195,6 +204,15 @@ def main() -> None:
             f"Default: {HPBL_OBSERVATION_PROCESSING_DEFAULT}."
         ),
     )
+    parser.add_argument(
+        "--monan-variant",
+        choices=MONAN_PATH_VARIANTS,
+        default=MONAN_PATH_VARIANT_DEFAULT,
+        help=(
+            "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
+            "SHOCMF/MYNNMF labels."
+        ),
+    )
     args = parser.parse_args()
 
     case = build_case_metadata(args.init_date)
@@ -204,14 +222,17 @@ def main() -> None:
         "hpbl observation processing: "
         f"{args.hpbl_observation_processing}"
     )
+    print(f"monan variant: {args.monan_variant}")
 
     long_rows, wide_rows, metadata = compute_error_metrics(
         init_date=args.init_date,
         hpbl_observation_processing=args.hpbl_observation_processing,
+        monan_variant=args.monan_variant,
     )
     long_path, wide_path, latex_path = resolve_output_paths(
         output_dir=args.output_dir,
         season_slug=metadata["season_slug"],
+        monan_variant=metadata["monan_variant"],
     )
     latex_table = build_latex_metrics_table(
         wide_rows=wide_rows,

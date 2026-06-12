@@ -15,9 +15,12 @@ from .paths import (
     LEGACY_MYNN_MONAN_GLOB_PATTERN,
     LEGACY_SHOC_MONAN_GLOB_PATTERN,
     MODELO_U_PATH,
+    MONAN_PATH_VARIANT_DEFAULT,
+    MonanPathVariant,
     OBS_CEILOMETRO_PATH,
     OBS_RADIOSONDA_U_PATH,
     TIME_SERIES_DEFAULT_INIT_DATE,
+    build_monan_source_label,
     build_surface_flux_goamazon_eddy_correlation_glob_patterns,
     build_vertical_profile_era5_path,
     find_nearest_goamazon_radiosonde_path,
@@ -193,16 +196,23 @@ def build_ceilometro_adapter() -> DataAdapter:
 def build_time_series_mynn_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the MYNN MONAN adapter for the surface time-series scenario."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="mynn",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
-        source_specification=build_time_series_mynn_source_specification(),
+        source_specification=build_time_series_mynn_source_specification(
+            label=build_monan_source_label(
+                scheme="mynn",
+                monan_variant=monan_variant,
+            )
+        ),
         reader_options={
             "combine": "nested",
             "concat_dim": "Time",
@@ -214,16 +224,23 @@ def build_time_series_mynn_adapter(
 def build_time_series_shoc_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the SHOC MONAN adapter for the surface time-series scenario."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="shoc",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
-        source_specification=build_time_series_shoc_source_specification(),
+        source_specification=build_time_series_shoc_source_specification(
+            label=build_monan_source_label(
+                scheme="shoc",
+                monan_variant=monan_variant,
+            )
+        ),
         reader_options={
             "combine": "nested",
             "concat_dim": "Time",
@@ -360,17 +377,24 @@ def _require_existing_hpbl_observation_paths(
 def build_surface_flux_time_series_mynn_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the MYNN MONAN adapter for surface-flux time series."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="mynn",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
         source_specification=(
-            build_surface_flux_time_series_mynn_source_specification()
+            build_surface_flux_time_series_mynn_source_specification(
+                label=build_monan_source_label(
+                    scheme="mynn",
+                    monan_variant=monan_variant,
+                )
+            )
         ),
         reader_options={
             "combine": "nested",
@@ -383,17 +407,24 @@ def build_surface_flux_time_series_mynn_adapter(
 def build_surface_flux_time_series_shoc_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the SHOC MONAN adapter for surface-flux time series."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="shoc",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
         source_specification=(
-            build_surface_flux_time_series_shoc_source_specification()
+            build_surface_flux_time_series_shoc_source_specification(
+                label=build_monan_source_label(
+                    scheme="shoc",
+                    monan_variant=monan_variant,
+                )
+            )
         ),
         reader_options={
             "combine": "nested",
@@ -449,16 +480,23 @@ def build_surface_flux_goamazon_eddy_correlation_adapter(
 def build_vertical_profile_mynn_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the MYNN MONAN adapter for vertical-profile comparison."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="mynn",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
-        source_specification=build_vertical_profile_mynn_source_specification(),
+        source_specification=build_vertical_profile_mynn_source_specification(
+            label=build_monan_source_label(
+                scheme="mynn",
+                monan_variant=monan_variant,
+            )
+        ),
         reader_options={
             "combine": "nested",
             "concat_dim": "Time",
@@ -470,16 +508,23 @@ def build_vertical_profile_mynn_adapter(
 def build_vertical_profile_shoc_adapter(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> DataAdapter:
     """Build the SHOC MONAN adapter for vertical-profile comparison."""
     return DataAdapter(
         glob_pattern=build_time_series_monan_glob_pattern(
             scheme="shoc",
             init_date=init_date,
+            monan_variant=monan_variant,
         ),
         file_format="netcdf",
         geometry_type="gridded",
-        source_specification=build_vertical_profile_shoc_source_specification(),
+        source_specification=build_vertical_profile_shoc_source_specification(
+            label=build_monan_source_label(
+                scheme="shoc",
+                monan_variant=monan_variant,
+            )
+        ),
         reader_options={
             "combine": "nested",
             "concat_dim": "Time",

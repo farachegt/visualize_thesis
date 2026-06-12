@@ -4,6 +4,11 @@ import csv
 import math
 from pathlib import Path
 
+from plot_core.scenarios.paths import (
+    MONAN_PATH_VARIANT_DEFAULT,
+    build_monan_output_marker,
+)
+
 from .registry import (
     BASE_METRIC_NAMES,
     PRECIPITATION_TOTAL_METRIC_NAMES,
@@ -80,7 +85,7 @@ VERTICAL_PROFILE_WIDE_FIELDNAMES = (
     "corr",
 )
 
-LATEX_TABLE_SOURCES = ("SHOC", "MYNN")
+LATEX_TABLE_SOURCES = ("SHOC", "MYNN", "SHOCMF", "MYNNMF")
 LATEX_TABLE_EXCLUDED_VARIABLES = ("precipitation",)
 LATEX_UNIT_LABELS = {
     "degC": r"$^\circ$C",
@@ -370,12 +375,14 @@ def default_output_paths(
     *,
     output_root: Path,
     season_slug: str,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> tuple[Path, Path, Path]:
     """Return default long/wide/table output paths for one season."""
+    marker = build_monan_output_marker(monan_variant)
     return (
-        output_root / f"error_metrics_sfc_{season_slug}_long.csv",
-        output_root / f"error_metrics_sfc_{season_slug}_wide.csv",
-        output_root / f"error_metrics_sfc_{season_slug}_table.tex",
+        output_root / f"error_metrics_sfc{marker}_{season_slug}_long.csv",
+        output_root / f"error_metrics_sfc{marker}_{season_slug}_wide.csv",
+        output_root / f"error_metrics_sfc{marker}_{season_slug}_table.tex",
     )
 
 
@@ -383,12 +390,14 @@ def default_vertical_profile_output_paths(
     *,
     output_root: Path,
     season_slug: str,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> tuple[Path, Path, Path]:
     """Return default vertical-profile long/wide/table output paths."""
+    marker = build_monan_output_marker(monan_variant)
     return (
-        output_root / f"error_metrics_vp_{season_slug}_long.csv",
-        output_root / f"error_metrics_vp_{season_slug}_wide.csv",
-        output_root / f"error_metrics_vp_{season_slug}_table.tex",
+        output_root / f"error_metrics_vp{marker}_{season_slug}_long.csv",
+        output_root / f"error_metrics_vp{marker}_{season_slug}_wide.csv",
+        output_root / f"error_metrics_vp{marker}_{season_slug}_table.tex",
     )
 
 

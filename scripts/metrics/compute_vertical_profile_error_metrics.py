@@ -25,6 +25,12 @@ from metrics.tables import (  # noqa: E402
 from metrics.vertical_profiles import (  # noqa: E402
     compute_vertical_profile_metric_rows,
 )
+from plot_core.scenarios.paths import (  # noqa: E402
+    MONAN_PATH_VARIANT_DEFAULT,
+    MONAN_PATH_VARIANTS,
+    build_monan_source_labels,
+    normalize_monan_path_variant,
+)
 
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
 
@@ -32,11 +38,14 @@ DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "tests" / "output" / "metrics"
 def compute_vertical_profile_error_metrics(
     *,
     init_date: str = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
     print_alignment: bool = True,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, str]]:
     """Compute vertical-profile long and wide metrics for one case."""
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
     wide_rows, metadata = compute_vertical_profile_metric_rows(
         init_date=init_date,
+        monan_variant=normalized_monan_variant,
         alignment_logger=print if print_alignment else None,
     )
     long_rows = build_vertical_profile_long_rows_from_wide_rows(wide_rows)
@@ -47,12 +56,14 @@ def resolve_output_paths(
     *,
     output: Path | None,
     season_slug: str,
+    monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> tuple[Path, Path, Path]:
     """Resolve vertical-profile long/wide/table output paths."""
     if output is None:
         return default_vertical_profile_output_paths(
             output_root=DEFAULT_OUTPUT_ROOT,
             season_slug=season_slug,
+            monan_variant=monan_variant,
         )
 
     if output.suffix:
@@ -66,6 +77,7 @@ def resolve_output_paths(
     return default_vertical_profile_output_paths(
         output_root=output,
         season_slug=season_slug,
+        monan_variant=monan_variant,
     )
 
 
@@ -93,19 +105,35 @@ def main() -> None:
             "tests/output/metrics/."
         ),
     )
+    parser.add_argument(
+        "--monan-variant",
+        choices=MONAN_PATH_VARIANTS,
+        default=MONAN_PATH_VARIANT_DEFAULT,
+        help=(
+            "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
+            "SHOCMF/MYNNMF labels."
+        ),
+    )
     args = parser.parse_args()
 
     case = build_case_metadata(args.init_date)
+    monan_variant = normalize_monan_path_variant(args.monan_variant)
+    candidate_sources = build_monan_source_labels(monan_variant)
     print("vertical-profile reference: Observation")
-    print("vertical-profile candidate sources: SHOC, MYNN")
+    print(
+        "vertical-profile candidate sources: "
+        f"{candidate_sources[0]}, {candidate_sources[1]}"
+    )
 
     long_rows, wide_rows, metadata = compute_vertical_profile_error_metrics(
         init_date=case.init_date,
+        monan_variant=monan_variant,
         print_alignment=True,
     )
     long_path, wide_path, latex_path = resolve_output_paths(
         output=args.output,
         season_slug=metadata["season_slug"],
+        monan_variant=metadata["monan_variant"],
     )
     latex_table = build_vertical_profile_latex_metrics_table(
         wide_rows=wide_rows,

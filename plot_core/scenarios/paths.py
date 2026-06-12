@@ -39,6 +39,7 @@ LEGACY_MYNN_MONAN_GLOB_PATTERN = (
 )
 
 TimeSeriesMonanScheme = Literal["mynn", "shoc"]
+MonanPathVariant = Literal["base", "mf"]
 HpblObservationProcessing = Literal[
     "hourly_nearest_5min",
     "rolling_mean_30min",
@@ -51,6 +52,8 @@ TIME_SERIES_SUPPORTED_INIT_DATES = (
     "20140802",
     "20140216",
 )
+MONAN_PATH_VARIANT_DEFAULT: MonanPathVariant = "base"
+MONAN_PATH_VARIANTS: tuple[MonanPathVariant, ...] = ("base", "mf")
 TIME_SERIES_INIT_DATE_TO_MONAN_SEASON = {
     "20141002": "dry_season",
     "20140802": "transition_season",
@@ -265,17 +268,98 @@ def build_time_series_season_label(
     return season_name.replace("_", " ").title()
 
 
+def normalize_monan_path_variant(
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
+) -> MonanPathVariant:
+    """Return a supported MONAN physics path/label variant."""
+    normalized = str(monan_variant).strip().lower().replace("-", "_")
+    if normalized not in MONAN_PATH_VARIANTS:
+        supported_variants = ", ".join(MONAN_PATH_VARIANTS)
+        raise ValueError(
+            "Unsupported MONAN path variant "
+            f"{monan_variant!r}. Supported variants: {supported_variants}."
+        )
+    return cast(MonanPathVariant, normalized)
+
+
+def build_monan_scheme_token(
+    *,
+    scheme: TimeSeriesMonanScheme,
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
+) -> str:
+    """Return the MONAN directory token for one scheme and variant."""
+    variant = normalize_monan_path_variant(monan_variant)
+    if variant == "mf":
+        return f"{scheme}mf"
+    return scheme
+
+
+def build_monan_source_label(
+    *,
+    scheme: TimeSeriesMonanScheme,
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
+) -> str:
+    """Return the display label for one MONAN scheme and variant."""
+    variant = normalize_monan_path_variant(monan_variant)
+    base_label = scheme.upper()
+    if variant == "mf":
+        return f"{base_label}MF"
+    return base_label
+
+
+def build_monan_source_labels(
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
+) -> tuple[str, str]:
+    """Return SHOC/MYNN display labels for one MONAN variant."""
+    return (
+        build_monan_source_label(
+            scheme="shoc",
+            monan_variant=monan_variant,
+        ),
+        build_monan_source_label(
+            scheme="mynn",
+            monan_variant=monan_variant,
+        ),
+    )
+
+
+def build_monan_output_marker(
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
+) -> str:
+    """Return the filename marker for one MONAN variant."""
+    variant = normalize_monan_path_variant(monan_variant)
+    if variant == "mf":
+        return "_mf"
+    return ""
+
+
+def is_monan_source_label(source_label: str) -> bool:
+    """Return whether a display label is one of the supported MONAN labels."""
+    return source_label in {
+        build_monan_source_label(scheme="shoc", monan_variant="base"),
+        build_monan_source_label(scheme="mynn", monan_variant="base"),
+        build_monan_source_label(scheme="shoc", monan_variant="mf"),
+        build_monan_source_label(scheme="mynn", monan_variant="mf"),
+    }
+
+
 def build_time_series_monan_glob_pattern(
     *,
     scheme: TimeSeriesMonanScheme,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: object = MONAN_PATH_VARIANT_DEFAULT,
 ) -> str:
     """Return the MONAN post-processed file glob for one comparison case."""
     compact_date = normalize_time_series_init_date(init_date)
     season = TIME_SERIES_INIT_DATE_TO_MONAN_SEASON[compact_date]
+    scheme_token = build_monan_scheme_token(
+        scheme=scheme,
+        monan_variant=monan_variant,
+    )
     return (
         f"{TIME_SERIES_MONAN_DATAOUT_DIR}/"
-        f"REGNOL2_GFdef_ERA5_10km_{scheme}_{season}/{compact_date}00/"
+        f"REGNOL2_GFdef_ERA5_10km_{scheme_token}_{season}/"
+        f"{compact_date}00/"
         "diag/posprocess/*.nc"
     )
 

@@ -21,11 +21,14 @@ from plot_core.scenarios.adapters import (
 from plot_core.scenarios.paths import (
     HPBL_OBSERVATION_PROCESSING_DEFAULT,
     HpblObservationProcessing,
+    MONAN_PATH_VARIANT_DEFAULT,
+    MonanPathVariant,
     TIME_SERIES_DEFAULT_INIT_DATE,
     TIME_SERIES_FORECAST_DAYS,
     TIME_SERIES_INIT_DATE_TO_MONAN_SEASON,
     build_time_series_init_datetime_string,
     normalize_hpbl_observation_processing,
+    normalize_monan_path_variant,
     normalize_time_series_init_date,
 )
 from plot_core.scenarios.requests import (
@@ -52,12 +55,14 @@ def extract_hourly_series_by_source(
     recipe_family: str,
     variable_name: str,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
     hpbl_observation_processing: HpblObservationProcessing = (
         HPBL_OBSERVATION_PROCESSING_DEFAULT
     ),
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract and preprocess hourly series by source label."""
     compact_date = normalize_time_series_init_date(init_date)
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
     hpbl_processing = normalize_hpbl_observation_processing(
         hpbl_observation_processing
     )
@@ -65,17 +70,20 @@ def extract_hourly_series_by_source(
         return _extract_meteorological_hourly_series_by_source(
             variable_name=variable_name,
             init_date=compact_date,
+            monan_variant=normalized_monan_variant,
         )
     if recipe_family == HPBL_RECIPE_FAMILY:
         return _extract_hpbl_hourly_series_by_source(
             variable_name=variable_name,
             init_date=compact_date,
+            monan_variant=normalized_monan_variant,
             observation_processing=hpbl_processing,
         )
     if recipe_family == SURFACE_FLUX_RECIPE_FAMILY:
         return _extract_surface_flux_hourly_series_by_source(
             variable_name=variable_name,
             init_date=compact_date,
+            monan_variant=normalized_monan_variant,
         )
 
     raise ValueError(f"Unsupported recipe family {recipe_family!r}.")
@@ -85,6 +93,7 @@ def _extract_meteorological_hourly_series_by_source(
     *,
     variable_name: str,
     init_date: str,
+    monan_variant: MonanPathVariant,
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract hourly meteorological series for one canonical variable."""
     start_time, end_time_exclusive = _build_time_window(init_date)
@@ -96,7 +105,10 @@ def _extract_meteorological_hourly_series_by_source(
         init_date=init_date
     )
 
-    adapters = _build_time_series_comparison_adapters(init_date=init_date)
+    adapters = _build_time_series_comparison_adapters(
+        init_date=init_date,
+        monan_variant=monan_variant,
+    )
     shoc_adapter, mynn_adapter, era5_adapter, station_adapter = adapters
     try:
         if variable_name == "precipitation":
@@ -157,6 +169,7 @@ def _extract_hpbl_hourly_series_by_source(
     *,
     variable_name: str,
     init_date: str,
+    monan_variant: MonanPathVariant,
     observation_processing: HpblObservationProcessing,
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract hourly HPBL series for SHOC, MYNN, ERA5 and ceilometer."""
@@ -176,6 +189,7 @@ def _extract_hpbl_hourly_series_by_source(
 
     adapters = _build_hpbl_time_series_comparison_adapters(
         init_date=init_date,
+        monan_variant=monan_variant,
         observation_processing=observation_processing,
     )
     shoc_adapter, mynn_adapter, era5_adapter, ceilometer_adapter = adapters
@@ -227,6 +241,7 @@ def _extract_surface_flux_hourly_series_by_source(
     *,
     variable_name: str,
     init_date: str,
+    monan_variant: MonanPathVariant,
 ) -> dict[str, TimeSeriesPlotData]:
     """Extract hourly surface-flux series for one canonical variable."""
     start_time, end_time_exclusive = _build_time_window(init_date)
@@ -239,7 +254,8 @@ def _extract_surface_flux_hourly_series_by_source(
     )
 
     adapters = _build_surface_flux_time_series_comparison_adapters(
-        init_date=init_date
+        init_date=init_date,
+        monan_variant=monan_variant,
     )
     try:
         if len(adapters) < 3:
@@ -400,11 +416,18 @@ def _close_adapters(adapters: Sequence[DataAdapter]) -> None:
 def _build_time_series_comparison_adapters(
     *,
     init_date: str,
+    monan_variant: MonanPathVariant,
 ) -> list[DataAdapter]:
     """Build SHOC, MYNN, ERA5 and station adapters for meteorology metrics."""
     return [
-        build_time_series_shoc_adapter(init_date=init_date),
-        build_time_series_mynn_adapter(init_date=init_date),
+        build_time_series_shoc_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
+        build_time_series_mynn_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_surface_station_adapter(
             init_date=init_date
@@ -415,11 +438,18 @@ def _build_time_series_comparison_adapters(
 def _build_surface_flux_time_series_comparison_adapters(
     *,
     init_date: str,
+    monan_variant: MonanPathVariant,
 ) -> list[DataAdapter]:
     """Build SHOC/MYNN/ERA5 and optional observation adapters for fluxes."""
     adapters = [
-        build_surface_flux_time_series_shoc_adapter(init_date=init_date),
-        build_surface_flux_time_series_mynn_adapter(init_date=init_date),
+        build_surface_flux_time_series_shoc_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
+        build_surface_flux_time_series_mynn_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
         build_surface_flux_time_series_era5_adapter(init_date=init_date),
     ]
     season_slug = TIME_SERIES_INIT_DATE_TO_MONAN_SEASON[init_date]
@@ -435,12 +465,19 @@ def _build_surface_flux_time_series_comparison_adapters(
 def _build_hpbl_time_series_comparison_adapters(
     *,
     init_date: str,
+    monan_variant: MonanPathVariant,
     observation_processing: HpblObservationProcessing,
 ) -> list[DataAdapter]:
     """Build SHOC, MYNN, ERA5 and ceilometer adapters for HPBL metrics."""
     return [
-        build_time_series_shoc_adapter(init_date=init_date),
-        build_time_series_mynn_adapter(init_date=init_date),
+        build_time_series_shoc_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
+        build_time_series_mynn_adapter(
+            init_date=init_date,
+            monan_variant=monan_variant,
+        ),
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_ceilometer_pbl_height_adapter(
             init_date=init_date,

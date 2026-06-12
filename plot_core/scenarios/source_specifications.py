@@ -188,44 +188,60 @@ def build_ceilometro_source_specification() -> SourceSpecification:
     )
 
 
-def build_time_series_mynn_source_specification() -> SourceSpecification:
+def build_time_series_mynn_source_specification(
+    *,
+    label: str = "MYNN",
+) -> SourceSpecification:
     """Build the MYNN MONAN source spec for surface time-series comparison."""
     return _build_time_series_monan_surface_source_specification(
-        label="MYNN"
+        label=label
     )
 
 
-def build_time_series_shoc_source_specification() -> SourceSpecification:
+def build_time_series_shoc_source_specification(
+    *,
+    label: str = "SHOC",
+) -> SourceSpecification:
     """Build the SHOC MONAN source spec for surface time-series comparison."""
     return _build_time_series_monan_surface_source_specification(
-        label="SHOC"
+        label=label
     )
 
 
 def build_surface_flux_time_series_mynn_source_specification(
+    *,
+    label: str = "MYNN",
 ) -> SourceSpecification:
     """Build the MYNN MONAN source spec for surface-flux time series."""
     return _build_surface_flux_time_series_monan_source_specification(
-        label="MYNN"
+        label=label
     )
 
 
 def build_surface_flux_time_series_shoc_source_specification(
+    *,
+    label: str = "SHOC",
 ) -> SourceSpecification:
     """Build the SHOC MONAN source spec for surface-flux time series."""
     return _build_surface_flux_time_series_monan_source_specification(
-        label="SHOC"
+        label=label
     )
 
 
-def build_vertical_profile_mynn_source_specification() -> SourceSpecification:
+def build_vertical_profile_mynn_source_specification(
+    *,
+    label: str = "MYNN",
+) -> SourceSpecification:
     """Build the MYNN MONAN source spec for profile comparison."""
-    return _build_vertical_profile_monan_source_specification(label="MYNN")
+    return _build_vertical_profile_monan_source_specification(label=label)
 
 
-def build_vertical_profile_shoc_source_specification() -> SourceSpecification:
+def build_vertical_profile_shoc_source_specification(
+    *,
+    label: str = "SHOC",
+) -> SourceSpecification:
     """Build the SHOC MONAN source spec for profile comparison."""
-    return _build_vertical_profile_monan_source_specification(label="SHOC")
+    return _build_vertical_profile_monan_source_specification(label=label)
 
 
 def build_time_series_era5_source_specification() -> SourceSpecification:

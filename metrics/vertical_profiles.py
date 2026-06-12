@@ -15,10 +15,14 @@ from plot_core.scenarios.adapters import (
     build_vertical_profile_shoc_adapter,
 )
 from plot_core.scenarios.paths import (
+    MONAN_PATH_VARIANT_DEFAULT,
+    MonanPathVariant,
     TIME_SERIES_DEFAULT_INIT_DATE,
     VERTICAL_PROFILE_LOCAL_HOURS_LT as SCENARIO_VERTICAL_PROFILE_LOCAL_HOURS_LT,
+    build_monan_source_labels,
     build_vertical_profile_all_local_day_target_times,
     find_nearest_goamazon_radiosonde_path,
+    normalize_monan_path_variant,
     normalize_time_series_init_date,
     parse_goamazon_radiosonde_launch_datetime,
 )
@@ -108,16 +112,25 @@ class ProfileAccumulator:
 def compute_vertical_profile_metric_rows(
     *,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
     alignment_logger: AlignmentLogger | None = None,
     radiosonde_tolerance: timedelta = DEFAULT_RADIOSONDE_TOLERANCE,
 ) -> tuple[list[dict[str, object]], dict[str, str]]:
     """Compute vertical-profile wide metric rows for one supported case."""
     case = build_case_metadata(init_date)
-    accumulators = _build_profile_accumulators()
+    normalized_monan_variant = normalize_monan_path_variant(monan_variant)
+    source_labels = build_monan_source_labels(normalized_monan_variant)
+    accumulators = _build_profile_accumulators(source_labels=source_labels)
     target_times = build_vertical_profile_target_times(init_date=case.init_date)
     candidate_adapters = {
-        "SHOC": build_vertical_profile_shoc_adapter(init_date=case.init_date),
-        "MYNN": build_vertical_profile_mynn_adapter(init_date=case.init_date),
+        source_labels[0]: build_vertical_profile_shoc_adapter(
+            init_date=case.init_date,
+            monan_variant=normalized_monan_variant,
+        ),
+        source_labels[1]: build_vertical_profile_mynn_adapter(
+            init_date=case.init_date,
+            monan_variant=normalized_monan_variant,
+        ),
     }
 
     try:
@@ -128,6 +141,7 @@ def compute_vertical_profile_metric_rows(
             ):
                 _log_alignment(
                     alignment_logger,
+                    source_labels=source_labels,
                     target_time=target_time,
                     launch_datetime=None,
                     delta_seconds=None,
@@ -144,6 +158,7 @@ def compute_vertical_profile_metric_rows(
             if accepted_launch is None:
                 _log_alignment(
                     alignment_logger,
+                    source_labels=source_labels,
                     target_time=target_time,
                     launch_datetime=None,
                     delta_seconds=None,
@@ -154,6 +169,7 @@ def compute_vertical_profile_metric_rows(
 
             _log_alignment(
                 alignment_logger,
+                source_labels=source_labels,
                 target_time=target_time,
                 launch_datetime=accepted_launch.launch_datetime,
                 delta_seconds=accepted_launch.delta_seconds,
@@ -180,9 +196,11 @@ def compute_vertical_profile_metric_rows(
         accumulators=accumulators,
         init_date=case.init_date,
         season_slug=case.season_slug,
+        source_labels=source_labels,
     ), {
         "case_init_date": case.init_date,
         "season_slug": case.season_slug,
+        "monan_variant": normalized_monan_variant,
     }
 
 
@@ -359,9 +377,11 @@ def _accumulate_target_profile_samples(
 
 
 def _build_profile_accumulators(
+    *,
+    source_labels: tuple[str, str] = VERTICAL_PROFILE_SOURCE_LABELS,
 ) -> dict[tuple[str, str, int], ProfileAccumulator]:
     accumulators: dict[tuple[str, str, int], ProfileAccumulator] = {}
-    for source_label in VERTICAL_PROFILE_SOURCE_LABELS:
+    for source_label in source_labels:
         for variable_name in VERTICAL_PROFILE_VARIABLES:
             for local_hour in VERTICAL_PROFILE_LOCAL_HOURS_LT:
                 accumulators[(source_label, variable_name, local_hour)] = (
@@ -375,9 +395,10 @@ def _build_wide_rows_from_accumulators(
     accumulators: dict[tuple[str, str, int], ProfileAccumulator],
     init_date: str,
     season_slug: str,
+    source_labels: tuple[str, str] = VERTICAL_PROFILE_SOURCE_LABELS,
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for source_label in VERTICAL_PROFILE_SOURCE_LABELS:
+    for source_label in source_labels:
         for local_hour in VERTICAL_PROFILE_LOCAL_HOURS_LT:
             for variable_name in VERTICAL_PROFILE_VARIABLES:
                 accumulator = accumulators[
@@ -451,6 +472,7 @@ def _build_radiosonde_adapter_from_path(path: str) -> DataAdapter:
 def _log_alignment(
     alignment_logger: AlignmentLogger | None,
     *,
+    source_labels: tuple[str, str] = VERTICAL_PROFILE_SOURCE_LABELS,
     target_time: np.datetime64,
     launch_datetime: datetime | None,
     delta_seconds: float | None,
@@ -468,7 +490,7 @@ def _log_alignment(
         launch_label = launch_datetime.isoformat()
         delta_minutes = f"{delta_seconds / 60.0:.1f}"
     reason_suffix = "" if reason is None else f" reason={reason}"
-    for source_label in VERTICAL_PROFILE_SOURCE_LABELS:
+    for source_label in source_labels:
         alignment_logger(
             "datetime alignment "
             f"{source_label}/Observation: target={target_label} "
