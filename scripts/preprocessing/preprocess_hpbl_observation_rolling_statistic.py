@@ -28,6 +28,9 @@ RAW_FILE_STEM = "maoceilpblhtM1.a0"
 TIME_NAME = "time"
 VARIABLE_NAME = "bl_height_1"
 DEFAULT_WINDOW_MINUTES = 30
+NIGHTTIME_UTC_OFFSET_HOURS = -4
+NIGHTTIME_START_LOCAL_HOUR = 20
+NIGHTTIME_END_LOCAL_HOUR = 6
 
 FileStatus = Literal["written", "skipped"]
 RollingMethod = Literal["mean", "median"]
@@ -39,6 +42,14 @@ class PreprocessedFileResult:
 
     path: Path
     status: FileStatus
+
+
+@dataclass(frozen=True)
+class NighttimeThresholdResult:
+    """Describe raw HPBL values after optional nighttime spike filtering."""
+
+    values: np.ndarray
+    masked_count: int
 
 
 def compute_centered_rolling_statistic(
@@ -97,12 +108,51 @@ def compute_centered_rolling_statistic(
     return output_values
 
 
+def mask_nighttime_values_above_threshold(
+    *,
+    source_times: Sequence[object],
+    source_values: Sequence[float],
+    night_max_hpbl_m: float,
+    utc_offset_hours: int = NIGHTTIME_UTC_OFFSET_HOURS,
+) -> NighttimeThresholdResult:
+    """Return values with nighttime HPBL spikes above a threshold masked."""
+    if night_max_hpbl_m <= 0:
+        raise ValueError("night_max_hpbl_m must be positive.")
+
+    times = np.asarray(source_times, dtype="datetime64[ns]").reshape(-1)
+    values = np.asarray(source_values, dtype=float).reshape(-1).copy()
+    if times.size != values.size:
+        raise ValueError(
+            "source_times and source_values must have the same size."
+        )
+
+    local_times = times + np.timedelta64(utc_offset_hours, "h")
+    local_hours = (
+        local_times.astype("datetime64[h]").astype(np.int64) % 24
+    )
+    nighttime_mask = (
+        (local_hours >= NIGHTTIME_START_LOCAL_HOUR)
+        | (local_hours < NIGHTTIME_END_LOCAL_HOUR)
+    )
+    spike_mask = (
+        nighttime_mask
+        & np.isfinite(values)
+        & (values > float(night_max_hpbl_m))
+    )
+    values[spike_mask] = np.nan
+    return NighttimeThresholdResult(
+        values=values,
+        masked_count=int(np.count_nonzero(spike_mask)),
+    )
+
+
 def preprocess_init_date(
     *,
     method: RollingMethod,
     init_date: object = TIME_SERIES_DEFAULT_INIT_DATE,
     output_dir: Path | None = None,
     window_minutes: int = DEFAULT_WINDOW_MINUTES,
+    night_max_hpbl_m: float | None = None,
     overwrite: bool = False,
 ) -> list[PreprocessedFileResult]:
     """Preprocess the five daily HPBL observation files for one init date."""
@@ -115,6 +165,7 @@ def preprocess_init_date(
             target_day=start_date + timedelta(days=day_offset),
             output_dir=destination_dir,
             window_minutes=window_minutes,
+            night_max_hpbl_m=night_max_hpbl_m,
             overwrite=overwrite,
         )
         for day_offset in range(TIME_SERIES_FORECAST_DAYS)
@@ -127,6 +178,7 @@ def preprocess_day(
     target_day: date,
     output_dir: Path,
     window_minutes: int = DEFAULT_WINDOW_MINUTES,
+    night_max_hpbl_m: float | None = None,
     overwrite: bool = False,
     raw_dir: Path | None = None,
 ) -> PreprocessedFileResult:
@@ -146,6 +198,16 @@ def preprocess_day(
         )
 
     source_times, source_values = _read_raw_time_series(raw_paths)
+    masked_count = 0
+    if night_max_hpbl_m is not None:
+        threshold_result = mask_nighttime_values_above_threshold(
+            source_times=source_times,
+            source_values=source_values,
+            night_max_hpbl_m=night_max_hpbl_m,
+        )
+        source_values = threshold_result.values
+        masked_count = threshold_result.masked_count
+
     target_times = _select_target_day_times(source_times, target_day)
     output_values = compute_centered_rolling_statistic(
         source_times=source_times,
@@ -162,6 +224,8 @@ def preprocess_day(
         raw_paths=raw_paths,
         method=method,
         window_minutes=window_minutes,
+        night_max_hpbl_m=night_max_hpbl_m,
+        nighttime_threshold_masked_sample_count=masked_count,
     )
     dataset.to_netcdf(destination)
     return PreprocessedFileResult(path=destination, status="written")
@@ -250,8 +314,39 @@ def _build_output_dataset(
     raw_paths: Sequence[Path],
     method: RollingMethod,
     window_minutes: int,
+    night_max_hpbl_m: float | None = None,
+    nighttime_threshold_masked_sample_count: int = 0,
 ) -> xr.Dataset:
     processing_method = f"rolling_{method}_ignore_nan"
+    nighttime_threshold_applied = night_max_hpbl_m is not None
+    attrs: dict[str, object] = {
+        "source_variable": VARIABLE_NAME,
+        "source_path_pattern": (
+            f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
+            f"{RAW_FILE_STEM}.*.cdf"
+        ),
+        "source_files": ",".join(str(path) for path in raw_paths),
+        "processing_method": processing_method,
+        "processing_window_minutes": int(window_minutes),
+        "centered_window": "true",
+        "nighttime_threshold_applied": (
+            "true" if nighttime_threshold_applied else "false"
+        ),
+    }
+    if nighttime_threshold_applied:
+        attrs.update(
+            {
+                "nighttime_max_threshold_m": float(night_max_hpbl_m),
+                "nighttime_threshold_local_window": "20:00-06:00",
+                "nighttime_threshold_utc_offset_hours": (
+                    NIGHTTIME_UTC_OFFSET_HOURS
+                ),
+                "nighttime_threshold_masked_sample_count": int(
+                    nighttime_threshold_masked_sample_count
+                ),
+            }
+        )
+
     dataset = xr.Dataset(
         data_vars={
             VARIABLE_NAME: (
@@ -266,17 +361,7 @@ def _build_output_dataset(
             )
         },
         coords={TIME_NAME: output_times},
-        attrs={
-            "source_variable": VARIABLE_NAME,
-            "source_path_pattern": (
-                f"{TIME_SERIES_GOAMAZON_CEILOMETER_PBL_HEIGHT_DIR}/"
-                f"{RAW_FILE_STEM}.*.cdf"
-            ),
-            "source_files": ",".join(str(path) for path in raw_paths),
-            "processing_method": processing_method,
-            "processing_window_minutes": int(window_minutes),
-            "centered_window": "true",
-        },
+        attrs=attrs,
     )
     dataset[TIME_NAME].attrs["standard_name"] = "time"
     return dataset
@@ -284,6 +369,13 @@ def _build_output_dataset(
 
 def _build_output_path(output_dir: Path, target_day: date) -> Path:
     return output_dir / f"{RAW_FILE_STEM}.{target_day:%Y%m%d}.cdf"
+
+
+def _positive_float(value: str) -> float:
+    parsed_value = float(value)
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError("value must be positive.")
+    return parsed_value
 
 
 def _parse_args() -> argparse.Namespace:
@@ -327,6 +419,16 @@ def _parse_args() -> argparse.Namespace:
         help="Centered rolling window in minutes. Default: 30.",
     )
     parser.add_argument(
+        "--night-max-hpbl-m",
+        type=_positive_float,
+        default=None,
+        help=(
+            "Optional maximum nighttime HPBL value in meters. Raw samples "
+            "above this value from 20:00 to 06:00 LT (GMT-4) are replaced "
+            "with NaN before rolling."
+        ),
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Rewrite existing preprocessed files.",
@@ -348,6 +450,7 @@ def main() -> None:
             init_date=init_date,
             output_dir=args.output_dir,
             window_minutes=args.window_minutes,
+            night_max_hpbl_m=args.night_max_hpbl_m,
             overwrite=args.overwrite,
         )
         for result in results:
