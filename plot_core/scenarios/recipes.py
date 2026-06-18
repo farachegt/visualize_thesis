@@ -4827,7 +4827,11 @@ def _build_local_time_axes_calls(
     ]
     return [
         {"method": "set_xticks", "args": [tick_times]},
-        {"method": "set_xticklabels", "args": [tick_labels]},
+        {
+            "method": "set_xticklabels",
+            "args": [tick_labels],
+            "kwargs": {"rotation": 45, "ha": "right"},
+        },
         {
             "method": "set_xlim",
             "args": [
