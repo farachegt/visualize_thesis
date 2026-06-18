@@ -285,7 +285,7 @@ LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
 LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
 TimeSeriesComparisonMode = Literal["full", "hourly_mean"]
 TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS = -4
-TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 12
+TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 6
 TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS = 3
 TIME_SERIES_COMPARISON_SOURCE_STYLES = (
     ("SHOC", "blue"),
@@ -3492,7 +3492,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
         TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS
     ),
 ) -> tuple[list[TimeSeriesPanelInput], FigureSpecification]:
-    """Build panel inputs and figure layout for the 4-panel comparison."""
+    """Build panel inputs and figure layout for the surface comparison."""
     _validate_time_series_comparison_mode(series_mode)
     start_time = np.datetime64(
         build_time_series_init_datetime_string(init_date),
@@ -3542,14 +3542,17 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             tick_step_hours=tick_step_hours,
         )
 
-    precipitation_era5_adapter = _build_time_series_precipitation_adapter(
-        init_date=start_time
-    )
-    try:
+    panel_definitions = tuple(TIME_SERIES_COMPARISON_PANELS)
+    precipitation_era5_adapter: DataAdapter | None = None
+    if series_mode == "hourly_mean":
         panel_definitions = (
-            *TIME_SERIES_COMPARISON_PANELS,
+            *panel_definitions,
             TIME_SERIES_COMPARISON_PRECIPITATION_PANEL,
         )
+        precipitation_era5_adapter = _build_time_series_precipitation_adapter(
+            init_date=start_time
+        )
+    try:
         panels: list[TimeSeriesPanelInput] = []
         station_source_index = expected_source_count - 1
         panel_count = len(panel_definitions)
@@ -3558,6 +3561,11 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
             y_axis_label,
         ) in enumerate(panel_definitions):
             if variable_name == "precipitation":
+                if precipitation_era5_adapter is None:
+                    raise RuntimeError(
+                        "Precipitation panel requires the ERA5 "
+                        "precipitation adapter."
+                    )
                 layers = _build_precipitation_bar_layers(
                     monan_source_adapters=source_adapters[:2],
                     era5_adapter=precipitation_era5_adapter,
@@ -3692,16 +3700,6 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                 )
 
             panel_axes_calls = [dict(axis_call) for axis_call in axes_calls]
-            if (
-                variable_name == "precipitation"
-                and series_mode == "full"
-            ):
-                panel_axes_calls = _extend_precipitation_full_xlim_axes_calls(
-                    axes_calls=panel_axes_calls,
-                    start_time=start_time,
-                    end_time_exclusive=end_time_exclusive,
-                )
-
             panels.append(
                 TimeSeriesPanelInput(
                     layers=layers,
@@ -3719,11 +3717,12 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                 )
             )
     finally:
-        precipitation_era5_adapter.close()
+        if precipitation_era5_adapter is not None:
+            precipitation_era5_adapter.close()
 
-    figsize = (13, 10) if series_mode == "full" else (10, 10)
+    figsize = (13, 8) if series_mode == "full" else (10, 10)
     figure_specification = FigureSpecification(
-        nrows=4,
+        nrows=len(panel_definitions),
         ncols=1,
         suptitle=_build_time_series_comparison_title(
             init_date,
@@ -3767,7 +3766,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_figure(
     series_mode: TimeSeriesComparisonMode = "full",
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Figure:
-    """Build the 4-panel SHOC/MYNN/ERA5/observation comparison figure."""
+    """Build the SHOC/MYNN/ERA5/observation comparison figure."""
     panels, figure_specification = (
         build_surface_nwp_reanalysis_time_series_comparison_inputs(
             adapters=adapters,
