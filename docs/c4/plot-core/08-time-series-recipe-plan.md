@@ -156,7 +156,7 @@ Comparison period:
    - source path:
 
 ```text
-/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/dataout/REGNOL2_GFdef_ERA5_10km_mynn_dry_season/2014100200/diag/posprocess/*.nc
+/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/dataout/REGNOL2_GFdef_ERA5_10km_mynn_transition_season/2014100200/diag/posprocess/*.nc
 ```
 
 2. `MONAN SHOC`
@@ -167,7 +167,7 @@ Comparison period:
    - source path:
 
 ```text
-/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/dataout/REGNOL2_GFdef_ERA5_10km_shoc_dry_season/2014100200/diag/posprocess/*.nc
+/lustre/projetos/monan_atm/guilherme.farache/runs/MONAN/model/dataout/REGNOL2_GFdef_ERA5_10km_shoc_transition_season/2014100200/diag/posprocess/*.nc
 ```
 
 3. `ERA5`

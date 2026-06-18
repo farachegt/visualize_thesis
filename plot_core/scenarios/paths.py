@@ -55,8 +55,8 @@ TIME_SERIES_SUPPORTED_INIT_DATES = (
 MONAN_PATH_VARIANT_DEFAULT: MonanPathVariant = "base"
 MONAN_PATH_VARIANTS: tuple[MonanPathVariant, ...] = ("base", "mf")
 TIME_SERIES_INIT_DATE_TO_MONAN_SEASON = {
-    "20141002": "dry_season",
-    "20140802": "transition_season",
+    "20141002": "transition_season",
+    "20140802": "dry_season",
     "20140216": "wet_season",
 }
 HPBL_OBSERVATION_PROCESSING_DEFAULT: HpblObservationProcessing = (
