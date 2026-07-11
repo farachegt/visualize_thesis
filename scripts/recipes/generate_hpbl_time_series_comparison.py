@@ -29,7 +29,7 @@ def generate_hpbl_time_series_comparison_figure(
     observation_processing: str = HPBL_OBSERVATION_PROCESSING_DEFAULT,
     monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Path:
-    """Generate and save the SHOC/MYNN/ERA5/Observation HPBL comparison."""
+    """Generate and save the MONAN/ERA5/Observation HPBL comparison."""
     import matplotlib.pyplot as plt
 
     from plot_core.scenarios import (
@@ -102,7 +102,7 @@ def main() -> None:
     """Generate the HPBL time-series comparison and print its path."""
     parser = argparse.ArgumentParser(
         description=(
-            "Generate the SHOC/MYNN/ERA5/Observation HPBL time-series "
+            "Generate the MONAN/ERA5/Observation HPBL time-series "
             "comparison figure."
         )
     )
@@ -146,7 +146,7 @@ def main() -> None:
         default=MONAN_PATH_VARIANT_DEFAULT,
         help=(
             "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
-            "SHOCMF/MYNNMF labels."
+            "SHOCMF/MYNNMF plus dashed SHOC/MYNN comparisons."
         ),
     )
     args = parser.parse_args()

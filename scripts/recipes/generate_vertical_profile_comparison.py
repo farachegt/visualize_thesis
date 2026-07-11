@@ -96,7 +96,7 @@ def main() -> None:
     """Generate vertical-profile comparison figures and print their paths."""
     parser = argparse.ArgumentParser(
         description=(
-            "Generate full-mode SHOC/MYNN/ERA5/Radiosonde vertical-profile "
+            "Generate full-mode MONAN/ERA5/Radiosonde vertical-profile "
             "comparison figures."
         )
     )
@@ -121,7 +121,7 @@ def main() -> None:
         default=MONAN_PATH_VARIANT_DEFAULT,
         help=(
             "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
-            "SHOCMF/MYNNMF labels."
+            "SHOCMF/MYNNMF plus dashed SHOC/MYNN comparisons."
         ),
     )
     args = parser.parse_args()

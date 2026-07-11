@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Literal, Mapping, Sequence
 
 import cartopy.crs as ccrs
@@ -117,6 +117,7 @@ from .paths import (
     build_vertical_profile_local_day_target_times,
     is_monan_source_label,
     normalize_hpbl_observation_processing,
+    normalize_monan_path_variant,
     normalize_time_series_init_date,
     VERTICAL_PROFILE_LOCAL_HOURS_LT,
 )
@@ -284,6 +285,18 @@ LEGACY_DIURNAL_PHASE_MINIMUM_AMPLITUDE_FOR_PEAK_PHASE = 100.0
 LEGACY_MONAN_PRECIPITATION_START_TIME = np.datetime64("2014-02-24T01:00")
 LEGACY_MONAN_PRECIPITATION_END_TIME = np.datetime64("2014-02-27T00:00")
 TimeSeriesComparisonMode = Literal["full", "hourly_mean"]
+
+
+@dataclass(frozen=True)
+class _ComparisonSourceStyle:
+    """Rendering style for one comparison source."""
+
+    label: str
+    color: str
+    linestyle: str = "-"
+    include_std_band: bool = True
+
+
 TIME_SERIES_COMPARISON_UTC_OFFSET_HOURS = -4
 TIME_SERIES_COMPARISON_TICK_STEP_HOURS = 6
 TIME_SERIES_COMPARISON_HOURLY_MEAN_TICK_STEP_HOURS = 3
@@ -310,17 +323,9 @@ TIME_SERIES_COMPARISON_Y_LIMITS = {
     "wind_speed_10m": (0.0, 8.0),
 }
 TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_WIDTH = np.timedelta64(12, "m")
-TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_OFFSETS_MINUTES = (
-    -12,
-    0,
-    12,
-)
+TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_OFFSET_STEP_MINUTES = 12
 TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_WIDTH = 0.18
-TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSETS = (
-    -0.18,
-    0.0,
-    0.18,
-)
+TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSET_STEP = 0.18
 TIME_SERIES_COMPARISON_PRECIP_FULL_XLIM_PADDING = np.timedelta64(30, "m")
 TIME_SERIES_COMPARISON_PRECIP_BAR_ALPHA = 0.55
 TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_Y_LIMITS = (0.0, 2.0)
@@ -3455,16 +3460,24 @@ def build_time_series_comparison_adapters(
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> list[DataAdapter]:
-    """Build adapters for the SHOC, MYNN, ERA5 and station comparison."""
+    """Build adapters for the MONAN, ERA5 and station comparison."""
+    monan_adapters: list[DataAdapter] = []
+    for source_variant in _build_comparison_monan_variants(monan_variant):
+        monan_adapters.extend(
+            [
+                build_time_series_shoc_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+                build_time_series_mynn_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+            ]
+        )
+
     return [
-        build_time_series_shoc_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
-        build_time_series_mynn_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
+        *monan_adapters,
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_surface_station_adapter(
             init_date=init_date
@@ -3513,8 +3526,8 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
     if len(source_adapters) != expected_source_count:
         raise ValueError(
             "Expected "
-            f"{expected_source_count} adapters in SHOC/MYNN/ERA5/"
-            "Observation order."
+            f"{expected_source_count} adapters in "
+            f"{_format_source_labels_for_error(source_styles)} order."
         )
 
     end_time_exclusive = start_time + np.timedelta64(
@@ -3567,14 +3580,28 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                         "precipitation adapter."
                     )
                 layers = _build_precipitation_bar_layers(
-                    monan_source_adapters=source_adapters[:2],
+                    monan_source_adapters=[
+                        adapter
+                        for adapter, source_style in zip(
+                            source_adapters,
+                            source_styles,
+                        )
+                        if _is_monan_time_series_source(source_style.label)
+                    ],
                     era5_adapter=precipitation_era5_adapter,
                     gridded_request=gridded_request,
                     start_time=start_time,
                     end_time_exclusive=end_time_exclusive,
                     series_mode=series_mode,
                     utc_offset_hours=local_utc_offset_hours,
-                    source_styles=source_styles[:3],
+                    source_styles=tuple(
+                        source_style
+                        for source_style in source_styles
+                        if (
+                            _is_monan_time_series_source(source_style.label)
+                            or source_style.label == "ERA5"
+                        )
+                    ),
                 )
                 panel_axes_set_kwargs = {"ylabel": y_axis_label}
                 if series_mode == "hourly_mean":
@@ -3583,17 +3610,11 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                     )
             else:
                 layers = []
-                for source_index, (
-                    source_label,
-                    source_color,
-                ) in enumerate(source_styles):
+                for source_index, source_style in enumerate(source_styles):
+                    source_label = source_style.label
                     adapter = source_adapters[source_index]
-                    render_specification = RenderSpecification(
-                        artist_method="plot",
-                        artist_kwargs={
-                            "color": source_color,
-                            "linewidth": 1.6,
-                        },
+                    render_specification = (
+                        _build_time_series_line_render_spec(source_style)
                     )
                     if source_index == station_source_index:
                         raw_station_plot_data = (
@@ -3653,8 +3674,9 @@ def build_surface_nwp_reanalysis_time_series_comparison_inputs(
                             mean_plot_data=prepared_plot_data,
                             std_band_plot_data=std_band_plot_data,
                             line_render_specification=render_specification,
-                            source_color=source_color,
+                            source_color=source_style.color,
                             source_label=source_label,
+                            include_std_band=source_style.include_std_band,
                         )
                     elif series_mode == "hourly_mean":
                         raw_plot_data = adapter.to_time_series_plot_data(
@@ -3766,7 +3788,7 @@ def build_surface_nwp_reanalysis_time_series_comparison_figure(
     series_mode: TimeSeriesComparisonMode = "full",
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Figure:
-    """Build the SHOC/MYNN/ERA5/observation comparison figure."""
+    """Build the MONAN/ERA5/observation comparison figure."""
     panels, figure_specification = (
         build_surface_nwp_reanalysis_time_series_comparison_inputs(
             adapters=adapters,
@@ -3786,16 +3808,24 @@ def build_surface_flux_time_series_comparison_adapters(
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> list[DataAdapter]:
-    """Build adapters for the SHOC, MYNN, ERA5 and flux-tower comparison."""
+    """Build adapters for the MONAN, ERA5 and flux-tower comparison."""
+    monan_adapters: list[DataAdapter] = []
+    for source_variant in _build_comparison_monan_variants(monan_variant):
+        monan_adapters.extend(
+            [
+                build_surface_flux_time_series_shoc_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+                build_surface_flux_time_series_mynn_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+            ]
+        )
+
     adapters = [
-        build_surface_flux_time_series_shoc_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
-        build_surface_flux_time_series_mynn_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
+        *monan_adapters,
         build_surface_flux_time_series_era5_adapter(init_date=init_date),
     ]
     if _surface_flux_time_series_has_observation(init_date):
@@ -3882,17 +3912,11 @@ def build_surface_flux_time_series_comparison_inputs(
         y_axis_label,
     ) in enumerate(SURFACE_FLUX_TIME_SERIES_COMPARISON_PANELS):
         layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput] = []
-        for source_index, (
-            source_label,
-            source_color,
-        ) in enumerate(source_styles):
+        for source_index, source_style in enumerate(source_styles):
+            source_label = source_style.label
             adapter = source_adapters[source_index]
-            render_specification = RenderSpecification(
-                artist_method="plot",
-                artist_kwargs={
-                    "color": source_color,
-                    "linewidth": 1.6,
-                },
+            render_specification = (
+                _build_time_series_line_render_spec(source_style)
             )
             if source_index == observation_source_index:
                 raw_station_plot_data = adapter.to_time_series_plot_data(
@@ -3950,8 +3974,9 @@ def build_surface_flux_time_series_comparison_inputs(
                     mean_plot_data=prepared_plot_data,
                     std_band_plot_data=std_band_plot_data,
                     line_render_specification=render_specification,
-                    source_color=source_color,
+                    source_color=source_style.color,
                     source_label=source_label,
+                    include_std_band=source_style.include_std_band,
                 )
             elif series_mode == "hourly_mean":
                 raw_plot_data = adapter.to_time_series_plot_data(
@@ -4061,7 +4086,7 @@ def build_surface_flux_time_series_comparison_figure(
     series_mode: TimeSeriesComparisonMode = "full",
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Figure:
-    """Build the 2-panel SHOC/MYNN/ERA5/flux-tower comparison figure."""
+    """Build the 2-panel MONAN/ERA5/flux-tower comparison figure."""
     panels, figure_specification = (
         build_surface_flux_time_series_comparison_inputs(
             adapters=adapters,
@@ -4084,19 +4109,27 @@ def build_hpbl_time_series_comparison_adapters(
     ),
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> list[DataAdapter]:
-    """Build adapters for the SHOC, MYNN, ERA5 and HPBL observation case."""
+    """Build adapters for the MONAN, ERA5 and HPBL observation case."""
     processing = normalize_hpbl_observation_processing(
         observation_processing
     )
+    monan_adapters: list[DataAdapter] = []
+    for source_variant in _build_comparison_monan_variants(monan_variant):
+        monan_adapters.extend(
+            [
+                build_time_series_shoc_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+                build_time_series_mynn_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+            ]
+        )
+
     return [
-        build_time_series_shoc_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
-        build_time_series_mynn_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
+        *monan_adapters,
         build_time_series_era5_adapter(init_date=init_date),
         build_time_series_goamazon_ceilometer_pbl_height_adapter(
             init_date=init_date,
@@ -4142,8 +4175,8 @@ def build_hpbl_time_series_comparison_inputs(
     if len(source_adapters) != expected_source_count:
         raise ValueError(
             "Expected "
-            f"{expected_source_count} adapters in SHOC/MYNN/ERA5/"
-            "Observation order."
+            f"{expected_source_count} adapters in "
+            f"{_format_source_labels_for_error(source_styles)} order."
         )
 
     end_time_exclusive = start_time + np.timedelta64(
@@ -4179,17 +4212,11 @@ def build_hpbl_time_series_comparison_inputs(
         y_axis_label,
     ) in enumerate(HPBL_TIME_SERIES_COMPARISON_PANELS):
         layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput] = []
-        for source_index, (
-            source_label,
-            source_color,
-        ) in enumerate(source_styles):
+        for source_index, source_style in enumerate(source_styles):
+            source_label = source_style.label
             adapter = source_adapters[source_index]
-            render_specification = RenderSpecification(
-                artist_method="plot",
-                artist_kwargs={
-                    "color": source_color,
-                    "linewidth": 1.6,
-                },
+            render_specification = (
+                _build_time_series_line_render_spec(source_style)
             )
             if source_index == observation_source_index:
                 raw_station_plot_data = adapter.to_time_series_plot_data(
@@ -4245,8 +4272,9 @@ def build_hpbl_time_series_comparison_inputs(
                     mean_plot_data=prepared_plot_data,
                     std_band_plot_data=std_band_plot_data,
                     line_render_specification=render_specification,
-                    source_color=source_color,
+                    source_color=source_style.color,
                     source_label=source_label,
+                    include_std_band=source_style.include_std_band,
                 )
             elif series_mode == "hourly_mean":
                 raw_plot_data = adapter.to_time_series_plot_data(
@@ -4347,7 +4375,7 @@ def build_hpbl_time_series_comparison_figure(
         HPBL_OBSERVATION_PROCESSING_DEFAULT
     ),
 ) -> Figure:
-    """Build the one-panel HPBL SHOC/MYNN/ERA5/Observation comparison."""
+    """Build the one-panel HPBL MONAN/ERA5/Observation comparison."""
     panels, figure_specification = build_hpbl_time_series_comparison_inputs(
         adapters=adapters,
         init_date=init_date,
@@ -4366,16 +4394,24 @@ def build_vertical_profile_comparison_adapters(
     init_date: object = TIME_SERIES_COMPARISON_INIT_DATE,
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
 ) -> list[DataAdapter]:
-    """Build SHOC, MYNN and ERA5 adapters for profile comparison."""
+    """Build MONAN and ERA5 adapters for profile comparison."""
+    monan_adapters: list[DataAdapter] = []
+    for source_variant in _build_comparison_monan_variants(monan_variant):
+        monan_adapters.extend(
+            [
+                build_vertical_profile_shoc_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+                build_vertical_profile_mynn_adapter(
+                    init_date=init_date,
+                    monan_variant=source_variant,
+                ),
+            ]
+        )
+
     return [
-        build_vertical_profile_shoc_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
-        build_vertical_profile_mynn_adapter(
-            init_date=init_date,
-            monan_variant=monan_variant,
-        ),
+        *monan_adapters,
         build_vertical_profile_era5_adapter(init_date=init_date),
     ]
 
@@ -4403,10 +4439,12 @@ def build_vertical_profile_comparison_full_inputs(
         monan_variant
     )
 
-    expected_source_count = 3
+    expected_source_count = len(source_styles) - 1
     if len(source_adapters) != expected_source_count:
         raise ValueError(
-            "Expected 3 adapters in SHOC/MYNN/ERA5 order."
+            "Expected "
+            f"{expected_source_count} adapters in "
+            f"{_format_source_labels_for_error(source_styles[:-1])} order."
         )
 
     target_times = _build_vertical_profile_comparison_target_times(
@@ -4519,7 +4557,7 @@ def _build_vertical_profile_comparison_layers(
     *,
     variable_name: str,
     source_adapters: Sequence[DataAdapter],
-    source_styles: Sequence[tuple[str, str]],
+    source_styles: Sequence[_ComparisonSourceStyle],
     radiosonde_adapter: DataAdapter,
     nearest_request: VerticalProfileRequest,
     cross_5_request: VerticalProfileRequest,
@@ -4527,12 +4565,10 @@ def _build_vertical_profile_comparison_layers(
 ) -> list[PreparedVerticalProfileLayerInput]:
     """Build prepared layers for one profile subplot."""
     layers: list[PreparedVerticalProfileLayerInput] = []
-    for source_index, (
-        source_label,
-        source_color,
-    ) in enumerate(source_styles):
+    for source_index, source_style in enumerate(source_styles):
+        source_label = source_style.label
         line_render_specification = _build_vertical_profile_line_render_spec(
-            source_color
+            source_style
         )
         if _is_monan_time_series_source(source_label):
             mean_plot_data, std_band_plot_data = (
@@ -4547,8 +4583,9 @@ def _build_vertical_profile_comparison_layers(
                 mean_plot_data=mean_plot_data,
                 std_band_plot_data=std_band_plot_data,
                 line_render_specification=line_render_specification,
-                source_color=source_color,
+                source_color=source_style.color,
                 source_label=source_label,
+                include_std_band=source_style.include_std_band,
             )
         elif source_label == "ERA5":
             plot_data = source_adapters[source_index].to_vertical_profile_plot_data(
@@ -4586,16 +4623,20 @@ def _append_vertical_profile_mean_std_layers(
     line_render_specification: RenderSpecification,
     source_color: str,
     source_label: str,
+    include_std_band: bool = True,
 ) -> None:
     """Append std band and mean line profile layers in render order."""
-    layers.append(
-        PreparedVerticalProfileLayerInput(
-            plot_data=std_band_plot_data,
-            render_specification=_build_vertical_profile_std_band_render_spec(
-                source_color
-            ),
+    if include_std_band:
+        layers.append(
+            PreparedVerticalProfileLayerInput(
+                plot_data=std_band_plot_data,
+                render_specification=(
+                    _build_vertical_profile_std_band_render_spec(
+                        source_color
+                    )
+                ),
+            )
         )
-    )
     layers.append(
         PreparedVerticalProfileLayerInput(
             plot_data=mean_plot_data,
@@ -4606,14 +4647,15 @@ def _append_vertical_profile_mean_std_layers(
 
 
 def _build_vertical_profile_line_render_spec(
-    source_color: str,
+    source_style: _ComparisonSourceStyle,
 ) -> RenderSpecification:
     """Build a standard vertical-profile line render spec."""
     return RenderSpecification(
         artist_method="plot",
         artist_kwargs={
-            "color": source_color,
+            "color": source_style.color,
             "linewidth": 1.4,
+            "linestyle": source_style.linestyle,
         },
     )
 
@@ -4703,7 +4745,7 @@ def _build_vertical_profile_comparison_title(
     )
     title_source_styles = (
         *source_styles[:-1],
-        ("Radiosonde", source_styles[-1][1]),
+        replace(source_styles[-1], label="Radiosonde"),
     )
     init_date_label = (
         f"{compact_date[:4]}-{compact_date[4:6]}-{compact_date[6:]}"
@@ -4738,16 +4780,56 @@ def _surface_flux_time_series_has_observation(init_date: object) -> bool:
     return compact_date not in SURFACE_FLUX_TIME_SERIES_NO_OBSERVATION_INIT_DATES
 
 
+def _build_comparison_monan_variants(
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
+) -> tuple[MonanPathVariant, ...]:
+    """Return MONAN run variants to plot for one comparison request."""
+    normalized_variant = normalize_monan_path_variant(monan_variant)
+    if normalized_variant == "mf":
+        return ("mf", "base")
+    return (normalized_variant,)
+
+
+def _build_monan_comparison_source_styles(
+    monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
+) -> tuple[_ComparisonSourceStyle, ...]:
+    """Return MONAN source styles for one comparison request."""
+    normalized_variant = normalize_monan_path_variant(monan_variant)
+    if normalized_variant == "mf":
+        shoc_mf_label, mynn_mf_label = build_monan_source_labels("mf")
+        shoc_base_label, mynn_base_label = build_monan_source_labels("base")
+        return (
+            _ComparisonSourceStyle(shoc_mf_label, "blue"),
+            _ComparisonSourceStyle(mynn_mf_label, "orange"),
+            _ComparisonSourceStyle(
+                shoc_base_label,
+                "cornflowerblue",
+                linestyle="--",
+                include_std_band=False,
+            ),
+            _ComparisonSourceStyle(
+                mynn_base_label,
+                "sandybrown",
+                linestyle="--",
+                include_std_band=False,
+            ),
+        )
+
+    shoc_label, mynn_label = build_monan_source_labels(normalized_variant)
+    return (
+        _ComparisonSourceStyle(shoc_label, "blue"),
+        _ComparisonSourceStyle(mynn_label, "orange"),
+    )
+
+
 def _build_time_series_comparison_source_styles(
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
-) -> tuple[tuple[str, str], ...]:
+) -> tuple[_ComparisonSourceStyle, ...]:
     """Return source styles for a standard time-series comparison case."""
-    shoc_label, mynn_label = build_monan_source_labels(monan_variant)
     return (
-        (shoc_label, "blue"),
-        (mynn_label, "orange"),
-        ("ERA5", "gray"),
-        ("Observation", "black"),
+        *_build_monan_comparison_source_styles(monan_variant),
+        _ComparisonSourceStyle("ERA5", "gray", include_std_band=False),
+        _ComparisonSourceStyle("Observation", "black", include_std_band=False),
     )
 
 
@@ -4755,7 +4837,7 @@ def _build_surface_flux_time_series_source_styles(
     init_date: object,
     *,
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
-) -> tuple[tuple[str, str], ...]:
+) -> tuple[_ComparisonSourceStyle, ...]:
     """Return source styles for one surface-flux comparison case."""
     source_styles = _build_time_series_comparison_source_styles(
         monan_variant
@@ -4767,16 +4849,16 @@ def _build_surface_flux_time_series_source_styles(
 
 def _build_vertical_profile_comparison_source_styles(
     monan_variant: MonanPathVariant = MONAN_PATH_VARIANT_DEFAULT,
-) -> tuple[tuple[str, str], ...]:
+) -> tuple[_ComparisonSourceStyle, ...]:
     """Return source styles for a vertical-profile comparison case."""
     return _build_time_series_comparison_source_styles(monan_variant)
 
 
 def _format_source_labels_for_title(
-    source_styles: Sequence[tuple[str, str]],
+    source_styles: Sequence[_ComparisonSourceStyle],
 ) -> str:
     """Return source labels formatted for a figure title."""
-    labels = [source_label for source_label, _ in source_styles]
+    labels = [source_style.label for source_style in source_styles]
     if len(labels) == 1:
         return labels[0]
     if len(labels) == 2:
@@ -4785,10 +4867,10 @@ def _format_source_labels_for_title(
 
 
 def _format_source_labels_for_error(
-    source_styles: Sequence[tuple[str, str]],
+    source_styles: Sequence[_ComparisonSourceStyle],
 ) -> str:
     """Return source labels formatted for adapter-order errors."""
-    return "/".join(source_label for source_label, _ in source_styles)
+    return "/".join(source_style.label for source_style in source_styles)
 
 
 def _validate_time_series_comparison_mode(
@@ -4868,6 +4950,20 @@ def _is_monan_time_series_source(source_label: str) -> bool:
     return is_monan_source_label(source_label)
 
 
+def _build_time_series_line_render_spec(
+    source_style: _ComparisonSourceStyle,
+) -> RenderSpecification:
+    """Build a standard time-series line render spec."""
+    return RenderSpecification(
+        artist_method="plot",
+        artist_kwargs={
+            "color": source_style.color,
+            "linewidth": 1.6,
+            "linestyle": source_style.linestyle,
+        },
+    )
+
+
 def _append_time_series_mean_std_layers(
     layers: list[TimeSeriesLayerInput | PreparedTimeSeriesLayerInput],
     *,
@@ -4876,16 +4972,18 @@ def _append_time_series_mean_std_layers(
     line_render_specification: RenderSpecification,
     source_color: str,
     source_label: str,
+    include_std_band: bool = True,
 ) -> None:
     """Append std band and mean line layers in render order."""
-    layers.append(
-        PreparedTimeSeriesLayerInput(
-            plot_data=std_band_plot_data,
-            render_specification=_build_time_series_std_band_render_spec(
-                source_color
-            ),
+    if include_std_band:
+        layers.append(
+            PreparedTimeSeriesLayerInput(
+                plot_data=std_band_plot_data,
+                render_specification=_build_time_series_std_band_render_spec(
+                    source_color
+                ),
+            )
         )
-    )
     layers.append(
         PreparedTimeSeriesLayerInput(
             plot_data=mean_plot_data,
@@ -4945,23 +5043,18 @@ def _build_precipitation_bar_layers(
     end_time_exclusive: np.datetime64,
     series_mode: TimeSeriesComparisonMode,
     utc_offset_hours: int,
-    source_styles: Sequence[tuple[str, str]],
+    source_styles: Sequence[_ComparisonSourceStyle],
 ) -> list[PreparedTimeSeriesLayerInput]:
-    """Build precipitation bar layers in SHOC/MYNN/ERA5 order."""
-    if len(monan_source_adapters) != 2:
+    """Build precipitation bar layers in MONAN/ERA5 order."""
+    expected_monan_count = len(source_styles) - 1
+    if len(monan_source_adapters) != expected_monan_count:
         raise ValueError(
-            "Expected SHOC and MYNN adapters for precipitation panel "
-            "construction."
+            f"Expected {expected_monan_count} MONAN adapters for "
+            "precipitation panel construction."
         )
+    if not source_styles or source_styles[-1].label != "ERA5":
+        raise ValueError("Expected MONAN source styles followed by ERA5.")
 
-    shoc_raw = monan_source_adapters[0].to_time_series_plot_data(
-        variable_name="precipitation",
-        request=gridded_request,
-    )
-    mynn_raw = monan_source_adapters[1].to_time_series_plot_data(
-        variable_name="precipitation",
-        request=gridded_request,
-    )
     era5_raw = era5_adapter.to_time_series_plot_data(
         variable_name="precipitation",
         request=gridded_request,
@@ -4969,21 +5062,22 @@ def _build_precipitation_bar_layers(
 
     hourly_plot_data_by_source = [
         _build_monan_hourly_precipitation_rate_plot_data(
-            shoc_raw,
+            monan_adapter.to_time_series_plot_data(
+                variable_name="precipitation",
+                request=gridded_request,
+            ),
             start_time=start_time,
             end_time_exclusive=end_time_exclusive,
-        ),
-        _build_monan_hourly_precipitation_rate_plot_data(
-            mynn_raw,
-            start_time=start_time,
-            end_time_exclusive=end_time_exclusive,
-        ),
+        )
+        for monan_adapter in monan_source_adapters
+    ]
+    hourly_plot_data_by_source.append(
         _build_era5_hourly_precipitation_rate_plot_data(
             era5_raw,
             start_time=start_time,
             end_time_exclusive=end_time_exclusive,
         ),
-    ]
+    )
 
     if series_mode == "hourly_mean":
         hourly_plot_data_by_source = [
@@ -4996,11 +5090,16 @@ def _build_precipitation_bar_layers(
             for plot_data in hourly_plot_data_by_source
         ]
 
+    full_bar_offsets_minutes = _build_centered_bar_offsets(
+        len(source_styles),
+        TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_OFFSET_STEP_MINUTES,
+    )
+    hourly_mean_bar_offsets = _build_centered_bar_offsets(
+        len(source_styles),
+        TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSET_STEP,
+    )
     layers: list[PreparedTimeSeriesLayerInput] = []
-    for source_index, (
-        source_label,
-        source_color,
-    ) in enumerate(source_styles):
+    for source_index, source_style in enumerate(source_styles):
         base_plot_data = hourly_plot_data_by_source[source_index]
         base_values = np.asarray(base_plot_data.values, dtype=float)
         bar_values = np.where(np.isfinite(base_values), base_values, np.nan)
@@ -5008,18 +5107,14 @@ def _build_precipitation_bar_layers(
         if series_mode == "hourly_mean":
             shifted_times = (
                 np.asarray(base_plot_data.times, dtype=float)
-                + TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_OFFSETS[
-                    source_index
-                ]
+                + hourly_mean_bar_offsets[source_index]
             )
             bar_width = TIME_SERIES_COMPARISON_PRECIP_HOURLY_MEAN_BAR_WIDTH
         else:
             shifted_times = (
                 np.asarray(base_plot_data.times, dtype="datetime64[ns]")
                 + np.timedelta64(
-                    TIME_SERIES_COMPARISON_PRECIP_FULL_BAR_OFFSETS_MINUTES[
-                        source_index
-                    ],
+                    int(round(full_bar_offsets_minutes[source_index])),
                     "m",
                 )
             )
@@ -5048,17 +5143,29 @@ def _build_precipitation_bar_layers(
                     artist_method="bar",
                     artist_kwargs={
                         "width": bar_width,
-                        "color": source_color,
+                        "color": source_style.color,
                         "alpha": TIME_SERIES_COMPARISON_PRECIP_BAR_ALPHA,
                         "align": "center",
                         "linewidth": 0.0,
                     },
                 ),
-                legend_label=source_label,
+                legend_label=source_style.label,
             )
         )
 
     return layers
+
+
+def _build_centered_bar_offsets(
+    source_count: int,
+    step: float,
+) -> tuple[float, ...]:
+    """Return offsets centered around zero for grouped bar sources."""
+    center = (source_count - 1) / 2.0
+    return tuple(
+        (source_index - center) * step
+        for source_index in range(source_count)
+    )
 
 
 def _build_monan_hourly_precipitation_rate_plot_data(

@@ -25,7 +25,7 @@ def generate_time_series_comparison_figure(
     init_date: str = DEFAULT_INIT_DATE,
     monan_variant: str = MONAN_PATH_VARIANT_DEFAULT,
 ) -> Path:
-    """Generate and save the SHOC/MYNN/ERA5/observation comparison."""
+    """Generate and save the MONAN/ERA5/observation comparison."""
     import matplotlib.pyplot as plt
 
     from plot_core.scenarios import (
@@ -92,7 +92,7 @@ def main() -> None:
     """Generate the time-series comparison figure and print its path."""
     parser = argparse.ArgumentParser(
         description=(
-            "Generate the SHOC/MYNN/ERA5/Observation time-series "
+            "Generate the MONAN/ERA5/Observation time-series "
             "comparison figure."
         )
     )
@@ -126,7 +126,7 @@ def main() -> None:
         default=MONAN_PATH_VARIANT_DEFAULT,
         help=(
             "MONAN run variant. Use 'mf' for shocmf/mynnmf paths and "
-            "SHOCMF/MYNNMF labels."
+            "SHOCMF/MYNNMF plus dashed SHOC/MYNN comparisons."
         ),
     )
     args = parser.parse_args()
